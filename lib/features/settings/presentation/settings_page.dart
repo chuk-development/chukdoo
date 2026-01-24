@@ -9,6 +9,8 @@ import 'package:solar_icons/solar_icons.dart';
 import '../../../core/config/env_config.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/services/encryption_service.dart';
+import '../../../shared/services/supabase_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/providers/backup_codes_provider.dart';
 import '../../subscription/presentation/paywall_helper.dart';
@@ -353,11 +355,98 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  void _showMigrationDialog(BuildContext context, WidgetRef ref) {
-    // TODO: Implement migration for legacy users
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Migration wird in einem zukünftigen Update verfügbar sein.')),
+  Future<void> _showMigrationDialog(BuildContext context, WidgetRef ref) async {
+    final user = SupabaseService.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kein Benutzer angemeldet.')),
+      );
+      return;
+    }
+
+    final passwordController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Backup-Codes einrichten'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Backup-Codes ermöglichen dir, auf dein Konto zuzugreifen, falls du dein Passwort vergisst.\n\n'
+              'Gib dein aktuelles Passwort ein, um Backup-Codes zu generieren.',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Passwort',
+              ),
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Abbrechen'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Einrichten'),
+          ),
+        ],
+      ),
     );
+
+    if (confirmed != true || !context.mounted) return;
+
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Richte Backup-Codes ein...'),
+          ],
+        ),
+      ),
+    );
+
+    final result = await EncryptionService.migrateToMasterKeyArchitecture(
+      userId: user.id,
+      password: passwordController.text,
+    );
+
+    if (!context.mounted) return;
+    Navigator.pop(context); // Close loading dialog
+
+    if (result.success && result.codes.isNotEmpty) {
+      // Refresh the providers
+      ref.invalidate(hasMasterKeySetupProvider);
+      ref.invalidate(availableBackupCodesProvider);
+
+      // Show the new codes
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => _ShowNewBackupCodesPage(codes: result.codes),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.error ?? 'Fehler bei der Migration.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   Future<void> _regenerateBackupCodes(BuildContext context, WidgetRef ref) async {

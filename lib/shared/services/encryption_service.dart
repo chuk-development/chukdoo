@@ -332,6 +332,72 @@ class EncryptionService {
     return BackupCodeService.hasMasterKeySetup(userId);
   }
 
+  /// Migrate existing user from legacy password-derived key to Master Key architecture
+  /// This is a one-time operation for users who signed up before backup codes feature
+  /// Returns backup codes that must be shown to user
+  static Future<BackupCodesResult> migrateToMasterKeyArchitecture({
+    required String userId,
+    required String password,
+  }) async {
+    return _runExclusive(() async {
+      // 1. Check if already migrated
+      final alreadyMigrated = await BackupCodeService.hasMasterKeySetup(userId);
+      if (alreadyMigrated) {
+        return const BackupCodesResult(
+          codes: [],
+          success: false,
+          error: 'Already using Master Key architecture.',
+        );
+      }
+
+      // 2. Verify current password works (legacy check)
+      final saltKey = '${AppConstants.keyEncryptionSalt}$userId';
+      final keyKey = '${AppConstants.keyEncryptionKey}$userId';
+
+      final storedSaltBase64 = await _storage.read(key: saltKey);
+      final storedKeyBase64 = await _storage.read(key: keyKey);
+
+      if (storedSaltBase64 == null || storedKeyBase64 == null) {
+        return const BackupCodesResult(
+          codes: [],
+          success: false,
+          error: 'No existing encryption data found.',
+        );
+      }
+
+      final saltBytes = base64Decode(storedSaltBase64);
+      final storedKeyBytes = base64Decode(storedKeyBase64);
+      final derivedKeyBytes = await _deriveKey(password, saltBytes);
+
+      if (!_constantTimeEquals(derivedKeyBytes, storedKeyBytes)) {
+        return const BackupCodesResult(
+          codes: [],
+          success: false,
+          error: 'Incorrect password.',
+        );
+      }
+
+      // 3. Password verified - now create Master Key architecture
+      // The existing derived key becomes equivalent to our Master Key
+      // We'll wrap it with password + backup codes
+
+      // 3a. Setup Master Key + backup codes in database
+      // Note: We reuse the existing key as Master Key for backwards compatibility
+      final result = await BackupCodeService.setupEncryption(
+        userId: userId,
+        password: password,
+        salt: saltBytes,
+      );
+
+      if (!result.success) {
+        return result;
+      }
+
+      debugPrint('EncryptionService: Migration to Master Key completed');
+      return result;
+    });
+  }
+
   /// Try to load existing key from secure storage (LOCAL ONLY - instant, no network)
   /// Use this for app startup to ensure instant opening
   static Future<bool> tryLoadKeyLocal(String? userId) async {
