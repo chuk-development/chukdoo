@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/env_config.dart';
+import '../../../shared/services/supabase_service.dart';
 import '../domain/models/subscription_status.dart';
 import '../services/revenuecat_service.dart';
+import '../services/subscription_sync_service.dart';
 
 /// State for subscription management
 class SubscriptionState {
@@ -67,10 +70,28 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState>
     }
   }
 
-  /// Refresh subscription status from RevenueCat
+  /// Refresh subscription status
+  /// - On mobile (Android/iOS): Uses RevenueCat, then syncs to Supabase
+  /// - On desktop (Linux/Windows/macOS): Loads from Supabase
   Future<void> refresh() async {
+    // Check if we're on a desktop platform (no RevenueCat)
+    final isDesktop = Platform.isLinux || Platform.isWindows || Platform.isMacOS;
+
+    if (isDesktop) {
+      // Desktop: Load subscription from Supabase
+      await _refreshFromSupabase();
+      return;
+    }
+
+    // Mobile: Use RevenueCat
     if (!RevenueCatService.isAvailable) {
-      // In local-only mode, no subscription needed
+      // RevenueCat not available, try Supabase as fallback
+      if (SupabaseService.isAvailable) {
+        await _refreshFromSupabase();
+        return;
+      }
+
+      // Local-only mode, no subscription needed
       state = const SubscriptionState(
         status: SubscriptionStatus(
           tier: SubscriptionTier.free,
@@ -85,10 +106,38 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState>
     try {
       final status = await RevenueCatService.getSubscriptionStatus();
       state = state.copyWith(status: status, isLoading: false);
+      // NOTE: Subscription is synced to Supabase via RevenueCat webhooks (server-side)
+      // No client-side sync needed - this prevents subscription spoofing
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
         error: 'Failed to check subscription: $e',
+      );
+    }
+  }
+
+  /// Load subscription status from Supabase (for desktop platforms)
+  Future<void> _refreshFromSupabase() async {
+    if (!SupabaseService.isAvailable || !SupabaseService.isAuthenticated) {
+      state = const SubscriptionState(
+        status: SubscriptionStatus(
+          tier: SubscriptionTier.free,
+          isActive: false,
+        ),
+      );
+      return;
+    }
+
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    try {
+      final status = await SubscriptionSyncService.loadFromSupabase();
+      state = state.copyWith(status: status, isLoading: false);
+      debugPrint('SubscriptionProvider: Loaded from Supabase - canSync=${status.canSync}');
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to load subscription: $e',
       );
     }
   }
@@ -102,6 +151,8 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState>
     try {
       final status = await RevenueCatService.restorePurchases();
       state = state.copyWith(status: status, isLoading: false);
+      // NOTE: Restored purchases trigger RevenueCat webhook automatically
+      // No client-side sync needed - this prevents subscription spoofing
     } catch (e) {
       state = state.copyWith(
         isLoading: false,

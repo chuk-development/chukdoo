@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -47,10 +48,15 @@ class NotificationService {
       requestBadgePermission: true,
       requestSoundPermission: true,
     );
+    final linuxSettings = LinuxInitializationSettings(
+      defaultActionName: 'Open',
+      defaultIcon: AssetsLinuxIcon('assets/images/app_icon.png'),
+    );
 
-    const settings = InitializationSettings(
+    final settings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
+      linux: linuxSettings,
     );
 
     await _notifications.initialize(
@@ -58,13 +64,15 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
-    // Check if app was launched from notification
-    final launchDetails = await _notifications.getNotificationAppLaunchDetails();
-    if (launchDetails?.didNotificationLaunchApp == true) {
-      final payload = launchDetails!.notificationResponse?.payload;
-      if (payload != null) {
-        _pendingTodoId = payload;
-        debugPrint('NotificationService: App launched from notification for todo: $payload');
+    // Check if app was launched from notification (not supported on Linux)
+    if (!Platform.isLinux) {
+      final launchDetails = await _notifications.getNotificationAppLaunchDetails();
+      if (launchDetails?.didNotificationLaunchApp == true) {
+        final payload = launchDetails!.notificationResponse?.payload;
+        if (payload != null) {
+          _pendingTodoId = payload;
+          debugPrint('NotificationService: App launched from notification for todo: $payload');
+        }
       }
     }
 
@@ -97,6 +105,12 @@ class NotificationService {
     required DateTime remindAt,
     String? body,
   }) async {
+    // Linux doesn't support scheduled notifications
+    if (Platform.isLinux) {
+      debugPrint('NotificationService: Scheduled notifications not supported on Linux');
+      return;
+    }
+
     final id = todoId.hashCode;
 
     await _notifications.zonedSchedule(
@@ -150,6 +164,7 @@ class NotificationService {
           priority: Priority.defaultPriority,
         ),
         iOS: DarwinNotificationDetails(),
+        linux: LinuxNotificationDetails(),
       ),
       payload: payload,
     );
