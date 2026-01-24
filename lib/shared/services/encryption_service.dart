@@ -8,6 +8,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../features/auth/services/backup_code_service.dart';
 import 'supabase_service.dart';
 
 /// Parameters for background encryption
@@ -188,6 +189,147 @@ class EncryptionService {
       _cachedKey = SecretKey(derivedKeyBytes);
       _cachedUserId = user.id;
     });
+  }
+
+  /// Initialize encryption for new user with Master Key architecture
+  /// Returns backup codes that must be shown to user
+  static Future<BackupCodesResult> initializeForNewUser({
+    required String userId,
+    required String password,
+  }) async {
+    return _runExclusive(() async {
+      // 1. Generate salt
+      final saltBytes = _randomNonce(AppConstants.saltLength);
+      final saltBase64 = base64Encode(saltBytes);
+
+      // 2. Setup Master Key + backup codes in database
+      final result = await BackupCodeService.setupEncryption(
+        userId: userId,
+        password: password,
+        salt: saltBytes,
+      );
+
+      if (!result.success) {
+        return result;
+      }
+
+      // 3. Get and cache the Master Key
+      final masterKey = await BackupCodeService.getMasterKeyWithPassword(
+        userId,
+        password,
+        saltBytes,
+      );
+
+      if (masterKey == null) {
+        return const BackupCodesResult(
+          codes: [],
+          success: false,
+          error: 'Failed to retrieve Master Key after setup.',
+        );
+      }
+
+      // 4. Store salt and key locally
+      final saltKey = '${AppConstants.keyEncryptionSalt}$userId';
+      final keyKey = '${AppConstants.keyEncryptionKey}$userId';
+      final versionKey = '${AppConstants.keyKeyVersion}$userId';
+
+      await _storage.write(key: saltKey, value: saltBase64);
+      await _storage.write(key: keyKey, value: base64Encode(masterKey));
+      await _storage.write(key: versionKey, value: AppConstants.payloadVersion);
+
+      // 5. Update user metadata with salt
+      final user = SupabaseService.auth.currentUser;
+      if (user != null) {
+        await _updateUserMetadata(user, {
+          AppConstants.metadataSaltKey: saltBase64,
+          AppConstants.metadataVersionKey: AppConstants.payloadVersion,
+        });
+      }
+
+      // 6. Cache key for immediate use
+      _cachedKey = SecretKey(masterKey);
+      _cachedUserId = userId;
+
+      return result;
+    });
+  }
+
+  /// Initialize encryption after recovery with backup code
+  /// The password has already been updated in the database
+  static Future<void> initializeAfterRecovery({
+    required String userId,
+    required String newPassword,
+  }) async {
+    await _runExclusive(() async {
+      // 1. Get salt
+      final saltKey = '${AppConstants.keyEncryptionSalt}$userId';
+      final saltBase64 = await _storage.read(key: saltKey);
+
+      if (saltBase64 == null) {
+        // Try to get from user metadata
+        final user = await _requireAuthenticatedUser();
+        final remoteSalt = user.userMetadata?[AppConstants.metadataSaltKey] as String?;
+        if (remoteSalt == null) {
+          throw StateError('No salt found for recovery.');
+        }
+        await _storage.write(key: saltKey, value: remoteSalt);
+      }
+
+      final salt = base64Decode(saltBase64 ?? (await _storage.read(key: saltKey))!);
+
+      // 2. Get Master Key with new password (already re-wrapped in recovery)
+      final masterKey = await BackupCodeService.getMasterKeyWithPassword(
+        userId,
+        newPassword,
+        salt,
+      );
+
+      if (masterKey == null) {
+        throw StateError('Failed to retrieve Master Key after recovery.');
+      }
+
+      // 3. Store locally
+      final keyKey = '${AppConstants.keyEncryptionKey}$userId';
+      final versionKey = '${AppConstants.keyKeyVersion}$userId';
+
+      await _storage.write(key: keyKey, value: base64Encode(masterKey));
+      await _storage.write(key: versionKey, value: AppConstants.payloadVersion);
+
+      // 4. Cache for use
+      _cachedKey = SecretKey(masterKey);
+      _cachedUserId = userId;
+    });
+  }
+
+  /// Get salt bytes for a user (for use with BackupCodeService)
+  static Future<List<int>?> getSaltBytes(String userId) async {
+    final saltKey = '${AppConstants.keyEncryptionSalt}$userId';
+    final saltBase64 = await _storage.read(key: saltKey);
+
+    if (saltBase64 != null) {
+      return base64Decode(saltBase64);
+    }
+
+    // Try to get from user metadata
+    try {
+      final user = SupabaseService.auth.currentUser;
+      if (user != null) {
+        final remoteSalt = user.userMetadata?[AppConstants.metadataSaltKey] as String?;
+        if (remoteSalt != null) {
+          await _storage.write(key: saltKey, value: remoteSalt);
+          return base64Decode(remoteSalt);
+        }
+      }
+    } catch (e) {
+      debugPrint('EncryptionService: getSaltBytes error: $e');
+    }
+
+    return null;
+  }
+
+  /// Check if user has Master Key architecture setup
+  static Future<bool> hasMasterKeySetup(String userId) async {
+    return BackupCodeService.hasMasterKeySetup(userId);
   }
 
   /// Try to load existing key from secure storage (LOCAL ONLY - instant, no network)

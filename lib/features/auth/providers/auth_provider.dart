@@ -9,6 +9,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../shared/services/encryption_service.dart';
 import '../../../shared/services/supabase_service.dart';
 import '../../subscription/services/revenuecat_service.dart';
+import '../services/backup_code_service.dart';
 
 enum AuthStatus {
   initial,
@@ -16,6 +17,7 @@ enum AuthStatus {
   unauthenticated,
   needsPassword,
   needsEmailConfirmation,
+  needsBackupCodesConfirmation, // User must save backup codes before proceeding
   localMode, // User is using app in local-only mode (not logged in)
 }
 
@@ -27,6 +29,8 @@ class AppAuthState {
   // For email confirmation flow - store credentials temporarily
   final String? pendingEmail;
   final String? pendingPassword;
+  // For backup codes flow - codes to show after signup
+  final List<String>? pendingBackupCodes;
   // For onboarding flow
   final bool hasCompletedOnboarding;
 
@@ -37,6 +41,7 @@ class AppAuthState {
     this.isLoading = false,
     this.pendingEmail,
     this.pendingPassword,
+    this.pendingBackupCodes,
     this.hasCompletedOnboarding = true, // Default true for existing users
   });
 
@@ -47,6 +52,7 @@ class AppAuthState {
     bool? isLoading,
     String? pendingEmail,
     String? pendingPassword,
+    List<String>? pendingBackupCodes,
     bool? hasCompletedOnboarding,
     bool clearError = false,
     bool clearPending = false,
@@ -58,6 +64,7 @@ class AppAuthState {
       isLoading: isLoading ?? this.isLoading,
       pendingEmail: clearPending ? null : (pendingEmail ?? this.pendingEmail),
       pendingPassword: clearPending ? null : (pendingPassword ?? this.pendingPassword),
+      pendingBackupCodes: clearPending ? null : (pendingBackupCodes ?? this.pendingBackupCodes),
       hasCompletedOnboarding: hasCompletedOnboarding ?? this.hasCompletedOnboarding,
     );
   }
@@ -288,16 +295,30 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
             pendingPassword: password,
           );
         } else {
-          // Email already confirmed (e.g., confirmation disabled in Supabase)
-          await EncryptionService.initializeForPassword(password);
-          // Save userId for instant startup next time
-          await _saveLastUserId(response.user!.id);
-          // Login to RevenueCat (non-blocking)
-          RevenueCatService.login(response.user!.id);
-          state = AppAuthState(
-            status: AuthStatus.authenticated,
-            user: response.user,
+          // Email already confirmed - initialize with Master Key architecture
+          final encryptionResult = await EncryptionService.initializeForNewUser(
+            userId: response.user!.id,
+            password: password,
           );
+
+          if (encryptionResult.success) {
+            // Save userId for instant startup next time
+            await _saveLastUserId(response.user!.id);
+            // Login to RevenueCat (non-blocking)
+            RevenueCatService.login(response.user!.id);
+
+            // Show backup codes before proceeding
+            state = AppAuthState(
+              status: AuthStatus.needsBackupCodesConfirmation,
+              user: response.user,
+              pendingBackupCodes: encryptionResult.codes,
+            );
+          } else {
+            state = state.copyWith(
+              isLoading: false,
+              error: 'Fehler bei der Verschlüsselung: ${encryptionResult.error}',
+            );
+          }
         }
       } else {
         state = state.copyWith(
@@ -402,6 +423,90 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
   /// Clear pending credentials
   void clearPendingCredentials() {
     state = state.copyWith(clearPending: true);
+  }
+
+  /// Called when user confirms they've saved backup codes
+  void confirmBackupCodesSaved() {
+    if (state.status != AuthStatus.needsBackupCodesConfirmation) return;
+
+    state = AppAuthState(
+      status: AuthStatus.authenticated,
+      user: state.user,
+    );
+  }
+
+  /// Recover account with backup code
+  Future<void> recoverWithBackupCode({
+    required String code,
+    required String newPassword,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    try {
+      final user = SupabaseService.currentUser;
+      if (user == null) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Kein Benutzer angemeldet.',
+        );
+        return;
+      }
+
+      final salt = await EncryptionService.getSaltBytes(user.id);
+      if (salt == null) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Salt nicht gefunden.',
+        );
+        return;
+      }
+
+      final result = await BackupCodeService.recoverWithBackupCode(
+        userId: user.id,
+        code: code,
+        newPassword: newPassword,
+        salt: salt,
+      );
+
+      if (result.success) {
+        // Initialize encryption with new password
+        await EncryptionService.initializeAfterRecovery(
+          userId: user.id,
+          newPassword: newPassword,
+        );
+        await _saveLastUserId(user.id);
+        RevenueCatService.login(user.id);
+
+        state = AppAuthState(
+          status: AuthStatus.authenticated,
+          user: user,
+        );
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: result.error ?? 'Recovery fehlgeschlagen.',
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  /// Regenerate backup codes (returns new codes to display)
+  Future<List<String>?> regenerateBackupCodes(String currentPassword) async {
+    final user = SupabaseService.currentUser;
+    if (user == null) return null;
+
+    final salt = await EncryptionService.getSaltBytes(user.id);
+    if (salt == null) return null;
+
+    final result = await BackupCodeService.regenerateBackupCodes(
+      userId: user.id,
+      currentPassword: currentPassword,
+      salt: salt,
+    );
+
+    return result.success ? result.codes : null;
   }
 
   Future<void> resetPassword(String email) async {

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solar_icons/solar_icons.dart';
 
@@ -9,6 +10,7 @@ import '../../../core/config/env_config.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../auth/providers/backup_codes_provider.dart';
 import '../../subscription/presentation/paywall_helper.dart';
 import '../../subscription/providers/subscription_provider.dart';
 import '../../sync/presentation/widgets/sync_status_indicator.dart';
@@ -94,6 +96,13 @@ class SettingsPage extends ConsumerWidget {
             _buildSyncTile(context, ref, subscriptionState),
 
             const Divider(height: 32),
+
+            // Security section (only for cloud users)
+            if (!isInLocalMode) ...[
+              _buildSectionHeader('Sicherheit'),
+              _buildBackupCodesTile(context, ref),
+              const Divider(height: 32),
+            ],
           ],
 
           // Behavior section
@@ -288,6 +297,150 @@ class SettingsPage extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  Widget _buildBackupCodesTile(BuildContext context, WidgetRef ref) {
+    final availableCodes = ref.watch(availableBackupCodesProvider);
+    final hasMasterKey = ref.watch(hasMasterKeySetupProvider);
+
+    return hasMasterKey.when(
+      data: (hasSetup) {
+        if (!hasSetup) {
+          // Legacy user without Master Key - show migration option
+          return ListTile(
+            leading: Icon(SolarIconsOutline.key, color: AppColors.textPrimary),
+            title: const Text('Backup-Codes'),
+            subtitle: const Text('Noch nicht eingerichtet'),
+            trailing: TextButton(
+              onPressed: () => _showMigrationDialog(context, ref),
+              child: const Text('Einrichten'),
+            ),
+          );
+        }
+
+        return availableCodes.when(
+          data: (count) => ListTile(
+            leading: Icon(SolarIconsOutline.key, color: AppColors.textPrimary),
+            title: const Text('Backup-Codes'),
+            subtitle: Text('$count von ${AppConstants.backupCodeCount} Codes verfügbar'),
+            trailing: TextButton(
+              onPressed: () => _regenerateBackupCodes(context, ref),
+              child: const Text('Neu generieren'),
+            ),
+          ),
+          loading: () => ListTile(
+            leading: Icon(SolarIconsOutline.key, color: AppColors.textPrimary),
+            title: const Text('Backup-Codes'),
+            subtitle: const Text('Laden...'),
+          ),
+          error: (_, __) => ListTile(
+            leading: Icon(SolarIconsOutline.key, color: AppColors.textPrimary),
+            title: const Text('Backup-Codes'),
+            subtitle: const Text('Fehler beim Laden'),
+          ),
+        );
+      },
+      loading: () => ListTile(
+        leading: Icon(SolarIconsOutline.key, color: AppColors.textPrimary),
+        title: const Text('Backup-Codes'),
+        subtitle: const Text('Laden...'),
+      ),
+      error: (_, __) => ListTile(
+        leading: Icon(SolarIconsOutline.key, color: AppColors.textPrimary),
+        title: const Text('Backup-Codes'),
+        subtitle: const Text('Fehler beim Laden'),
+      ),
+    );
+  }
+
+  void _showMigrationDialog(BuildContext context, WidgetRef ref) {
+    // TODO: Implement migration for legacy users
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Migration wird in einem zukünftigen Update verfügbar sein.')),
+    );
+  }
+
+  Future<void> _regenerateBackupCodes(BuildContext context, WidgetRef ref) async {
+    final passwordController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Neue Backup-Codes generieren'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Alle bisherigen Codes werden ungültig. Gib dein Passwort ein, um fortzufahren.',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Passwort',
+              ),
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Abbrechen'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Generieren'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Generiere Codes...'),
+          ],
+        ),
+      ),
+    );
+
+    final newCodes = await ref.read(authProvider.notifier).regenerateBackupCodes(
+      passwordController.text,
+    );
+
+    if (!context.mounted) return;
+    Navigator.pop(context); // Close loading dialog
+
+    if (newCodes != null && newCodes.isNotEmpty) {
+      // Refresh the providers
+      ref.invalidate(availableBackupCodesProvider);
+
+      // Show the new codes
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => _ShowNewBackupCodesPage(codes: newCodes),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Falsches Passwort oder Fehler beim Generieren.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   String _formatDate(DateTime date) {
@@ -493,5 +646,148 @@ class SettingsPage extends ConsumerWidget {
         ),
       );
     }
+  }
+}
+
+/// Helper page to show newly generated backup codes
+class _ShowNewBackupCodesPage extends StatefulWidget {
+  final List<String> codes;
+
+  const _ShowNewBackupCodesPage({required this.codes});
+
+  @override
+  State<_ShowNewBackupCodesPage> createState() => _ShowNewBackupCodesPageState();
+}
+
+class _ShowNewBackupCodesPageState extends State<_ShowNewBackupCodesPage> {
+  bool _hasSaved = false;
+
+  void _copyAllCodes() {
+    final text = widget.codes
+        .asMap()
+        .entries
+        .map((e) => '${e.key + 1}. ${e.value}')
+        .join('\n');
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Codes in Zwischenablage kopiert'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Neue Backup-Codes'),
+        automaticallyImplyLeading: false,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.warning.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(SolarIconsOutline.dangerTriangle, color: AppColors.warning),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Deine alten Backup-Codes sind jetzt ungültig. Speichere die neuen Codes sicher!',
+                        style: TextStyle(color: AppColors.warning),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.divider),
+                ),
+                child: Column(
+                  children: widget.codes.asMap().entries.map((entry) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 24,
+                            child: Text(
+                              '${entry.key + 1}.',
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              entry.value,
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1.5,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: _copyAllCodes,
+                icon: const Icon(SolarIconsOutline.copy),
+                label: const Text('Alle kopieren'),
+              ),
+              const SizedBox(height: 24),
+              CheckboxListTile(
+                value: _hasSaved,
+                onChanged: (value) {
+                  setState(() {
+                    _hasSaved = value ?? false;
+                  });
+                },
+                title: const Text(
+                  'Ich habe die Codes sicher aufbewahrt',
+                  style: TextStyle(fontSize: 14),
+                ),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _hasSaved ? () => Navigator.pop(context) : null,
+                  child: const Text('Fertig'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

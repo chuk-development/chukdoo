@@ -11,8 +11,10 @@ class AppConstants {
 
   // Encryption
   static const int kdfIterations = 600000;
+  static const int backupCodeKdfIterations = 100000;
   static const int saltLength = 16;
   static const String payloadVersion = '1';
+  static const int backupCodeCount = 8;
 
   // Sync
   static const Duration syncInterval = Duration(seconds: 30);

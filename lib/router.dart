@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'features/auth/presentation/backup_codes_page.dart';
 import 'features/auth/presentation/confirm_email_page.dart';
 import 'features/auth/presentation/login_page.dart';
+import 'features/auth/presentation/recovery_page.dart';
 import 'features/auth/presentation/unlock_page.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/onboarding/presentation/onboarding_page.dart';
@@ -35,6 +37,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (status == AuthStatus.unauthenticated) return '/login';
         if (status == AuthStatus.needsPassword) return '/unlock';
         if (status == AuthStatus.needsEmailConfirmation) return '/confirm-email';
+        if (status == AuthStatus.needsBackupCodesConfirmation) return '/backup-codes';
+      }
+
+      // Handle backup codes confirmation
+      if (status == AuthStatus.needsBackupCodesConfirmation) {
+        if (location != '/backup-codes') return '/backup-codes';
+        return null;
       }
 
       // Handle local mode (offline-first users)
@@ -64,7 +73,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // Handle authenticated
       if (status == AuthStatus.authenticated) {
-        if (location == '/login' || location == '/unlock' || location == '/confirm-email' || location == '/onboarding') {
+        if (location == '/login' || location == '/unlock' || location == '/confirm-email' || location == '/onboarding' || location == '/backup-codes') {
           return '/';
         }
         return null;
@@ -98,6 +107,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/unlock',
         builder: (context, state) => const UnlockPage(),
+      ),
+      GoRoute(
+        path: '/backup-codes',
+        builder: (context, state) => const BackupCodesPage(),
+      ),
+      GoRoute(
+        path: '/recovery',
+        builder: (context, state) => const RecoveryPage(),
       ),
       GoRoute(
         path: '/',

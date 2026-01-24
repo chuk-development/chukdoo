@@ -122,12 +122,22 @@ class _UnlockPageState extends ConsumerState<UnlockPage> {
 
                   const SizedBox(height: 16),
 
+                  // Recovery option
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/recovery');
+                    },
+                    child: const Text('Passwort vergessen?'),
+                  ),
+
+                  const SizedBox(height: 8),
+
                   // Sign out option
                   TextButton(
                     onPressed: () {
                       ref.read(authProvider.notifier).signOut();
                     },
-                    child: const Text('Use different account'),
+                    child: const Text('Anderes Konto verwenden'),
                   ),
                 ],
               ),
