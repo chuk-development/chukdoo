@@ -130,6 +130,11 @@ class TodoNotifier extends StateNotifier<TodoState> {
     }
   }
 
+  /// Refresh todos from Hive (call after sync)
+  Future<void> refresh() async {
+    await _loadTodos();
+  }
+
   Future<void> addTodo({
     required String title,
     String? description,

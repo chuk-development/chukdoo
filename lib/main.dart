@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -9,7 +11,9 @@ import 'features/notifications/notification_service.dart';
 import 'features/notifications/reminder_scheduler.dart';
 import 'features/subscription/services/revenuecat_service.dart';
 import 'features/sync/services/background_sync_service.dart';
+import 'features/sync/services/connectivity_service.dart';
 import 'features/sync/services/sync_service.dart';
+import 'features/system_tray/system_tray_service.dart';
 import 'shared/services/supabase_service.dart';
 
 void main() async {
@@ -29,8 +33,16 @@ void main() async {
   // Initialize sync service (local queue - always works)
   await SyncService.initialize();
 
+  // Initialize connectivity monitoring
+  await ConnectivityService.instance.initialize();
+
   // Initialize notifications (local - always works)
   await NotificationService.instance.initialize();
+
+  // Initialize system tray (desktop only)
+  if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
+    await SystemTrayService.instance.initialize();
+  }
 
   // Schedule all pending reminders (boot recovery)
   await ReminderScheduler.instance.scheduleAllReminders();

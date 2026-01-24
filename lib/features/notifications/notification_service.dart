@@ -169,4 +169,55 @@ class NotificationService {
       payload: payload,
     );
   }
+
+  /// Show notification for new todos synced from other devices
+  Future<void> showNewTodoNotification({
+    required int count,
+    String? firstTodoTitle,
+  }) async {
+    final title = count == 1
+        ? 'Neue Aufgabe synchronisiert'
+        : '$count neue Aufgaben synchronisiert';
+    final body = firstTodoTitle ?? 'Von einem anderen Gerät hinzugefügt';
+
+    await _notifications.show(
+      'new_todos'.hashCode,
+      title,
+      body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'sync',
+          'Synchronisierung',
+          channelDescription: 'Benachrichtigungen für synchronisierte Aufgaben',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        ),
+        iOS: DarwinNotificationDetails(),
+        linux: LinuxNotificationDetails(),
+      ),
+    );
+  }
+
+  /// Show sync status notification (success or error)
+  Future<void> showSyncNotification({
+    required String message,
+    bool isError = false,
+  }) async {
+    await _notifications.show(
+      'sync_status'.hashCode,
+      isError ? 'Sync-Fehler' : 'Synchronisierung',
+      message,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          'sync',
+          'Synchronisierung',
+          channelDescription: 'Sync-Status Benachrichtigungen',
+          importance: isError ? Importance.high : Importance.low,
+          priority: isError ? Priority.high : Priority.low,
+        ),
+        iOS: const DarwinNotificationDetails(),
+        linux: const LinuxNotificationDetails(),
+      ),
+    );
+  }
 }

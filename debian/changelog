@@ -1,0 +1,10 @@
+chukdoo (1.0.1-1) stable; urgency=medium
+
+  * Initial Debian package release
+  * Offline-first E2EE Todo App
+  * Natural language parsing (German/English)
+  * Supabase sync support
+  * System tray integration
+  * Smart adaptive sync
+
+ -- Chukdoo Team <hello@chukdoo.io>  Fri, 24 Jan 2026 12:00:00 +0100

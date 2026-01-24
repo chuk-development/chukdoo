@@ -78,6 +78,11 @@ class ProjectNotifier extends StateNotifier<ProjectState> {
     }
   }
 
+  /// Refresh projects from Hive (call after sync)
+  Future<void> refresh() async {
+    await _loadProjects();
+  }
+
   Future<Project> addProject({
     required String name,
     int? color,

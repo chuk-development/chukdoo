@@ -1,0 +1,38 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	@echo "Flutter build already done by build_deb.sh"
+
+override_dh_auto_install:
+	# Create directories
+	mkdir -p debian/chukdoo/opt/chukdoo
+	mkdir -p debian/chukdoo/usr/bin
+	mkdir -p debian/chukdoo/usr/share/applications
+	mkdir -p debian/chukdoo/usr/share/icons/hicolor/256x256/apps
+	mkdir -p debian/chukdoo/usr/share/icons/hicolor/128x128/apps
+	mkdir -p debian/chukdoo/usr/share/icons/hicolor/64x64/apps
+	mkdir -p debian/chukdoo/usr/share/icons/hicolor/48x48/apps
+
+	# Copy Flutter bundle
+	cp -r build/linux/x64/release/bundle/* debian/chukdoo/opt/chukdoo/
+
+	# Create symlink in /usr/bin
+	ln -sf /opt/chukdoo/chukdoo debian/chukdoo/usr/bin/chukdoo
+
+	# Install desktop file
+	cp debian/chukdoo.desktop debian/chukdoo/usr/share/applications/io.chukdoo.app.desktop
+
+	# Install icons (resize from 512x512 source)
+	cp assets/images/app_icon.png debian/chukdoo/usr/share/icons/hicolor/256x256/apps/chukdoo.png
+	convert assets/images/app_icon.png -resize 128x128 debian/chukdoo/usr/share/icons/hicolor/128x128/apps/chukdoo.png || cp assets/images/app_icon.png debian/chukdoo/usr/share/icons/hicolor/128x128/apps/chukdoo.png
+	convert assets/images/app_icon.png -resize 64x64 debian/chukdoo/usr/share/icons/hicolor/64x64/apps/chukdoo.png || cp assets/images/app_icon.png debian/chukdoo/usr/share/icons/hicolor/64x64/apps/chukdoo.png
+	convert assets/images/app_icon.png -resize 48x48 debian/chukdoo/usr/share/icons/hicolor/48x48/apps/chukdoo.png || cp assets/images/app_icon.png debian/chukdoo/usr/share/icons/hicolor/48x48/apps/chukdoo.png
+
+override_dh_shlibdeps:
+	@echo "Skipping shlibdeps for bundled Flutter libraries"
+
+override_dh_strip:
+	@echo "Skipping strip for Flutter binary"

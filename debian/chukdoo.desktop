@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Chukdoo
+GenericName=Todo App
+Comment=Offline-first E2EE Todo App with natural language parsing
+Exec=/opt/chukdoo/chukdoo %U
+Icon=chukdoo
+Terminal=false
+Type=Application
+Categories=Office;ProjectManagement;Utility;
+Keywords=todo;tasks;productivity;encrypted;privacy;gtd;
+StartupWMClass=chukdoo
+StartupNotify=true

@@ -1,0 +1,18 @@
+Package: chukdoo
+Version: 1.0.1-1
+Architecture: amd64
+Maintainer: Chukdoo Team <hello@chukdoo.io>
+Installed-Size: 46628
+Depends: libgtk-3-0, libblkid1, liblzma5, libsecret-1-0, libayatana-appindicator3-1 | libappindicator3-1
+Section: utils
+Priority: optional
+Homepage: https://chukdoo.io
+Description: Offline-first E2EE Todo App
+ Chukdoo is a privacy-focused todo application with end-to-end encryption,
+ natural language parsing (German/English), and offline-first architecture.
+ .
+ Features:
+  - End-to-end encryption (AES-256-GCM)
+  - Natural language date/priority parsing
+  - Offline-first with background sync
+  - Cross-device synchronization via Supabase

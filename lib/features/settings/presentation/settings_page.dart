@@ -17,6 +17,8 @@ import '../../subscription/presentation/paywall_helper.dart';
 import '../../subscription/providers/subscription_provider.dart';
 import '../../sync/presentation/widgets/sync_status_indicator.dart';
 import '../../sync/services/sync_service.dart';
+import '../../todos/providers/todo_provider.dart';
+import '../../projects/providers/project_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/export_service.dart';
 import 'import_preview_page.dart';
@@ -74,13 +76,20 @@ class SettingsPage extends ConsumerWidget {
             _buildSectionHeader('Abonnement'),
             _buildSubscriptionTile(context, ref, subscriptionState),
             if (subscriptionState.isPro) ...[
-              ListTile(
-                leading: Icon(SolarIconsOutline.settings, color: AppColors.textPrimary),
-                title: const Text('Abo verwalten'),
-                subtitle: const Text('Abo ansehen, kündigen oder ändern'),
-                trailing: Icon(SolarIconsOutline.altArrowRight, color: AppColors.textSecondary),
-                onTap: () => PaywallHelper.showCustomerCenter(context),
-              ),
+              Builder(builder: (context) {
+                final isDesktop = Platform.isLinux || Platform.isWindows || Platform.isMacOS;
+                return ListTile(
+                  leading: Icon(SolarIconsOutline.settings, color: AppColors.textPrimary),
+                  title: const Text('Abo verwalten'),
+                  subtitle: Text(isDesktop
+                      ? 'Nur in der mobilen App verfügbar'
+                      : 'Abo ansehen, kündigen oder ändern'),
+                  trailing: isDesktop
+                      ? Icon(SolarIconsOutline.smartphone, color: AppColors.textSecondary)
+                      : Icon(SolarIconsOutline.altArrowRight, color: AppColors.textSecondary),
+                  onTap: isDesktop ? null : () => PaywallHelper.showCustomerCenter(context),
+                );
+              }),
             ] else ...[
               ListTile(
                 leading: Icon(SolarIconsOutline.refresh, color: AppColors.textPrimary),
@@ -228,6 +237,7 @@ class SettingsPage extends ConsumerWidget {
   ) {
     final isPro = state.isPro;
     final status = state.status;
+    final isDesktop = Platform.isLinux || Platform.isWindows || Platform.isMacOS;
 
     return ListTile(
       leading: Icon(
@@ -241,7 +251,9 @@ class SettingsPage extends ConsumerWidget {
                   ? 'Gültig bis ${_formatDate(status.expiresAt!)}'
                   : 'Aktiv',
             )
-          : const Text('Nur lokale Speicherung'),
+          : Text(isDesktop
+              ? 'Upgrade in der mobilen App'
+              : 'Nur lokale Speicherung'),
       trailing: isPro
           ? Chip(
               label: const Text('PRO'),
@@ -252,10 +264,12 @@ class SettingsPage extends ConsumerWidget {
                 fontSize: 12,
               ),
             )
-          : TextButton(
-              onPressed: () => _showPaywall(context, ref),
-              child: const Text('Upgrade'),
-            ),
+          : isDesktop
+              ? Icon(SolarIconsOutline.smartphone, color: AppColors.textSecondary)
+              : TextButton(
+                  onPressed: () => _showPaywall(context, ref),
+                  child: const Text('Upgrade'),
+                ),
     );
   }
 
@@ -265,16 +279,21 @@ class SettingsPage extends ConsumerWidget {
     SubscriptionState subscriptionState,
   ) {
     final canSync = subscriptionState.canSync;
+    final isDesktop = Platform.isLinux || Platform.isWindows || Platform.isMacOS;
 
     if (!canSync) {
       return ListTile(
         leading: Icon(SolarIconsOutline.cloudCross, color: AppColors.textSecondary),
         title: const Text('Cloud-Sync'),
-        subtitle: const Text('Upgrade auf Pro für Cloud-Sync'),
-        trailing: TextButton(
-          onPressed: () => _showPaywall(context, ref),
-          child: const Text('Upgrade'),
-        ),
+        subtitle: Text(isDesktop
+            ? 'Upgrade in der mobilen App für Cloud-Sync'
+            : 'Upgrade auf Pro für Cloud-Sync'),
+        trailing: isDesktop
+            ? Icon(SolarIconsOutline.smartphone, color: AppColors.textSecondary)
+            : TextButton(
+                onPressed: () => _showPaywall(context, ref),
+                child: const Text('Upgrade'),
+              ),
       );
     }
 
@@ -295,7 +314,7 @@ class SettingsPage extends ConsumerWidget {
                 : 'Noch nie synchronisiert',
           ),
           trailing: Icon(SolarIconsOutline.altArrowRight, color: AppColors.textSecondary),
-          onTap: () => _manualSync(context),
+          onTap: () => _manualSync(context, ref),
         ),
       ],
     );
@@ -568,8 +587,13 @@ class SettingsPage extends ConsumerWidget {
     }
   }
 
-  Future<void> _manualSync(BuildContext context) async {
-    await SyncService.processQueue();
+  Future<void> _manualSync(BuildContext context, WidgetRef ref) async {
+    await SyncService.fullSync();
+
+    // Refresh providers to show new data from sync
+    await ref.read(todoProvider.notifier).refresh();
+    await ref.read(projectProvider.notifier).refresh();
+
     if (context.mounted) {
       final status = SyncService.status;
       if (status == SyncStatus.error) {

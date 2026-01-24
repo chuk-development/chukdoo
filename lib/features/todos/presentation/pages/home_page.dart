@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../shared/widgets/bottom_nav_bar.dart';
 import '../../../../shared/widgets/sync_error_banner.dart';
+import '../../../sync/presentation/widgets/auto_sync_manager.dart';
 import 'inbox_page.dart';
 import 'today_page.dart';
 import 'upcoming_page.dart';
@@ -32,22 +33,25 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        children: [
-          // Sync status banner (shows when offline)
-          const SyncErrorBanner(),
-          // Main content
-          Expanded(child: _buildBody()),
-        ],
-      ),
-      bottomNavigationBar: ChukdooBottomNavBar(
-        currentTab: _currentTab,
-        onTabSelected: (tab) {
-          setState(() {
-            _currentTab = tab;
-          });
-        },
+    // AutoSyncManager handles background sync and auto-refreshes providers
+    return AutoSyncManager(
+      child: Scaffold(
+        body: Column(
+          children: [
+            // Sync status banner (shows when offline)
+            const SyncErrorBanner(),
+            // Main content
+            Expanded(child: _buildBody()),
+          ],
+        ),
+        bottomNavigationBar: ChukdooBottomNavBar(
+          currentTab: _currentTab,
+          onTabSelected: (tab) {
+            setState(() {
+              _currentTab = tab;
+            });
+          },
+        ),
       ),
     );
   }

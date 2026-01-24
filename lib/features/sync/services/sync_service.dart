@@ -6,8 +6,11 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../shared/services/encryption_service.dart';
 import '../../../shared/services/supabase_service.dart';
+import '../../notifications/notification_service.dart';
 import '../../todos/domain/models/todo.dart';
 import '../domain/models/sync_conflict.dart';
+import '../repositories/todo_sync_repository.dart';
+import '../repositories/project_sync_repository.dart';
 
 /// Operation types for sync queue
 enum SyncOperation { create, update, delete }
@@ -208,7 +211,7 @@ class SyncService {
     }
   }
 
-  /// Perform a full sync (download all data from server)
+  /// Perform a full sync (upload pending + download from server)
   static Future<void> fullSync() async {
     if (!SupabaseService.isAvailable) {
       _status = SyncStatus.offline;
@@ -224,7 +227,8 @@ class SyncService {
       await processQueue();
 
       // Then download latest from server
-      // This would be implemented in the repositories
+      await _downloadFromServer();
+
       debugPrint('SyncService: Full sync completed');
 
       _lastSyncTime = DateTime.now();
@@ -237,6 +241,83 @@ class SyncService {
     }
 
     _statusController.add(_status);
+  }
+
+  /// Download all data from server and merge with local
+  static Future<void> _downloadFromServer() async {
+    final todosBox = Hive.box<Map>(AppConstants.hiveTodosBox);
+    final projectsBox = Hive.box<Map>(AppConstants.hiveProjectsBox);
+
+    // Track new todos for notification
+    int newTodoCount = 0;
+    String? firstNewTodoTitle;
+
+    // Download todos
+    try {
+      final serverTodos = await TodoSyncRepository.downloadTodos();
+      debugPrint('SyncService: Downloaded ${serverTodos.length} todos from server');
+
+      for (final serverTodo in serverTodos) {
+        final localData = todosBox.get(serverTodo.id);
+
+        if (localData == null) {
+          // New todo from server - add locally
+          newTodoCount++;
+          firstNewTodoTitle ??= serverTodo.title;
+          await todosBox.put(serverTodo.id, serverTodo.toJson());
+          debugPrint('SyncService: Added new todo from server: ${serverTodo.id}');
+        } else {
+          // Existing todo - compare versions
+          final localTodo = Todo.fromJson(Map<String, dynamic>.from(localData));
+
+          // Server wins if it has a newer version or later update time
+          if (serverTodo.version > localTodo.version ||
+              (serverTodo.version == localTodo.version &&
+               serverTodo.updatedAt.isAfter(localTodo.updatedAt))) {
+            await todosBox.put(serverTodo.id, serverTodo.toJson());
+            debugPrint('SyncService: Updated todo from server: ${serverTodo.id}');
+          }
+        }
+      }
+
+      // Show notification for new todos (if any)
+      if (newTodoCount > 0) {
+        await NotificationService.instance.showNewTodoNotification(
+          count: newTodoCount,
+          firstTodoTitle: firstNewTodoTitle,
+        );
+      }
+    } catch (e) {
+      debugPrint('SyncService: Error downloading todos: $e');
+      rethrow;
+    }
+
+    // Download projects
+    try {
+      final serverProjects = await ProjectSyncRepository.downloadProjects();
+      debugPrint('SyncService: Downloaded ${serverProjects.length} projects from server');
+
+      for (final serverProject in serverProjects) {
+        final localData = projectsBox.get(serverProject.id);
+
+        if (localData == null) {
+          // New project from server - add locally
+          await projectsBox.put(serverProject.id, serverProject.toJson());
+          debugPrint('SyncService: Added new project from server: ${serverProject.id}');
+        } else {
+          // For projects, use server version if newer
+          final localUpdatedAt = DateTime.tryParse(localData['updated_at'] as String? ?? '');
+
+          if (localUpdatedAt == null || serverProject.updatedAt.isAfter(localUpdatedAt)) {
+            await projectsBox.put(serverProject.id, serverProject.toJson());
+            debugPrint('SyncService: Updated project from server: ${serverProject.id}');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('SyncService: Error downloading projects: $e');
+      // Don't rethrow - continue with partial sync
+    }
   }
 
   /// Clear the sync queue
