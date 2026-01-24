@@ -1,0 +1,86 @@
+name: chukdoo
+description: "E2EE Todo app with natural language parsing"
+publish_to: 'none'
+version: 1.0.1+2
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management (keeping 2.x - 3.x requires major migration)
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Navigation
+  go_router: ^14.8.1
+
+  # Backend
+  supabase_flutter: ^2.9.0
+
+  # Encryption
+  cryptography: ^2.7.0
+  flutter_secure_storage: ^9.2.4
+
+  # Local Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  shared_preferences: ^2.5.1
+  path_provider: ^2.1.5
+
+  # File Operations
+  file_picker: ^8.1.7
+  share_plus: ^10.1.4
+
+  # Notifications
+  flutter_local_notifications: ^19.5.0
+  timezone: ^0.10.1
+
+  # Background Tasks
+  workmanager: ^0.9.0
+
+  # UI
+  cupertino_icons: ^1.0.8
+  flutter_slidable: ^3.1.2
+  google_fonts: ^6.3.3
+  solar_icons: ^0.0.5
+
+  # Date/Time & i18n
+  intl: ^0.20.2
+
+  # Utilities
+  uuid: ^4.5.1
+  connectivity_plus: ^6.1.4
+
+  # Subscriptions (RevenueCat)
+  purchases_flutter: ^8.11.0
+  purchases_ui_flutter: ^8.11.0
+
+  # App Icon Generation
+  flutter_launcher_icons: ^0.14.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  build_runner: ^2.4.13
+  riverpod_generator: ^2.4.0
+  hive_generator: ^2.0.1
+  flutter_lints: ^6.0.0
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/app_icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#009688"
+  adaptive_icon_foreground: "assets/images/app_icon.png"
+  remove_alpha_ios: true
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
