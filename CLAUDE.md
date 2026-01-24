@@ -6,11 +6,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Full build with Supabase + RevenueCat (Play Store)
 ```bash
+# Load keys from .env.local (not in git)
+source .env.local
+
 flutter build apk \
   --target-platform android-arm64 \
-  --dart-define=SUPABASE_URL=https://lmgbdpefnannvkcdkdup.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=sb_publishable_4h1DEVic-lccdXl27kft0Q_wofDq6Fi \
-  --dart-define=REVENUECAT_API_KEY=test_LVwsmpwuYlnNWNWjZdleLiTHGSc
+  --dart-define=SUPABASE_URL=$SUPABASE_URL \
+  --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
+  --dart-define=REVENUECAT_API_KEY=$REVENUECAT_API_KEY
+```
+
+### Linux build with Supabase
+```bash
+source .env.local
+
+flutter build linux \
+  --dart-define=SUPABASE_URL=$SUPABASE_URL \
+  --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
 ```
 
 ### OSS/Self-hosted build (local only, no cloud)
@@ -105,12 +117,15 @@ Syntax:
 
 ## Environment Variables
 
-Keys stored in `.env` (gitignored):
-- `SUPABASE_URL` - Supabase project URL
-- `SUPABASE_ANON_KEY` - Supabase anonymous key
-- `REVENUECAT_API_KEY` - RevenueCat API key
+Create a `.env.local` file (gitignored) with your keys:
+```bash
+# .env.local - DO NOT COMMIT
+export SUPABASE_URL="https://your-project.supabase.co"
+export SUPABASE_ANON_KEY="your-supabase-anon-key"
+export REVENUECAT_API_KEY="your-revenuecat-api-key"
+```
 
-Passed at compile time via `--dart-define` flags.
+Then source it before building: `source .env.local`
 
 ## Key Files
 
