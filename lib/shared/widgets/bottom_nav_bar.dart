@@ -5,9 +5,9 @@ import '../../core/theme/app_colors.dart';
 
 enum NavTab {
   inbox(0, 'Eingang', SolarIconsOutline.inbox, SolarIconsBold.inbox),
-  today(1, 'Heute', SolarIconsOutline.calendar, SolarIconsBold.calendar),
-  upcoming(2, 'Demnächst', SolarIconsOutline.calendarMark, SolarIconsBold.calendarMark),
-  browse(3, 'Browsen', SolarIconsOutline.hamburgerMenu, SolarIconsBold.hamburgerMenu);
+  calendar(1, 'Kalender', SolarIconsOutline.calendar, SolarIconsBold.calendar),
+  habits(3, 'Gewohnheiten', SolarIconsOutline.target, SolarIconsBold.target),
+  more(4, 'Mehr', SolarIconsOutline.settings, SolarIconsBold.settings);
 
   const NavTab(this.tabIndex, this.label, this.icon, this.activeIcon);
 
@@ -41,7 +41,7 @@ class ChukdooBottomNavBar extends StatelessWidget {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: NavTab.values.map((tab) {
@@ -72,54 +72,30 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Container with fixed size for consistent alignment
             SizedBox(
-              width: 28,
-              height: 28,
-              child: tab == NavTab.today
-                  // Special handling for "Today" tab - show date number
-                  ? Container(
-                      decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primary : Colors.transparent,
-                        borderRadius: BorderRadius.circular(6),
-                        border: !isSelected
-                            ? Border.all(color: AppColors.textSecondary, width: 1.5)
-                            : null,
-                      ),
-                      child: Center(
-                        child: Text(
-                          '${now.day}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: isSelected ? Colors.white : AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                    )
-                  : Center(
-                      child: Icon(
-                        isSelected ? tab.activeIcon : tab.icon,
-                        color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                        size: 26,
-                      ),
-                    ),
+              width: 26,
+              height: 26,
+              child: Center(
+                child: Icon(
+                  isSelected ? tab.activeIcon : tab.icon,
+                  color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                  size: 24,
+                ),
+              ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               tab.label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 10,
                 color: isSelected ? AppColors.primary : AppColors.textSecondary,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
