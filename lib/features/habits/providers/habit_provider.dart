@@ -64,6 +64,7 @@ class HabitNotifier extends StateNotifier<HabitState> {
     required String name,
     required int color,
     String frequency = 'daily',
+    String? description,
   }) async {
     final userId = SupabaseService.currentUser?.id ?? 'local';
     final now = DateTime.now();
@@ -74,6 +75,9 @@ class HabitNotifier extends StateNotifier<HabitState> {
       name: name,
       color: color,
       frequency: frequency,
+      description: (description == null || description.isEmpty)
+          ? null
+          : description,
       createdAt: now,
       updatedAt: now,
     );

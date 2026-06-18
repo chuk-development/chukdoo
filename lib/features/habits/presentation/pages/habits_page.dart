@@ -91,18 +91,12 @@ class HabitsPage extends ConsumerWidget {
                   clearDescription: description == null || description.isEmpty,
                 ));
           } else {
-            ref.read(habitProvider.notifier).addHabit(name: name, color: color, frequency: frequency);
-            // Update description after creation if provided
-            if (description != null && description.isNotEmpty) {
-              // addHabit doesn't support description yet, so we update after
-              Future.microtask(() {
-                final habits = ref.read(habitProvider).habits;
-                final created = habits.lastOrNull;
-                if (created != null) {
-                  ref.read(habitProvider.notifier).updateHabit(created.copyWith(description: description));
-                }
-              });
-            }
+            ref.read(habitProvider.notifier).addHabit(
+                  name: name,
+                  color: color,
+                  frequency: frequency,
+                  description: description,
+                );
           }
         },
         onDelete: habit != null
