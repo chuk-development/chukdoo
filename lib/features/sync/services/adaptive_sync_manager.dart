@@ -46,6 +46,8 @@ class AdaptiveSyncManager {
   bool _isUserActive = true;
   DateTime _lastUserActivity = DateTime.now();
   DateTime? _lastSyncTime;
+  DateTime? _lastErrorNotification;
+  static const _errorNotificationInterval = Duration(minutes: 30);
 
   StreamSubscription<bool>? _connectivitySubscription;
 
@@ -309,15 +311,23 @@ class AdaptiveSyncManager {
     try {
       await SyncService.fullSync();
       _lastSyncTime = DateTime.now();
+      _lastErrorNotification = null;
       await _notifyDataChanged();
     } catch (e) {
       debugPrint('AdaptiveSyncManager: Sync error: $e');
 
-      // Show notification on persistent errors (only if we haven't shown recently)
-      await NotificationService.instance.showInstantNotification(
-        title: 'Sync-Fehler',
-        body: 'Synchronisierung fehlgeschlagen. Wird erneut versucht.',
-      );
+      // Show notification on persistent errors, but throttle so a flaky
+      // network can't spam one notification per failed sync.
+      final now = DateTime.now();
+      final last = _lastErrorNotification;
+      if (last == null ||
+          now.difference(last) >= _errorNotificationInterval) {
+        _lastErrorNotification = now;
+        await NotificationService.instance.showInstantNotification(
+          title: 'Sync error',
+          body: 'Sync failed. Retrying.',
+        );
+      }
     }
   }
 
