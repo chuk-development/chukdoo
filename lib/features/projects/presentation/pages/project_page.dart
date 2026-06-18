@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -8,7 +7,7 @@ import '../../../settings/providers/settings_provider.dart';
 import '../../../todos/domain/models/todo.dart';
 import '../../../todos/providers/todo_provider.dart';
 import '../../../todos/presentation/widgets/todo_input_sheet.dart';
-import '../../../todos/presentation/widgets/todo_swipe_tile.dart';
+import '../../../todos/presentation/widgets/todo_sectioned_list.dart';
 import '../../../todos/presentation/widgets/quick_add_fab.dart';
 import '../../domain/models/project.dart';
 import '../../providers/project_provider.dart';
@@ -27,7 +26,6 @@ class ProjectPage extends ConsumerStatefulWidget {
 
 class _ProjectPageState extends ConsumerState<ProjectPage> {
   _SortMode _sortMode = _SortMode.manual;
-  bool _groupByPriority = false;
 
   void _showAddTodoSheet(BuildContext context) {
     final currentProject = ref.read(projectProvider).getById(widget.project.id) ?? widget.project;
@@ -86,7 +84,6 @@ class _ProjectPageState extends ConsumerState<ProjectPage> {
     final todoState = ref.watch(todoProvider);
     final settings = ref.watch(settingsProvider);
     final projectState = ref.watch(projectProvider);
-    final showCompleted = todoState.showCompleted;
     final currentProject = projectState.getById(widget.project.id) ?? widget.project;
     final projectColor = Color(currentProject.color);
 
@@ -117,19 +114,12 @@ class _ProjectPageState extends ConsumerState<ProjectPage> {
                 switch (value) {
                   case 'manual':
                     _sortMode = _SortMode.manual;
-                    _groupByPriority = false;
                   case 'priority':
                     _sortMode = _SortMode.priority;
-                    _groupByPriority = false;
                   case 'dueDate':
                     _sortMode = _SortMode.dueDate;
-                    _groupByPriority = false;
                   case 'name':
                     _sortMode = _SortMode.name;
-                    _groupByPriority = false;
-                  case 'group_priority':
-                    _groupByPriority = !_groupByPriority;
-                    if (_groupByPriority) _sortMode = _SortMode.priority;
                 }
               });
             },
@@ -138,12 +128,6 @@ class _ProjectPageState extends ConsumerState<ProjectPage> {
               _sortMenuItem('priority', 'Priorität', _sortMode == _SortMode.priority),
               _sortMenuItem('dueDate', 'Fälligkeitsdatum', _sortMode == _SortMode.dueDate),
               _sortMenuItem('name', 'Name', _sortMode == _SortMode.name),
-              const PopupMenuDivider(),
-              CheckedPopupMenuItem(
-                value: 'group_priority',
-                checked: _groupByPriority,
-                child: const Text('Nach Priorität gruppieren'),
-              ),
             ],
           ),
           IconButton(
@@ -151,15 +135,6 @@ class _ProjectPageState extends ConsumerState<ProjectPage> {
             onPressed: () => _openEditDialog(context),
             tooltip: 'Bearbeiten',
           ),
-          if (completedTodos.isNotEmpty)
-            IconButton(
-              icon: Icon(
-                showCompleted ? SolarIconsBold.checkCircle : SolarIconsOutline.checkCircle,
-                color: showCompleted ? AppColors.primary : null,
-              ),
-              onPressed: () => ref.read(todoProvider.notifier).toggleShowCompleted(),
-              tooltip: showCompleted ? 'Erledigte ausblenden' : 'Erledigte anzeigen',
-            ),
         ],
       ),
       body: Column(
@@ -167,13 +142,15 @@ class _ProjectPageState extends ConsumerState<ProjectPage> {
           // Project header with stats
           _buildProjectHeader(currentProject, projectColor, progress, totalTasks, completedCount, projectTodos.length),
 
-          // Task list
+          // Task list — same sectioned list as the main list
           Expanded(
-            child: sortedTodos.isEmpty && (!showCompleted || completedTodos.isEmpty)
+            child: sortedTodos.isEmpty && completedTodos.isEmpty
                 ? _buildEmptyState(currentProject)
-                : _groupByPriority
-                    ? _buildGroupedList(sortedTodos, completedTodos, showCompleted, largeCheckbox)
-                    : _buildFlatList(sortedTodos, completedTodos, showCompleted, largeCheckbox),
+                : TodoSectionedList(
+                    active: sortedTodos,
+                    completed: completedTodos,
+                    large: largeCheckbox,
+                  ),
           ),
         ],
       ),
@@ -255,126 +232,6 @@ class _ProjectPageState extends ConsumerState<ProjectPage> {
           Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500)),
         ],
       ),
-    );
-  }
-
-  Widget _buildFlatList(List<Todo> todos, List<Todo> completedTodos, bool showCompleted, bool largeCheckbox) {
-    return SlidableAutoCloseBehavior(
-      child: _sortMode == _SortMode.manual
-          ? ReorderableListView.builder(
-              padding: const EdgeInsets.only(bottom: 100),
-              itemCount: todos.length + (showCompleted && completedTodos.isNotEmpty ? completedTodos.length + 1 : 0),
-              onReorder: (oldIndex, newIndex) {
-                if (oldIndex < todos.length && newIndex <= todos.length) {
-                  if (oldIndex < newIndex) newIndex -= 1;
-                  ref.read(todoProvider.notifier).reorderTodo(todos[oldIndex].id, newIndex);
-                }
-              },
-              itemBuilder: (context, index) {
-                if (index < todos.length) {
-                  return _buildTodoItem(key: ValueKey(todos[index].id), todo: todos[index], largeCheckbox: largeCheckbox);
-                }
-                if (index == todos.length) {
-                  return _buildCompletedHeader(key: const ValueKey('completed_header'), count: completedTodos.length);
-                }
-                final cIdx = index - todos.length - 1;
-                return _buildTodoItem(key: ValueKey(completedTodos[cIdx].id), todo: completedTodos[cIdx], largeCheckbox: largeCheckbox, isCompleted: true);
-              },
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.only(bottom: 100),
-              itemCount: todos.length + (showCompleted && completedTodos.isNotEmpty ? completedTodos.length + 1 : 0),
-              itemBuilder: (context, index) {
-                if (index < todos.length) {
-                  return _buildTodoItem(key: ValueKey(todos[index].id), todo: todos[index], largeCheckbox: largeCheckbox);
-                }
-                if (index == todos.length) {
-                  return _buildCompletedHeader(key: const ValueKey('completed_header'), count: completedTodos.length);
-                }
-                final cIdx = index - todos.length - 1;
-                return _buildTodoItem(key: ValueKey(completedTodos[cIdx].id), todo: completedTodos[cIdx], largeCheckbox: largeCheckbox, isCompleted: true);
-              },
-            ),
-    );
-  }
-
-  Widget _buildGroupedList(List<Todo> todos, List<Todo> completedTodos, bool showCompleted, bool largeCheckbox) {
-    final groups = <TodoPriority, List<Todo>>{};
-    for (final todo in todos) {
-      groups.putIfAbsent(todo.priority, () => []).add(todo);
-    }
-
-    final priorityOrder = [TodoPriority.p1, TodoPriority.p2, TodoPriority.p3, TodoPriority.p4];
-    final priorityLabels = {
-      TodoPriority.p1: 'Dringend',
-      TodoPriority.p2: 'Hoch',
-      TodoPriority.p3: 'Mittel',
-      TodoPriority.p4: 'Normal',
-    };
-
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 100),
-      children: [
-        for (final priority in priorityOrder)
-          if (groups.containsKey(priority)) ...[
-            _buildSectionHeader(
-              priorityLabels[priority]!,
-              AppColors.getPriorityColor(priority.value),
-              groups[priority]!.length,
-            ),
-            ...groups[priority]!.map((todo) =>
-                _buildTodoItem(key: ValueKey(todo.id), todo: todo, largeCheckbox: largeCheckbox)),
-          ],
-        if (showCompleted && completedTodos.isNotEmpty) ...[
-          _buildCompletedHeader(key: const ValueKey('completed_header'), count: completedTodos.length),
-          ...completedTodos.map((todo) =>
-              _buildTodoItem(key: ValueKey(todo.id), todo: todo, largeCheckbox: largeCheckbox, isCompleted: true)),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildSectionHeader(String title, Color color, int count) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Row(
-        children: [
-          Container(
-            width: 8, height: 8,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            '$count',
-            style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCompletedHeader({required Key key, required int count}) {
-    return Padding(
-      key: key,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(
-        'Erledigt ($count)',
-        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
-      ),
-    );
-  }
-
-  Widget _buildTodoItem({required Key key, required Todo todo, required bool largeCheckbox, bool isCompleted = false}) {
-    return TodoSwipeTile(
-      key: key,
-      todo: todo,
-      largeCheckbox: largeCheckbox,
-      isCompleted: isCompleted,
     );
   }
 
