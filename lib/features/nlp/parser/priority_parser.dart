@@ -9,9 +9,14 @@ class PriorityParseResult {
 }
 
 class PriorityParser {
-  // Patterns: !!1, !!2, !!3, !!4 or p1, p2, p3, p4
+  // Patterns: !!1 / !1 (single or double exclamation) or p1..p4
   static final RegExp _doubleExclamation = RegExp(
     r'!!([1-4])',
+    caseSensitive: false,
+  );
+
+  static final RegExp _singleExclamation = RegExp(
+    r'!([1-4])',
     caseSensitive: false,
   );
 
@@ -27,6 +32,15 @@ class PriorityParser {
       return PriorityParseResult(
         priority: int.parse(exclamationMatch.group(1)!),
         matchedText: exclamationMatch.group(0)!,
+      );
+    }
+
+    // Single exclamation: !1, !2, !3, !4
+    final singleMatch = _singleExclamation.firstMatch(input);
+    if (singleMatch != null) {
+      return PriorityParseResult(
+        priority: int.parse(singleMatch.group(1)!),
+        matchedText: singleMatch.group(0)!,
       );
     }
 

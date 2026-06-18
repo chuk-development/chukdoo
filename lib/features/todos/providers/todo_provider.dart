@@ -165,6 +165,8 @@ class TodoNotifier extends StateNotifier<TodoState> {
     TodoPriority priority = TodoPriority.p4,
     DateTime? dueDate,
     TimeOfDay? dueTime,
+    List<String> labelIds = const [],
+    bool isPinned = false,
   }) async {
     final userId = SupabaseService.currentUser?.id ?? 'local';
     final now = DateTime.now();
@@ -181,6 +183,8 @@ class TodoNotifier extends StateNotifier<TodoState> {
       sortOrder: 0,
       createdAt: now,
       updatedAt: now,
+      labelIds: labelIds,
+      isPinned: isPinned,
     );
 
     // Save to Hive

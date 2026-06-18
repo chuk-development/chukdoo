@@ -9,9 +9,9 @@ class LabelParseResult {
 }
 
 class LabelParser {
-  // Pattern: @label_name (multiple allowed)
+  // Pattern: #tag_name (multiple allowed)
   static final RegExp _atPattern = RegExp(
-    r'@(\S+)',
+    r'#(\S+)',
   );
 
   LabelParseResult parse(String input) {

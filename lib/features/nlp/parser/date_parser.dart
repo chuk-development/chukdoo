@@ -211,14 +211,34 @@ class DateParser {
       }
     }
 
+    // Space-separated date "10 6" => 10. June (2nd number is the month, 1..12).
+    if (date == null) {
+      final m = RegExp(r'(?<!\d)(\d{1,2})\s+(\d{1,2})(?!\d)').firstMatch(lower);
+      if (m != null) {
+        final day = int.parse(m.group(1)!);
+        final month = int.parse(m.group(2)!);
+        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+          date = DateTime(now.year, month, day);
+          dateMatch = m.group(0);
+        }
+      }
+    }
+
     // ── 2. Determine the TIME (independent of the date) ──
     TimeOfDay? time;
     String? timeMatch;
 
-    // Explicit: 14:30, 10:00, or "10 uhr" / "10am" / "10 pm"
-    final colon = RegExp(r'(?<!\d)(\d{1,2}):(\d{2})(?!\d)').firstMatch(lower);
+    // Search for the time on a copy with the date match blanked out, so a date
+    // like "10 6" can't be mis-read and "10 6 15 40" yields date + 15:40.
+    final timeSource = dateMatch != null
+        ? lower.replaceFirst(dateMatch, ' ' * dateMatch.length)
+        : lower;
+
+    // Explicit: 14:30, "10 uhr"/"10am"/"10 pm", or space form "15 40".
+    final colon = RegExp(r'(?<!\d)(\d{1,2}):(\d{2})(?!\d)').firstMatch(timeSource);
     final modified = RegExp(r'(?<!\d)(\d{1,2})\s*(uhr|am|pm)\b', caseSensitive: false)
-        .firstMatch(lower);
+        .firstMatch(timeSource);
+    final spaced = RegExp(r'(?<!\d)(\d{1,2})\s+(\d{2})(?!\d)').firstMatch(timeSource);
     if (colon != null) {
       final h = int.parse(colon.group(1)!);
       final min = int.parse(colon.group(2)!);
@@ -234,6 +254,13 @@ class DateParser {
       if (h <= 23) {
         time = TimeOfDay(hour: h, minute: 0);
         timeMatch = modified.group(0);
+      }
+    } else if (spaced != null) {
+      final h = int.parse(spaced.group(1)!);
+      final min = int.parse(spaced.group(2)!);
+      if (h <= 23 && min <= 59) {
+        time = TimeOfDay(hour: h, minute: min);
+        timeMatch = spaced.group(0);
       }
     }
 

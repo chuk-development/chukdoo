@@ -27,7 +27,7 @@ class InboxPage extends ConsumerWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => TodoInputSheet(
-        onSubmit: (title, dueDate, dueTime, priority, projectId) {
+        onSubmit: (title, dueDate, dueTime, priority, projectId, labels, pinned) {
           ref.read(todoProvider.notifier).addTodo(
             title: title,
             dueDate: dueDate,
@@ -36,6 +36,8 @@ class InboxPage extends ConsumerWidget {
             priority: priority != null
                 ? TodoPriority.fromValue(priority)
                 : TodoPriority.p4,
+            labelIds: labels,
+            isPinned: pinned,
           );
         },
       ),

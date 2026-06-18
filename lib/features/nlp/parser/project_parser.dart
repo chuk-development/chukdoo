@@ -9,9 +9,9 @@ class ProjectParseResult {
 }
 
 class ProjectParser {
-  // Pattern: #project_name or #"project name with spaces"
+  // Pattern: *project_name or *"project name with spaces"
   static final RegExp _hashtagPattern = RegExp(
-    r'#(?:"([^"]+)"|(\S+))',
+    r'\*(?:"([^"]+)"|(\S+))',
   );
 
   ProjectParseResult? parse(String input) {

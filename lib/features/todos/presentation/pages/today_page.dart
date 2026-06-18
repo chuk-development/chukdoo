@@ -23,7 +23,7 @@ class TodayPage extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       builder: (context) => TodoInputSheet(
         defaultDueDate: DateTime.now(),
-        onSubmit: (title, dueDate, dueTime, priority, projectId) {
+        onSubmit: (title, dueDate, dueTime, priority, projectId, labels, pinned) {
           ref.read(todoProvider.notifier).addTodo(
             title: title,
             dueDate: dueDate ?? DateTime.now(),
@@ -32,6 +32,8 @@ class TodayPage extends ConsumerWidget {
             priority: priority != null
                 ? TodoPriority.fromValue(priority)
                 : TodoPriority.p4,
+            labelIds: labels,
+            isPinned: pinned,
           );
         },
       ),

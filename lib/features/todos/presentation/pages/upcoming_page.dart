@@ -70,7 +70,7 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
       backgroundColor: Colors.transparent,
       builder: (context) => TodoInputSheet(
         defaultDueDate: forDate,
-        onSubmit: (title, dueDate, dueTime, priority, projectId) {
+        onSubmit: (title, dueDate, dueTime, priority, projectId, labels, pinned) {
           ref.read(todoProvider.notifier).addTodo(
             title: title,
             dueDate: dueDate ?? forDate,
@@ -79,6 +79,8 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
             priority: priority != null
                 ? TodoPriority.fromValue(priority)
                 : TodoPriority.p4,
+            labelIds: labels,
+            isPinned: pinned,
           );
         },
       ),

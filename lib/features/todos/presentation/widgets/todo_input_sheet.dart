@@ -18,6 +18,8 @@ class TodoInputSheet extends ConsumerStatefulWidget {
     TimeOfDay? dueTime,
     int? priority,
     String? projectId,
+    List<String> labels,
+    bool pinned,
   ) onSubmit;
 
   const TodoInputSheet({
@@ -42,6 +44,7 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
   int? _selectedPriority;
   String? _selectedProjectName;
   String? _selectedProjectId;
+  bool _pinned = false;
 
   // Track if values were set from text parsing (vs manual picker)
   bool _dateFromParsing = false;
@@ -157,6 +160,8 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
       _selectedTime ?? result.dueTime,
       _selectedPriority ?? result.priority,
       _selectedProjectId,
+      result.labels,
+      _pinned,
     );
 
     // Clear and keep sheet open for next todo
@@ -167,6 +172,7 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
       _selectedPriority = null;
       _selectedProjectName = widget.defaultProjectName;
       _selectedProjectId = widget.defaultProjectId;
+      _pinned = false;
       // Reset parsing flags
       _dateFromParsing = false;
       _timeFromParsing = false;
@@ -219,7 +225,7 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
               focusNode: _focusNode,
               style: const TextStyle(fontSize: 18),
               decoration: InputDecoration(
-                hintText: 'z.B. Arzt anrufen morgen 15 uhr p1',
+                hintText: 'z.B. Arzt anrufen 10 6 15 40 !1 #wichtig *projekt',
                 hintStyle: TextStyle(
                   color: AppColors.textSecondary.withOpacity(0.5),
                 ),
@@ -290,17 +296,8 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
                     color: _hasPriority ? AppColors.getPriorityColor(_selectedPriority!) : null,
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
 
-          // Bottom row with project selector and submit button
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Row(
-              children: [
-                // Project — small anchored dropdown
+                // Project / list — same chip as the others
                 PopupMenuButton<String?>(
                   color: AppColors.surface,
                   position: PopupMenuPosition.under,
@@ -346,24 +343,32 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
                     icon: SolarIconsOutline.folder,
                     label: _selectedProjectName,
                     color: _selectedProjectName != null ? AppColors.primary : null,
-                    trailingArrow: true,
                   ),
                 ),
-                const Spacer(),
 
-                // Submit button
-                SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: FilledButton(
-                    onPressed: _controller.text.trim().isNotEmpty ? _handleSubmit : null,
-                    style: FilledButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                    ),
-                    child: const Icon(SolarIconsBold.roundArrowUp, size: 20),
+                // Pin toggle — same chip, on/off
+                InkWell(
+                  onTap: () => setState(() => _pinned = !_pinned),
+                  borderRadius: BorderRadius.circular(8),
+                  child: _chipBox(
+                    icon: _pinned ? SolarIconsBold.bookmark : SolarIconsOutline.bookmark,
+                    color: _pinned ? AppColors.orange : null,
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Send button row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: _SendButton(
+                enabled: _controller.text.trim().isNotEmpty,
+                onPressed: _handleSubmit,
+              ),
             ),
           ),
         ],
@@ -506,6 +511,27 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
             child: const Text('Erstellen'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Primary pill send button — "↑ Hinzufügen".
+class _SendButton extends StatelessWidget {
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  const _SendButton({required this.enabled, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.icon(
+      onPressed: enabled ? onPressed : null,
+      icon: const Icon(SolarIconsBold.altArrowUp, size: 18),
+      label: const Text('Hinzufügen'),
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
     );
   }

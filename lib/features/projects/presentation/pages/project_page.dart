@@ -38,13 +38,15 @@ class _ProjectPageState extends ConsumerState<ProjectPage> {
       builder: (context) => TodoInputSheet(
         defaultProjectName: currentProject.name,
         defaultProjectId: currentProject.id,
-        onSubmit: (title, dueDate, dueTime, priority, projectId) {
+        onSubmit: (title, dueDate, dueTime, priority, projectId, labels, pinned) {
           ref.read(todoProvider.notifier).addTodo(
             title: title,
             projectId: projectId ?? currentProject.id,
             dueDate: dueDate,
             dueTime: dueTime,
             priority: priority != null ? TodoPriority.fromValue(priority) : TodoPriority.p4,
+            labelIds: labels,
+            isPinned: pinned,
           );
         },
       ),
