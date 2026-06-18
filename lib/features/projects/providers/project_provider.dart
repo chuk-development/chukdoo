@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -85,7 +85,9 @@ class ProjectNotifier extends StateNotifier<ProjectState> {
 
   Future<Project> addProject({
     required String name,
+    String? description,
     int? color,
+    String? icon,
   }) async {
     final userId = SupabaseService.currentUser?.id ?? 'local';
     final now = DateTime.now();
@@ -94,7 +96,9 @@ class ProjectNotifier extends StateNotifier<ProjectState> {
       id: _uuid.v4(),
       userId: userId,
       name: name,
+      description: description,
       color: color ?? 0xFF808080,
+      icon: icon,
       sortOrder: state.projects.length,
       createdAt: now,
       updatedAt: now,

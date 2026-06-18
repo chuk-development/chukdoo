@@ -43,6 +43,7 @@ class AppLocalizations {
 
   String _t(String key) {
     return _localizedValues[locale.languageCode]?[key] ??
+        _localizedValues['en']?[key] ??
         _localizedValues['de']![key] ??
         key;
   }

@@ -107,25 +107,41 @@ class TodoSwipeTile extends ConsumerWidget {
         ],
       ),
 
-      child: TodoItem(
-        title: todo.title,
-        priority: todo.priority.value,
-        dueDate: todo.dueDate,
-        dueTime: todo.dueTime,
-        projectName: projectName,
-        isPinned: todo.isPinned,
-        isCompleted: isCompleted,
-        largeCheckbox: largeCheckbox,
-        onTap: () {
-          // Desktop → fill the right detail panel; mobile → full-screen push.
-          if (MediaQuery.of(context).size.width >= 768) {
-            ref.read(selectedTodoProvider.notifier).state = todo;
-          } else {
-            Navigator.push(context, instantRoute(TodoDetailPage(todo: todo)));
-          }
-        },
-        onComplete: () => notifier.toggleComplete(todo.id),
-      ),
+      child: isCompleted
+          ? _row(context, ref, notifier)
+          : LongPressDraggable<Todo>(
+              data: todo,
+              delay: const Duration(milliseconds: 220),
+              hapticFeedbackOnStart: true,
+              feedback: _TodoDragFeedback(todo: todo),
+              childWhenDragging: Opacity(
+                opacity: 0.35,
+                child: _row(context, ref, notifier),
+              ),
+              child: _row(context, ref, notifier),
+            ),
+    );
+  }
+
+  Widget _row(BuildContext context, WidgetRef ref, dynamic notifier) {
+    return TodoItem(
+      title: todo.title,
+      priority: todo.priority.value,
+      dueDate: todo.dueDate,
+      dueTime: todo.dueTime,
+      projectName: projectName,
+      isPinned: todo.isPinned,
+      isCompleted: isCompleted,
+      largeCheckbox: largeCheckbox,
+      onTap: () {
+        // Desktop → fill the right detail panel; mobile → full-screen push.
+        if (MediaQuery.of(context).size.width >= 768) {
+          ref.read(selectedTodoProvider.notifier).state = todo;
+        } else {
+          Navigator.push(context, instantRoute(TodoDetailPage(todo: todo)));
+        }
+      },
+      onComplete: () => notifier.toggleComplete(todo.id),
     );
   }
 
@@ -351,6 +367,56 @@ class _DateCell extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Floating chip shown under the cursor while dragging a todo onto a project.
+class _TodoDragFeedback extends StatelessWidget {
+  final Todo todo;
+
+  const _TodoDragFeedback({required this.todo});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = AppColors.getPriorityColor(todo.priority.value);
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 280),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.divider),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(SolarIconsBold.checkCircle, size: 18, color: color),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                todo.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

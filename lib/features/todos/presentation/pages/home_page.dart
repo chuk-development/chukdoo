@@ -11,6 +11,7 @@ import '../../../calendar/presentation/pages/calendar_page.dart';
 import '../../../habits/presentation/pages/habits_page.dart';
 import '../../../settings/presentation/settings_page.dart';
 import '../../../projects/domain/models/project.dart';
+import '../../../projects/domain/project_icons.dart';
 import '../../../projects/presentation/pages/project_page.dart';
 import '../../../projects/presentation/widgets/project_edit_dialog.dart';
 import '../../../projects/providers/project_provider.dart';
@@ -431,11 +432,7 @@ class _DrawerProjectTile extends StatelessWidget {
 
     return ListTile(
       dense: true,
-      leading: Container(
-        width: 12,
-        height: 12,
-        decoration: BoxDecoration(color: projectColor, borderRadius: BorderRadius.circular(3)),
-      ),
+      leading: Icon(projectIconFor(project.icon), size: 20, color: projectColor),
       title: Text(project.name, style: const TextStyle(fontSize: 15), overflow: TextOverflow.ellipsis),
       trailing: count > 0
           ? Text('$count', style: const TextStyle(fontSize: 13, color: AppColors.textTertiary))

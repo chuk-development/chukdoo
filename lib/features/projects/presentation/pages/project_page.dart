@@ -85,7 +85,6 @@ class _ProjectPageState extends ConsumerState<ProjectPage> {
     final settings = ref.watch(settingsProvider);
     final projectState = ref.watch(projectProvider);
     final currentProject = projectState.getById(widget.project.id) ?? widget.project;
-    final projectColor = Color(currentProject.color);
 
     final projectTodos = todoState.todos
         .where((t) => !t.isCompleted && t.projectId == currentProject.id)
@@ -95,9 +94,6 @@ class _ProjectPageState extends ConsumerState<ProjectPage> {
         .toList();
 
     final sortedTodos = _sortTodos(projectTodos);
-    final totalTasks = projectTodos.length + completedTodos.length;
-    final completedCount = completedTodos.length;
-    final progress = totalTasks > 0 ? completedCount / totalTasks : 0.0;
     final largeCheckbox = settings.checkboxSize == CheckboxSize.large;
 
     return Scaffold(
@@ -137,100 +133,16 @@ class _ProjectPageState extends ConsumerState<ProjectPage> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Project header with stats
-          _buildProjectHeader(currentProject, projectColor, progress, totalTasks, completedCount, projectTodos.length),
-
-          // Task list — same sectioned list as the main list
-          Expanded(
-            child: sortedTodos.isEmpty && completedTodos.isEmpty
-                ? _buildEmptyState(currentProject)
-                : TodoSectionedList(
-                    active: sortedTodos,
-                    completed: completedTodos,
-                    large: largeCheckbox,
-                  ),
-          ),
-        ],
-      ),
+      // Same simple sectioned list as the main "Alle" list — no stats header.
+      body: sortedTodos.isEmpty && completedTodos.isEmpty
+          ? _buildEmptyState(currentProject)
+          : TodoSectionedList(
+              active: sortedTodos,
+              completed: completedTodos,
+              large: largeCheckbox,
+            ),
       floatingActionButton: QuickAddFab(
         onPressed: () => _showAddTodoSheet(context),
-      ),
-    );
-  }
-
-  Widget _buildProjectHeader(Project project, Color projectColor, double progress, int total, int completed, int open) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (project.description != null && project.description!.isNotEmpty) ...[
-            Text(
-              project.description!,
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 10),
-          ],
-          if (total > 0) ...[
-            // Progress bar
-            Row(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 6,
-                      color: projectColor,
-                      backgroundColor: AppColors.surfaceLight,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '$completed/$total',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            // Stats row
-            Row(
-              children: [
-                _buildStatChip(SolarIconsOutline.clockCircle, '$open offen', AppColors.textSecondary),
-                const SizedBox(width: 8),
-                _buildStatChip(SolarIconsBold.checkCircle, '$completed erledigt', AppColors.green),
-                const SizedBox(width: 8),
-                _buildStatChip(
-                  SolarIconsOutline.fire,
-                  '${(progress * 100).round()}%',
-                  projectColor,
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatChip(IconData icon, String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
-          Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500)),
-        ],
       ),
     );
   }

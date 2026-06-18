@@ -4,8 +4,10 @@ import 'package:solar_icons/solar_icons.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../features/projects/domain/models/project.dart';
+import '../../features/projects/domain/project_icons.dart';
 import '../../features/projects/providers/project_provider.dart';
 import '../../features/sync/services/sync_service.dart';
+import '../../features/todos/domain/models/todo.dart';
 import '../../features/todos/providers/todo_provider.dart';
 
 /// Desktop section selected via the icon rail
@@ -94,12 +96,11 @@ class _AppSidebarState extends ConsumerState<AppSidebar> {
 
         // ── Sub-Panel (contextual navigation) ──
         SizedBox(
-          width: 220,
+          width: 264,
           child: _SubPanel(
             section: section,
             currentView: widget.currentView,
             onViewSelected: widget.onViewSelected,
-            onAddTodo: widget.onAddTodo,
             onProjectTap: widget.onProjectTap,
           ),
         ),
@@ -109,7 +110,7 @@ class _AppSidebarState extends ConsumerState<AppSidebar> {
 }
 
 // ═══════════════════════════════════════════════
-// Icon Rail — narrow vertical strip (~56px)
+// Icon Rail — narrow vertical strip
 // ═══════════════════════════════════════════════
 
 class _IconRail extends StatelessWidget {
@@ -126,18 +127,18 @@ class _IconRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 56,
+      width: 64,
       color: AppColors.background,
       child: Column(
         children: [
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           // Logo
           Container(
-            width: 34,
-            height: 34,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               color: AppColors.primary,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(11),
             ),
             alignment: Alignment.center,
             child: const Text(
@@ -145,11 +146,11 @@ class _IconRail extends StatelessWidget {
               style: TextStyle(
                 color: AppColors.onPrimary,
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
+                fontSize: 18,
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
 
           // Section icons
           _RailIcon(
@@ -190,7 +191,7 @@ class _IconRail extends StatelessWidget {
           // Sync
           const _SyncRailIcon(),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
         ],
       ),
     );
@@ -213,18 +214,18 @@ class _RailIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: IconButton(
         icon: Icon(
           isActive ? activeIcon : icon,
-          size: 22,
+          size: 24,
           color: isActive ? AppColors.primary : AppColors.textSecondary,
         ),
         onPressed: onTap,
         style: IconButton.styleFrom(
           backgroundColor: isActive ? AppColors.primary.withValues(alpha: 0.12) : Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          fixedSize: const Size(42, 42),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+          fixedSize: const Size(46, 46),
         ),
       ),
     );
@@ -260,15 +261,15 @@ class _SyncRailIcon extends StatelessWidget {
         }
 
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
+          padding: const EdgeInsets.symmetric(vertical: 3),
           child: IconButton(
-            icon: Icon(icon, size: 20, color: color),
+            icon: Icon(icon, size: 22, color: color),
             onPressed: () => SyncService.fullSync(),
             style: IconButton.styleFrom(
-              fixedSize: const Size(42, 42),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              fixedSize: const Size(46, 46),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
             ),
-            tooltip: status == SyncStatus.syncing ? 'Synchronisiere...' : 'Synchronisieren',
+            tooltip: status == SyncStatus.syncing ? 'Syncing…' : 'Sync',
           ),
         );
       },
@@ -277,21 +278,19 @@ class _SyncRailIcon extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════
-// Sub-Panel — contextual navigation (220px)
+// Sub-Panel — contextual navigation
 // ═══════════════════════════════════════════════
 
 class _SubPanel extends ConsumerWidget {
   final SidebarSection section;
   final String currentView;
   final ValueChanged<String> onViewSelected;
-  final VoidCallback onAddTodo;
   final void Function(dynamic project) onProjectTap;
 
   const _SubPanel({
     required this.section,
     required this.currentView,
     required this.onViewSelected,
-    required this.onAddTodo,
     required this.onProjectTap,
   });
 
@@ -303,18 +302,17 @@ class _SubPanel extends ConsumerWidget {
         SidebarSection.tasks => _TasksSubPanel(
             currentView: currentView,
             onViewSelected: onViewSelected,
-            onAddTodo: onAddTodo,
             onProjectTap: onProjectTap,
           ),
         SidebarSection.calendar => _SimpleSubPanel(
-            title: 'Kalender',
+            title: 'Calendar',
             icon: SolarIconsOutline.calendar,
             currentView: currentView,
             onViewSelected: onViewSelected,
             section: SidebarSection.calendar,
           ),
         SidebarSection.habits => _SimpleSubPanel(
-            title: 'Gewohnheiten',
+            title: 'Habits',
             icon: SolarIconsOutline.target,
             currentView: currentView,
             onViewSelected: onViewSelected,
@@ -337,13 +335,11 @@ class _SubPanel extends ConsumerWidget {
 class _TasksSubPanel extends ConsumerWidget {
   final String currentView;
   final ValueChanged<String> onViewSelected;
-  final VoidCallback onAddTodo;
   final void Function(dynamic project) onProjectTap;
 
   const _TasksSubPanel({
     required this.currentView,
     required this.onViewSelected,
-    required this.onAddTodo,
     required this.onProjectTap,
   });
 
@@ -357,41 +353,32 @@ class _TasksSubPanel extends ConsumerWidget {
     return Column(
       children: [
         // Header
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
-          child: Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Aufgaben',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
-                  ),
-                ),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(18, 18, 16, 10),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Tasks',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
               ),
-              IconButton(
-                icon: const Icon(Icons.add, size: 18, color: AppColors.textSecondary),
-                onPressed: onAddTodo,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-              ),
-            ],
+            ),
           ),
         ),
 
         // Smart views
         _SubNavItem(
           icon: SolarIconsOutline.inbox,
-          label: 'Alle',
+          label: 'All',
           count: allCount,
           isSelected: currentView == 'all',
           onTap: () => onViewSelected('all'),
         ),
         _SubNavItem(
           icon: SolarIconsOutline.calendar,
-          label: 'Heute',
+          label: 'Today',
           count: todoState.todayTodos.length,
           isSelected: currentView == 'today',
           onTap: () => onViewSelected('today'),
@@ -399,17 +386,22 @@ class _TasksSubPanel extends ConsumerWidget {
         ),
         _SubNavItem(
           icon: SolarIconsOutline.calendarMark,
-          label: 'Nächste 7 Tage',
+          label: 'Next 7 Days',
           isSelected: currentView == 'upcoming',
           onTap: () => onViewSelected('upcoming'),
           iconColor: AppColors.blue,
         ),
         _SubNavItem(
           icon: SolarIconsOutline.inbox,
-          label: 'Eingang',
+          label: 'Inbox',
           count: todoState.inboxTodos.length,
           isSelected: currentView == 'inbox',
           onTap: () => onViewSelected('inbox'),
+          // Drop here to remove a task from its project.
+          onAcceptTodo: (todo) {
+            if (todo.projectId == null) return;
+            ref.read(todoProvider.notifier).moveToProject(todo.id, null);
+          },
         ),
 
         const SizedBox(height: 4),
@@ -417,25 +409,26 @@ class _TasksSubPanel extends ConsumerWidget {
 
         // Projects section
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 8, 4),
+          padding: const EdgeInsets.fromLTRB(18, 12, 10, 4),
           child: Row(
             children: [
               const Expanded(
                 child: Text(
-                  'PROJEKTE',
+                  'PROJECTS',
                   style: TextStyle(
                     color: AppColors.textTertiary,
-                    fontSize: 11,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.8,
                   ),
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.add, size: 14, color: AppColors.textSecondary),
+                icon: const Icon(Icons.add, size: 16, color: AppColors.textSecondary),
                 onPressed: () => onViewSelected('add_project'),
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                tooltip: 'New project',
               ),
             ],
           ),
@@ -455,6 +448,10 @@ class _TasksSubPanel extends ConsumerWidget {
                 project: project,
                 count: count,
                 onTap: () => onProjectTap(project),
+                onAcceptTodo: (todo) {
+                  if (todo.projectId == project.id) return;
+                  ref.read(todoProvider.notifier).moveToProject(todo.id, project.id);
+                },
               );
             },
           ),
@@ -465,13 +462,13 @@ class _TasksSubPanel extends ConsumerWidget {
         // Bottom items
         _SubNavItem(
           icon: SolarIconsOutline.checkCircle,
-          label: 'Erledigt',
+          label: 'Completed',
           isSelected: currentView == 'completed',
           onTap: () => onViewSelected('completed'),
         ),
         _SubNavItem(
           icon: SolarIconsOutline.settings,
-          label: 'Einstellungen',
+          label: 'Settings',
           isSelected: currentView == 'settings',
           onTap: () => onViewSelected('settings'),
         ),
@@ -504,16 +501,16 @@ class _SimpleSubPanel extends StatelessWidget {
         return [
           _SubNavItem(
             icon: SolarIconsOutline.calendarMinimalistic,
-            label: 'Tagesansicht',
+            label: 'Day View',
             isSelected: currentView == 'calendar',
             onTap: () => onViewSelected('calendar'),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 12, 16, 4),
+            padding: const EdgeInsets.fromLTRB(20, 12, 16, 4),
             child: Text(
-              'Kalender zeigt Aufgaben mit Fälligkeitsdatum in einer Tages-, Wochen- oder Monatsansicht.',
+              'The calendar shows tasks with a due date in a day, week or month view.',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 12.5,
                 color: AppColors.textTertiary,
                 height: 1.4,
               ),
@@ -524,16 +521,16 @@ class _SimpleSubPanel extends StatelessWidget {
         return [
           _SubNavItem(
             icon: SolarIconsOutline.target,
-            label: 'Gewohnheiten',
+            label: 'Habits',
             isSelected: currentView == 'habits',
             onTap: () => onViewSelected('habits'),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 12, 16, 4),
+            padding: const EdgeInsets.fromLTRB(20, 12, 16, 4),
             child: Text(
-              'Verfolge tägliche Gewohnheiten und baue Streaks auf.',
+              'Track daily habits and build streaks.',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 12.5,
                 color: AppColors.textTertiary,
                 height: 1.4,
               ),
@@ -549,11 +546,11 @@ class _SimpleSubPanel extends StatelessWidget {
             onTap: () => onViewSelected('kanban'),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 12, 16, 4),
+            padding: const EdgeInsets.fromLTRB(20, 12, 16, 4),
             child: Text(
-              'Kanban-Board für visuelle Aufgabenverwaltung per Drag & Drop.',
+              'Kanban board for visual task management via drag & drop.',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 12.5,
                 color: AppColors.textTertiary,
                 height: 1.4,
               ),
@@ -571,17 +568,17 @@ class _SimpleSubPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          padding: const EdgeInsets.fromLTRB(18, 18, 16, 12),
           child: Row(
             children: [
-              Icon(icon, size: 18, color: AppColors.primary),
-              const SizedBox(width: 8),
+              Icon(icon, size: 20, color: AppColors.primary),
+              const SizedBox(width: 10),
               Text(
                 title,
                 style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w600,
-                  fontSize: 15,
+                  fontSize: 16,
                 ),
               ),
             ],
@@ -598,7 +595,7 @@ class _SimpleSubPanel extends StatelessWidget {
         const Divider(color: AppColors.divider, height: 1),
         _SubNavItem(
           icon: SolarIconsOutline.settings,
-          label: 'Einstellungen',
+          label: 'Settings',
           isSelected: currentView == 'settings',
           onTap: () => onViewSelected('settings'),
         ),
@@ -612,13 +609,14 @@ class _SimpleSubPanel extends StatelessWidget {
 // Shared Widgets
 // ═══════════════════════════════════════════════
 
-class _SubNavItem extends StatelessWidget {
+class _SubNavItem extends StatefulWidget {
   final IconData icon;
   final String label;
   final int? count;
   final bool isSelected;
   final VoidCallback onTap;
   final Color? iconColor;
+  final void Function(Todo todo)? onAcceptTodo;
 
   const _SubNavItem({
     required this.icon,
@@ -627,104 +625,168 @@ class _SubNavItem extends StatelessWidget {
     required this.isSelected,
     required this.onTap,
     this.iconColor,
+    this.onAcceptTodo,
   });
 
   @override
+  State<_SubNavItem> createState() => _SubNavItemState();
+}
+
+class _SubNavItemState extends State<_SubNavItem> {
+  bool _hovering = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
+    final icon = widget.icon;
+    final label = widget.label;
+    final count = widget.count;
+    final isSelected = widget.isSelected;
+    final iconColor = widget.iconColor;
+
+    // Margin lives OUTSIDE the ink area and the Material is clipped to the
+    // rounded shape, so the hover/selected highlight matches the tile exactly
+    // (the InkWell hover overlay no longer overflows into the side margins).
+    final tile = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
+      child: Material(
+        color: _hovering
+            ? AppColors.primary.withValues(alpha: 0.18)
+            : isSelected
+                ? AppColors.primary.withValues(alpha: 0.12)
+                : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.primary.withValues(alpha: 0.12) : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 16,
-                color: isSelected ? AppColors.primary : (iconColor ?? AppColors.textSecondary),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: widget.onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 19,
+                  color: isSelected ? AppColors.primary : (iconColor ?? AppColors.textSecondary),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    ),
                   ),
                 ),
-              ),
-              if (count != null && count! > 0)
-                Text(
-                  '$count',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isSelected ? AppColors.primary : AppColors.textTertiary,
+                if (count != null && count > 0)
+                  Text(
+                    '$count',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isSelected ? AppColors.primary : AppColors.textTertiary,
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
+
+    if (widget.onAcceptTodo == null) return tile;
+    return DragTarget<Todo>(
+      onWillAcceptWithDetails: (_) => true,
+      onMove: (_) {
+        if (!_hovering) setState(() => _hovering = true);
+      },
+      onLeave: (_) {
+        if (_hovering) setState(() => _hovering = false);
+      },
+      onAcceptWithDetails: (d) {
+        setState(() => _hovering = false);
+        widget.onAcceptTodo!(d.data);
+      },
+      builder: (context, cand, rej) => tile,
+    );
   }
 }
 
-class _ProjectItem extends StatelessWidget {
+class _ProjectItem extends StatefulWidget {
   final Project project;
   final int count;
   final VoidCallback onTap;
+  final void Function(Todo todo)? onAcceptTodo;
 
   const _ProjectItem({
     required this.project,
     required this.count,
     required this.onTap,
+    this.onAcceptTodo,
   });
 
   @override
+  State<_ProjectItem> createState() => _ProjectItemState();
+}
+
+class _ProjectItemState extends State<_ProjectItem> {
+  bool _hovering = false;
+
+  @override
   Widget build(BuildContext context) {
+    final project = widget.project;
+    final count = widget.count;
     final projectColor = Color(project.color);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 7),
-          child: Row(
-            children: [
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: projectColor,
-                  borderRadius: BorderRadius.circular(2),
+    final tile = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
+      child: Material(
+        color: _hovering ? AppColors.primary.withValues(alpha: 0.18) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: widget.onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Row(
+              children: [
+                Icon(projectIconFor(project.icon), size: 18, color: projectColor),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    project.name,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _hovering ? AppColors.primary : AppColors.textSecondary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  project.name,
-                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (count > 0)
-                Text(
-                  '$count',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
-                ),
-            ],
+                if (count > 0)
+                  Text(
+                    '$count',
+                    style: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
+    );
+
+    if (widget.onAcceptTodo == null) return tile;
+    return DragTarget<Todo>(
+      onWillAcceptWithDetails: (_) => true,
+      onMove: (_) {
+        if (!_hovering) setState(() => _hovering = true);
+      },
+      onLeave: (_) {
+        if (_hovering) setState(() => _hovering = false);
+      },
+      onAcceptWithDetails: (d) {
+        setState(() => _hovering = false);
+        widget.onAcceptTodo!(d.data);
+      },
+      builder: (context, cand, rej) => tile,
     );
   }
 }
