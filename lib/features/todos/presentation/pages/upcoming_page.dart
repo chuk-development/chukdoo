@@ -91,7 +91,7 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
   Widget build(BuildContext context) {
     final todoState = ref.watch(todoProvider);
     final settings = ref.watch(settingsProvider);
-    final monthFormat = DateFormat('MMMM yyyy', 'de_DE');
+    final monthFormat = DateFormat('MMMM yyyy', 'en_US');
     final showCompleted = todoState.showCompleted;
     final hasAnyCompleted = todoState.allCompletedTodos.isNotEmpty;
 
@@ -99,9 +99,9 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         leading: widget.onMenu != null
-            ? IconButton(icon: const Icon(SolarIconsOutline.hamburgerMenu), onPressed: widget.onMenu, tooltip: 'Menü')
+            ? IconButton(icon: const Icon(SolarIconsOutline.hamburgerMenu), onPressed: widget.onMenu, tooltip: 'Menu')
             : null,
-        title: const Text('Demnächst'),
+        title: const Text('Upcoming'),
         actions: [
           if (hasAnyCompleted)
             IconButton(
@@ -112,7 +112,7 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
               onPressed: () {
                 ref.read(todoProvider.notifier).toggleShowCompleted();
               },
-              tooltip: showCompleted ? 'Erledigte ausblenden' : 'Erledigte anzeigen',
+              tooltip: showCompleted ? 'Hide completed' : 'Show completed',
             ),
         ],
       ),
@@ -126,7 +126,7 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
                 IconButton(
                   icon: const Icon(SolarIconsOutline.altArrowLeft),
                   onPressed: _goToPreviousWeek,
-                  tooltip: 'Vorherige Woche',
+                  tooltip: 'Previous week',
                 ),
                 Expanded(
                   child: GestureDetector(
@@ -144,7 +144,7 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
                 IconButton(
                   icon: const Icon(SolarIconsOutline.altArrowRight),
                   onPressed: _goToNextWeek,
-                  tooltip: 'Nächste Woche',
+                  tooltip: 'Next week',
                 ),
               ],
             ),
@@ -257,15 +257,15 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
     String dateLabel;
     String? subLabel;
 
-    final weekdayFormat = DateFormat('EEEE', 'de_DE');
-    final dateFormat = DateFormat('d MMM', 'de_DE');
+    final weekdayFormat = DateFormat('EEEE', 'en_US');
+    final dateFormat = DateFormat('d MMM', 'en_US');
 
     if (targetDate == today) {
       dateLabel = weekdayFormat.format(date);
-      subLabel = '${dateFormat.format(date)} • Heute';
+      subLabel = '${dateFormat.format(date)} • Today';
     } else if (targetDate == tomorrow) {
       dateLabel = weekdayFormat.format(date);
-      subLabel = '${dateFormat.format(date)} • Morgen';
+      subLabel = '${dateFormat.format(date)} • Tomorrow';
     } else {
       dateLabel = weekdayFormat.format(date);
       subLabel = dateFormat.format(date);
@@ -332,6 +332,7 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
     return Padding(
       padding: const EdgeInsets.only(left: 16),
       child: TodoSwipeTile(
+        key: ValueKey(todo.id),
         todo: todo,
         largeCheckbox: largeCheckbox,
         isCompleted: isCompleted,

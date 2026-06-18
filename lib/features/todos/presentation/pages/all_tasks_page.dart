@@ -21,7 +21,7 @@ class AllTasksPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Alle Aufgaben'),
+        title: const Text('All Tasks'),
       ),
       body: (activeTodos.isEmpty && completedTodos.isEmpty)
           ? _buildEmptyState()
@@ -33,7 +33,7 @@ class AllTasksPage extends ConsumerWidget {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                       child: Text(
-                        'Offen (${activeTodos.length})',
+                        'Open (${activeTodos.length})',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -47,7 +47,7 @@ class AllTasksPage extends ConsumerWidget {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
                       child: Text(
-                        'Erledigt (${completedTodos.length})',
+                        'Completed (${completedTodos.length})',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -65,6 +65,7 @@ class AllTasksPage extends ConsumerWidget {
 
   Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox, {bool isCompleted = false}) {
     return TodoSwipeTile(
+      key: ValueKey(todo.id),
       todo: todo,
       largeCheckbox: largeCheckbox,
       isCompleted: isCompleted,
@@ -85,7 +86,7 @@ class AllTasksPage extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
             const Text(
-              'Keine Aufgaben',
+              'No tasks',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -93,7 +94,7 @@ class AllTasksPage extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Du hast noch keine Aufgaben erstellt',
+              'You haven\'t created any tasks yet',
               style: TextStyle(
                 fontSize: 16,
                 color: AppColors.textSecondary,

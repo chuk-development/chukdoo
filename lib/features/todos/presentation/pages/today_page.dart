@@ -52,13 +52,13 @@ class TodayPage extends ConsumerWidget {
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         leading: onMenu != null
-            ? IconButton(icon: const Icon(SolarIconsOutline.hamburgerMenu), onPressed: onMenu, tooltip: 'Menü')
+            ? IconButton(icon: const Icon(SolarIconsOutline.hamburgerMenu), onPressed: onMenu, tooltip: 'Menu')
             : null,
-        title: const Text('Heute'),
+        title: const Text('Today'),
         actions: [
           if (completedTodos.isNotEmpty)
             Tooltip(
-              message: showCompleted ? 'Erledigte ausblenden' : 'Erledigte anzeigen',
+              message: showCompleted ? 'Hide completed' : 'Show completed',
               child: IconButton(
                 icon: Icon(
                   showCompleted ? SolarIconsBold.checkCircle : SolarIconsOutline.checkCircle,
@@ -88,7 +88,7 @@ class TodayPage extends ConsumerWidget {
                           child: Row(
                             children: [
                               Text(
-                                'Heute erledigt',
+                                'Completed today',
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
@@ -123,6 +123,7 @@ class TodayPage extends ConsumerWidget {
 
   Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox, {bool isCompleted = false}) {
     return TodoSwipeTile(
+      key: ValueKey(todo.id),
       todo: todo,
       largeCheckbox: largeCheckbox,
       isCompleted: isCompleted,
@@ -151,7 +152,7 @@ class TodayPage extends ConsumerWidget {
             ),
             const SizedBox(height: 32),
             const Text(
-              'Keine Aufgaben für heute',
+              'No tasks for today',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -160,7 +161,7 @@ class TodayPage extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Tippe auf + um eine Aufgabe für heute hinzuzufügen',
+              'Tap + to add a task for today',
               style: TextStyle(
                 fontSize: 14,
                 color: AppColors.textSecondary,

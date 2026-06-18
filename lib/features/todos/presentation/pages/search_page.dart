@@ -62,7 +62,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           focusNode: _focusNode,
           style: const TextStyle(fontSize: 18),
           decoration: InputDecoration(
-            hintText: 'Aufgaben suchen...',
+            hintText: 'Search tasks...',
             hintStyle: TextStyle(color: AppColors.textSecondary),
             border: InputBorder.none,
             enabledBorder: InputBorder.none,
@@ -106,6 +106,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox) {
     return TodoSwipeTile(
+      key: ValueKey(todo.id),
       todo: todo,
       largeCheckbox: largeCheckbox,
       isCompleted: todo.isCompleted,
@@ -126,7 +127,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ),
             const SizedBox(height: 24),
             const Text(
-              'Aufgaben suchen',
+              'Search tasks',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -134,7 +135,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Gib einen Suchbegriff ein, um deine Aufgaben zu finden',
+              'Enter a search term to find your tasks',
               style: TextStyle(
                 fontSize: 16,
                 color: AppColors.textSecondary,
@@ -161,7 +162,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ),
             const SizedBox(height: 24),
             const Text(
-              'Keine Ergebnisse',
+              'No results',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -169,7 +170,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Keine Aufgaben gefunden für "$_query"',
+              'No tasks found for "$_query"',
               style: TextStyle(
                 fontSize: 16,
                 color: AppColors.textSecondary,

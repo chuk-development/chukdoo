@@ -23,9 +23,9 @@ class CompletedTasksPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         leading: onMenu != null
-            ? IconButton(icon: const Icon(SolarIconsOutline.hamburgerMenu), onPressed: onMenu, tooltip: 'Menü')
+            ? IconButton(icon: const Icon(SolarIconsOutline.hamburgerMenu), onPressed: onMenu, tooltip: 'Menu')
             : null,
-        title: const Text('Erledigt'),
+        title: const Text('Completed'),
         actions: [
           if (completedTodos.isNotEmpty)
             PopupMenuButton<String>(
@@ -42,7 +42,7 @@ class CompletedTasksPage extends ConsumerWidget {
                     children: [
                       Icon(SolarIconsOutline.trashBinTrash, color: AppColors.error),
                       SizedBox(width: 8),
-                      Text('Alle löschen', style: TextStyle(color: AppColors.error)),
+                      Text('Delete all', style: TextStyle(color: AppColors.error)),
                     ],
                   ),
                 ),
@@ -59,7 +59,7 @@ class CompletedTasksPage extends ConsumerWidget {
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                     child: Text(
-                      '${completedTodos.length} Aufgaben erledigt',
+                      '${completedTodos.length} tasks completed',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -79,14 +79,14 @@ class CompletedTasksPage extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Alle erledigten Aufgaben löschen?'),
+        title: const Text('Delete all completed tasks?'),
         content: Text(
-          '${todos.length} Aufgaben werden endgültig gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.',
+          '${todos.length} tasks will be permanently deleted. This action cannot be undone.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Abbrechen'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
@@ -96,7 +96,7 @@ class CompletedTasksPage extends ConsumerWidget {
               Navigator.pop(context);
             },
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Alle löschen'),
+            child: const Text('Delete all'),
           ),
         ],
       ),
@@ -105,6 +105,7 @@ class CompletedTasksPage extends ConsumerWidget {
 
   Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox) {
     return TodoSwipeTile(
+      key: ValueKey(todo.id),
       todo: todo,
       largeCheckbox: largeCheckbox,
       isCompleted: true,
@@ -125,7 +126,7 @@ class CompletedTasksPage extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
             const Text(
-              'Keine erledigten Aufgaben',
+              'No completed tasks',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -133,7 +134,7 @@ class CompletedTasksPage extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Erledigte Aufgaben werden hier angezeigt',
+              'Completed tasks will appear here',
               style: TextStyle(
                 fontSize: 16,
                 color: AppColors.textSecondary,

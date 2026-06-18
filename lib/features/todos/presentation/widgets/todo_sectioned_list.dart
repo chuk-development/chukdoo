@@ -28,18 +28,18 @@ class TodoSectionedList extends StatelessWidget {
     final pinned = active.where((t) => t.isPinned).toList();
     final unpinned = active.where((t) => !t.isPinned).toList();
 
-    Widget item(Todo t, {bool isCompleted = false}) =>
-        TodoSwipeTile(todo: t, largeCheckbox: large, isCompleted: isCompleted);
+    Widget item(Todo t, {bool isCompleted = false}) => TodoSwipeTile(
+        key: ValueKey(t.id), todo: t, largeCheckbox: large, isCompleted: isCompleted);
 
     final sections = <Widget>[];
     if (pinned.isNotEmpty) {
       sections.add(_CollapsibleSection(
-        title: 'Angeheftet',
+        title: 'Pinned',
         count: pinned.length,
         children: pinned.map((t) => item(t)).toList(),
       ));
       sections.add(_CollapsibleSection(
-        title: 'Weitere',
+        title: 'More',
         count: unpinned.length,
         children: unpinned.map((t) => item(t)).toList(),
       ));
@@ -48,7 +48,7 @@ class TodoSectionedList extends StatelessWidget {
     }
     if (completed.isNotEmpty) {
       sections.add(_CollapsibleSection(
-        title: 'Erledigt',
+        title: 'Completed',
         count: completed.length,
         children: completed.map((t) => item(t, isCompleted: true)).toList(),
       ));

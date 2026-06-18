@@ -42,17 +42,6 @@ class TodoSwipeTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(todoProvider.notifier);
-    final isDesktop = MediaQuery.of(context).size.width >= 768;
-
-    // Desktop: no swipe panes — flutter_slidable's horizontal drag fights the
-    // Draggable and dragging-to-the-sidebar never starts. Use a plain Draggable
-    // so a task can be grabbed and dropped on a project/All. Edits live in the
-    // right detail panel; completing is the checkbox.
-    if (isDesktop) {
-      return isCompleted
-          ? _row(context, ref, notifier)
-          : _draggable(context, ref, notifier, isDesktop: true);
-    }
 
     return Slidable(
       key: ValueKey(todo.id),
@@ -120,34 +109,23 @@ class TodoSwipeTile extends ConsumerWidget {
 
       child: isCompleted
           ? _row(context, ref, notifier)
-          : _draggable(context, ref, notifier, isDesktop: false),
+          : _draggable(context, ref, notifier),
     );
   }
 
   /// Wrap the row so it can be dragged onto a project/All in the sidebar.
   ///
-  /// Desktop → plain [Draggable] (grab immediately with the mouse).
-  /// Mobile  → [LongPressDraggable] so a normal vertical scroll isn't hijacked.
-  Widget _draggable(BuildContext context, WidgetRef ref, dynamic notifier,
-      {required bool isDesktop}) {
-    final feedback = _TodoDragFeedback(todo: todo);
-    final whenDragging = Opacity(opacity: 0.35, child: _row(context, ref, notifier));
-
-    if (isDesktop) {
-      return Draggable<Todo>(
-        data: todo,
-        feedback: feedback,
-        childWhenDragging: whenDragging,
-        child: _row(context, ref, notifier),
-      );
-    }
-
+  /// Uses [LongPressDraggable] on every platform: a quick horizontal flick is
+  /// still claimed by the Slidable (swipe actions), while press-and-hold then
+  /// move starts a drag toward the sidebar. This is the only way the two
+  /// gestures coexist — a plain Draggable steals the horizontal swipe.
+  Widget _draggable(BuildContext context, WidgetRef ref, dynamic notifier) {
     return LongPressDraggable<Todo>(
       data: todo,
-      delay: const Duration(milliseconds: 220),
+      delay: const Duration(milliseconds: 200),
       hapticFeedbackOnStart: true,
-      feedback: feedback,
-      childWhenDragging: whenDragging,
+      feedback: _TodoDragFeedback(todo: todo),
+      childWhenDragging: Opacity(opacity: 0.35, child: _row(context, ref, notifier)),
       child: _row(context, ref, notifier),
     );
   }
