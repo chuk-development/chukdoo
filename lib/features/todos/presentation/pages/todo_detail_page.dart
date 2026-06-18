@@ -14,7 +14,11 @@ import '../../../notifications/reminder_scheduler.dart';
 class TodoDetailPage extends ConsumerStatefulWidget {
   final Todo todo;
 
-  const TodoDetailPage({super.key, required this.todo});
+  /// When set, the page is hosted in a panel (desktop) — close/save/delete
+  /// call this instead of popping a route.
+  final VoidCallback? onClose;
+
+  const TodoDetailPage({super.key, required this.todo, this.onClose});
 
   @override
   ConsumerState<TodoDetailPage> createState() => _TodoDetailPageState();
@@ -55,6 +59,14 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
     super.dispose();
   }
 
+  void _close() {
+    if (widget.onClose != null) {
+      widget.onClose!();
+    } else {
+      Navigator.pop(context);
+    }
+  }
+
   void _save() {
     final updated = widget.todo.copyWith(
       title: _titleController.text.trim(),
@@ -77,7 +89,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
     ref.read(todoProvider.notifier).updateTodo(updated);
     ref.read(settingsProvider.notifier).rememberTags(_tags);
     ReminderScheduler.instance.scheduleForTodo(updated);
-    Navigator.pop(context);
+    _close();
   }
 
   void _delete() {
@@ -94,10 +106,10 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(context); // close dialog
               ReminderScheduler.instance.cancelForTodo(widget.todo.id);
               ref.read(todoProvider.notifier).deleteTodo(widget.todo.id);
-              Navigator.pop(context);
+              _close();
             },
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
             child: const Text('Löschen'),
@@ -127,7 +139,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(SolarIconsOutline.closeCircle),
-          onPressed: () => Navigator.pop(context),
+          onPressed: _close,
         ),
         actions: [
           IconButton(

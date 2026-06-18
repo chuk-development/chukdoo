@@ -356,3 +356,6 @@ class TodoNotifier extends StateNotifier<TodoState> {
 final todoProvider = StateNotifierProvider<TodoNotifier, TodoState>((ref) {
   return TodoNotifier();
 });
+
+/// Todo currently shown in the desktop detail panel (null = none / mobile).
+final selectedTodoProvider = StateProvider<Todo?>((ref) => null);

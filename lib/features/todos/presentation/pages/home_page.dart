@@ -18,6 +18,7 @@ import '../../../settings/providers/settings_provider.dart';
 import '../../providers/todo_provider.dart';
 import '../../../kanban/presentation/pages/kanban_page.dart';
 import 'inbox_page.dart';
+import 'todo_detail_page.dart';
 import 'today_page.dart';
 import 'upcoming_page.dart';
 import 'completed_tasks_page.dart';
@@ -108,6 +109,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       ProjectEditDialog.show(context);
       return;
     }
+    ref.read(selectedTodoProvider.notifier).state = null;
     setState(() {
       _currentView = view;
     });
@@ -130,6 +132,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   void _handleProjectTap(dynamic project) {
     final isDesktop = MediaQuery.of(context).size.width >= 768;
     if (isDesktop) {
+      ref.read(selectedTodoProvider.notifier).state = null;
       setState(() {
         _selectedProject = project as Project;
         _currentView = 'project';
@@ -150,6 +153,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           final isDesktop = constraints.maxWidth >= 768;
 
           if (isDesktop) {
+            final selectedTodo = ref.watch(selectedTodoProvider);
             return Scaffold(
               body: Row(
                 children: [
@@ -160,10 +164,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     onSearch: _handleSearch,
                     onProjectTap: _handleProjectTap,
                   ),
-                  Container(
-                    width: 1,
-                    color: AppColors.divider,
-                  ),
+                  Container(width: 1, color: AppColors.divider),
                   Expanded(
                     child: Column(
                       children: [
@@ -172,6 +173,19 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ],
                     ),
                   ),
+                  // Right detail panel (TickTick-style 3rd column)
+                  if (selectedTodo != null) ...[
+                    Container(width: 1, color: AppColors.divider),
+                    SizedBox(
+                      width: 380,
+                      child: TodoDetailPage(
+                        key: ValueKey(selectedTodo.id),
+                        todo: selectedTodo,
+                        onClose: () =>
+                            ref.read(selectedTodoProvider.notifier).state = null,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             );

@@ -116,7 +116,14 @@ class TodoSwipeTile extends ConsumerWidget {
         isPinned: todo.isPinned,
         isCompleted: isCompleted,
         largeCheckbox: largeCheckbox,
-        onTap: () => Navigator.push(context, instantRoute(TodoDetailPage(todo: todo))),
+        onTap: () {
+          // Desktop → fill the right detail panel; mobile → full-screen push.
+          if (MediaQuery.of(context).size.width >= 768) {
+            ref.read(selectedTodoProvider.notifier).state = todo;
+          } else {
+            Navigator.push(context, instantRoute(TodoDetailPage(todo: todo)));
+          }
+        },
         onComplete: () => notifier.toggleComplete(todo.id),
       ),
     );
