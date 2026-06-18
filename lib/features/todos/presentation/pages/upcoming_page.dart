@@ -9,12 +9,13 @@ import '../../../settings/providers/settings_provider.dart';
 import '../../domain/models/todo.dart';
 import '../../providers/todo_provider.dart';
 import '../widgets/todo_input_sheet.dart';
-import '../widgets/todo_item.dart';
+import '../widgets/todo_swipe_tile.dart';
 import '../widgets/quick_add_fab.dart';
-import 'todo_detail_page.dart';
 
 class UpcomingPage extends ConsumerStatefulWidget {
-  const UpcomingPage({super.key});
+  final VoidCallback? onMenu;
+
+  const UpcomingPage({super.key, this.onMenu});
 
   @override
   ConsumerState<UpcomingPage> createState() => _UpcomingPageState();
@@ -95,6 +96,9 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
+        leading: widget.onMenu != null
+            ? IconButton(icon: const Icon(SolarIconsOutline.hamburgerMenu), onPressed: widget.onMenu, tooltip: 'Menü')
+            : null,
         title: const Text('Demnächst'),
         actions: [
           if (hasAnyCompleted)
@@ -323,51 +327,12 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
   }
 
   Widget _buildTodoTile(Todo todo, bool largeCheckbox, {bool isCompleted = false}) {
-    return Slidable(
-      key: ValueKey(todo.id),
-      startActionPane: isCompleted ? null : ActionPane(
-        motion: const BehindMotion(),
-        extentRatio: 0.25,
-        dismissible: DismissiblePane(
-          dismissThreshold: 0.5,
-          onDismissed: () {
-            ref.read(todoProvider.notifier).toggleComplete(todo.id);
-          },
-        ),
-        children: [
-          SlidableAction(
-            onPressed: (_) {
-              ref.read(todoProvider.notifier).toggleComplete(todo.id);
-            },
-            backgroundColor: AppColors.green,
-            foregroundColor: Colors.white,
-            icon: SolarIconsBold.checkCircle,
-            label: 'Erledigt',
-          ),
-        ],
-      ),
-      child: Opacity(
-        opacity: isCompleted ? 0.6 : 1.0,
-        child: Padding(
-          padding: const EdgeInsets.only(left: 16),
-          child: TodoItem(
-            title: todo.title,
-            priority: todo.priority.value,
-            isCompleted: isCompleted,
-            largeCheckbox: largeCheckbox,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => TodoDetailPage(todo: todo),
-                ),
-              );
-            },
-            onComplete: () {
-              ref.read(todoProvider.notifier).toggleComplete(todo.id);
-            },
-          ),
-        ),
+    return Padding(
+      padding: const EdgeInsets.only(left: 16),
+      child: TodoSwipeTile(
+        todo: todo,
+        largeCheckbox: largeCheckbox,
+        isCompleted: isCompleted,
       ),
     );
   }

@@ -8,12 +8,13 @@ import '../../../settings/providers/settings_provider.dart';
 import '../../domain/models/todo.dart';
 import '../../providers/todo_provider.dart';
 import '../widgets/todo_input_sheet.dart';
-import '../widgets/todo_item.dart';
+import '../widgets/todo_swipe_tile.dart';
 import '../widgets/quick_add_fab.dart';
-import 'todo_detail_page.dart';
 
 class TodayPage extends ConsumerWidget {
-  const TodayPage({super.key});
+  final VoidCallback? onMenu;
+
+  const TodayPage({super.key, this.onMenu});
 
   void _showAddTodoSheet(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
@@ -48,18 +49,23 @@ class TodayPage extends ConsumerWidget {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
+        leading: onMenu != null
+            ? IconButton(icon: const Icon(SolarIconsOutline.hamburgerMenu), onPressed: onMenu, tooltip: 'Menü')
+            : null,
         title: const Text('Heute'),
         actions: [
           if (completedTodos.isNotEmpty)
-            IconButton(
-              icon: Icon(
-                showCompleted ? SolarIconsBold.checkCircle : SolarIconsOutline.checkCircle,
-                color: showCompleted ? AppColors.primary : null,
+            Tooltip(
+              message: showCompleted ? 'Erledigte ausblenden' : 'Erledigte anzeigen',
+              child: IconButton(
+                icon: Icon(
+                  showCompleted ? SolarIconsBold.checkCircle : SolarIconsOutline.checkCircle,
+                  color: showCompleted ? AppColors.primary : null,
+                ),
+                onPressed: () {
+                  ref.read(todoProvider.notifier).toggleShowCompleted();
+                },
               ),
-              onPressed: () {
-                ref.read(todoProvider.notifier).toggleShowCompleted();
-              },
-              tooltip: showCompleted ? 'Erledigte ausblenden' : 'Erledigte anzeigen',
             ),
         ],
       ),
@@ -77,13 +83,29 @@ class TodayPage extends ConsumerWidget {
                       if (showCompleted && completedTodos.isNotEmpty) ...[
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                          child: Text(
-                            'Heute erledigt (${completedTodos.length})',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                            ),
+                          child: Row(
+                            children: [
+                              Text(
+                                'Heute erledigt',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceLight,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '${completedTodos.length}',
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         ...completedTodos.map((todo) => _buildTodoItem(context, ref, todo, settings.checkboxSize == CheckboxSize.large, isCompleted: true)),
@@ -98,50 +120,10 @@ class TodayPage extends ConsumerWidget {
   }
 
   Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox, {bool isCompleted = false}) {
-    return Slidable(
-      key: ValueKey(todo.id),
-      startActionPane: isCompleted ? null : ActionPane(
-        motion: const BehindMotion(),
-        extentRatio: 0.25,
-        dismissible: DismissiblePane(
-          dismissThreshold: 0.5,
-          onDismissed: () {
-            ref.read(todoProvider.notifier).toggleComplete(todo.id);
-          },
-        ),
-        children: [
-          SlidableAction(
-            onPressed: (_) {
-              ref.read(todoProvider.notifier).toggleComplete(todo.id);
-            },
-            backgroundColor: AppColors.green,
-            foregroundColor: Colors.white,
-            icon: SolarIconsBold.checkCircle,
-            label: 'Erledigt',
-          ),
-        ],
-      ),
-      child: Opacity(
-        opacity: isCompleted ? 0.6 : 1.0,
-        child: TodoItem(
-          title: todo.title,
-          priority: todo.priority.value,
-          dueDate: todo.dueDate,
-          isCompleted: isCompleted,
-          largeCheckbox: largeCheckbox,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => TodoDetailPage(todo: todo),
-              ),
-            );
-          },
-          onComplete: () {
-            ref.read(todoProvider.notifier).toggleComplete(todo.id);
-          },
-        ),
-      ),
+    return TodoSwipeTile(
+      todo: todo,
+      largeCheckbox: largeCheckbox,
+      isCompleted: isCompleted,
     );
   }
 

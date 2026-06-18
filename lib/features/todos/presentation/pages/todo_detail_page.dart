@@ -25,6 +25,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
   late TimeOfDay? _dueTime;
   late TodoPriority _priority;
   DateTime? _reminderTime;
+  late bool _isPinned;
 
   @override
   void initState() {
@@ -35,6 +36,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
     _dueTime = widget.todo.dueTime;
     _priority = widget.todo.priority;
     _reminderTime = widget.todo.reminderAt; // Load existing reminder
+    _isPinned = widget.todo.isPinned;
   }
 
   @override
@@ -54,6 +56,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
       dueTime: _dueTime,
       priority: _priority,
       reminderAt: _reminderTime,
+      isPinned: _isPinned,
       clearDescription: _descriptionController.text.trim().isEmpty,
       clearDueDate: _dueDate == null,
       clearDueTime: _dueTime == null,
@@ -108,6 +111,14 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
+          IconButton(
+            icon: Icon(
+              _isPinned ? SolarIconsBold.bookmark : SolarIconsOutline.bookmark,
+              color: _isPinned ? AppColors.orange : null,
+            ),
+            tooltip: _isPinned ? 'Lösen' : 'Anheften',
+            onPressed: () => setState(() => _isPinned = !_isPinned),
+          ),
           IconButton(
             icon: const Icon(SolarIconsOutline.trashBinTrash),
             onPressed: _delete,

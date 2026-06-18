@@ -7,8 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../settings/providers/settings_provider.dart';
 import '../../domain/models/todo.dart';
 import '../../providers/todo_provider.dart';
-import '../widgets/todo_item.dart';
-import 'todo_detail_page.dart';
+import '../widgets/todo_swipe_tile.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -106,50 +105,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox) {
-    return Slidable(
-      key: ValueKey(todo.id),
-      startActionPane: todo.isCompleted ? null : ActionPane(
-        motion: const BehindMotion(),
-        extentRatio: 0.25,
-        dismissible: DismissiblePane(
-          dismissThreshold: 0.5,
-          onDismissed: () {
-            ref.read(todoProvider.notifier).toggleComplete(todo.id);
-          },
-        ),
-        children: [
-          SlidableAction(
-            onPressed: (_) {
-              ref.read(todoProvider.notifier).toggleComplete(todo.id);
-            },
-            backgroundColor: AppColors.green,
-            foregroundColor: Colors.white,
-            icon: SolarIconsBold.checkCircle,
-            label: 'Erledigt',
-          ),
-        ],
-      ),
-      child: Opacity(
-        opacity: todo.isCompleted ? 0.6 : 1.0,
-        child: TodoItem(
-          title: todo.title,
-          priority: todo.priority.value,
-          dueDate: todo.dueDate,
-          isCompleted: todo.isCompleted,
-          largeCheckbox: largeCheckbox,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => TodoDetailPage(todo: todo),
-              ),
-            );
-          },
-          onComplete: () {
-            ref.read(todoProvider.notifier).toggleComplete(todo.id);
-          },
-        ),
-      ),
+    return TodoSwipeTile(
+      todo: todo,
+      largeCheckbox: largeCheckbox,
+      isCompleted: todo.isCompleted,
     );
   }
 

@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../../core/constants/app_constants.dart';
@@ -14,15 +14,21 @@ class AppSettings {
   /// Size of the checkbox circle in todo items
   final CheckboxSize checkboxSize;
 
+  /// User-chosen name for the main list (formerly "Eingang").
+  final String mainListName;
+
   const AppSettings({
     this.checkboxSize = CheckboxSize.normal,
+    this.mainListName = 'Aufgaben',
   });
 
   AppSettings copyWith({
     CheckboxSize? checkboxSize,
+    String? mainListName,
   }) {
     return AppSettings(
       checkboxSize: checkboxSize ?? this.checkboxSize,
+      mainListName: mainListName ?? this.mainListName,
     );
   }
 }
@@ -33,6 +39,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   }
 
   static const _checkboxSizeKey = 'checkbox_size';
+  static const _mainListNameKey = 'main_list_name';
 
   Box? _box;
 
@@ -46,12 +53,21 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     final size = sizeIndex < CheckboxSize.values.length
         ? CheckboxSize.values[sizeIndex]
         : CheckboxSize.normal;
-    state = AppSettings(checkboxSize: size);
+    final mainListName =
+        _settingsBox.get(_mainListNameKey, defaultValue: 'Aufgaben') as String;
+    state = AppSettings(checkboxSize: size, mainListName: mainListName);
   }
 
   Future<void> setCheckboxSize(CheckboxSize size) async {
     await _settingsBox.put(_checkboxSizeKey, size.index);
     state = state.copyWith(checkboxSize: size);
+  }
+
+  Future<void> setMainListName(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    await _settingsBox.put(_mainListNameKey, trimmed);
+    state = state.copyWith(mainListName: trimmed);
   }
 }
 

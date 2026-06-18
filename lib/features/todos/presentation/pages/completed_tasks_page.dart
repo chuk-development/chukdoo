@@ -7,11 +7,12 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../settings/providers/settings_provider.dart';
 import '../../domain/models/todo.dart';
 import '../../providers/todo_provider.dart';
-import '../widgets/todo_item.dart';
-import 'todo_detail_page.dart';
+import '../widgets/todo_swipe_tile.dart';
 
 class CompletedTasksPage extends ConsumerWidget {
-  const CompletedTasksPage({super.key});
+  final VoidCallback? onMenu;
+
+  const CompletedTasksPage({super.key, this.onMenu});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -21,6 +22,9 @@ class CompletedTasksPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: onMenu != null
+            ? IconButton(icon: const Icon(SolarIconsOutline.hamburgerMenu), onPressed: onMenu, tooltip: 'Menü')
+            : null,
         title: const Text('Erledigt'),
         actions: [
           if (completedTodos.isNotEmpty)
@@ -99,91 +103,11 @@ class CompletedTasksPage extends ConsumerWidget {
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context, WidgetRef ref, Todo todo) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Aufgabe löschen?'),
-        content: Text('Die Aufgabe "${todo.title}" wird endgültig gelöscht.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Abbrechen'),
-          ),
-          TextButton(
-            onPressed: () {
-              ref.read(todoProvider.notifier).deleteTodo(todo.id);
-              Navigator.pop(context);
-            },
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Löschen'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox) {
-    return Slidable(
-      key: ValueKey(todo.id),
-      startActionPane: ActionPane(
-        motion: const BehindMotion(),
-        extentRatio: 0.25,
-        dismissible: DismissiblePane(
-          dismissThreshold: 0.5,
-          onDismissed: () {
-            ref.read(todoProvider.notifier).toggleComplete(todo.id);
-          },
-        ),
-        children: [
-          SlidableAction(
-            onPressed: (_) {
-              ref.read(todoProvider.notifier).toggleComplete(todo.id);
-            },
-            backgroundColor: AppColors.blue,
-            foregroundColor: Colors.white,
-            icon: SolarIconsBold.refresh,
-            label: 'Wiederherstellen',
-          ),
-        ],
-      ),
-      endActionPane: ActionPane(
-        motion: const BehindMotion(),
-        extentRatio: 0.25,
-        children: [
-          SlidableAction(
-            onPressed: (_) {
-              _showDeleteConfirmation(context, ref, todo);
-            },
-            backgroundColor: AppColors.error,
-            foregroundColor: Colors.white,
-            icon: SolarIconsBold.trashBinTrash,
-            label: 'Löschen',
-          ),
-        ],
-      ),
-      child: Opacity(
-        opacity: 0.6,
-        child: TodoItem(
-          title: todo.title,
-          priority: todo.priority.value,
-          dueDate: todo.dueDate,
-          isCompleted: true,
-          largeCheckbox: largeCheckbox,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => TodoDetailPage(todo: todo),
-              ),
-            );
-          },
-          onComplete: () {
-            ref.read(todoProvider.notifier).toggleComplete(todo.id);
-          },
-        ),
-      ),
+    return TodoSwipeTile(
+      todo: todo,
+      largeCheckbox: largeCheckbox,
+      isCompleted: true,
     );
   }
 

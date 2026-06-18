@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../nlp/parser/natural_language_parser.dart';
+import '../../../nlp/parser/date_parser.dart';
 
 class TodoItem extends StatefulWidget {
   final String title;
   final String? description;
   final int priority;
   final DateTime? dueDate;
+  final TimeOfDay? dueTime;
   final String? projectName;
+  final bool isPinned;
   final VoidCallback? onTap;
   final VoidCallback? onComplete;
   final bool isCompleted;
-  /// Use larger checkbox for easier tapping
   final bool largeCheckbox;
 
   const TodoItem({
@@ -21,7 +24,9 @@ class TodoItem extends StatefulWidget {
     this.description,
     this.priority = 4,
     this.dueDate,
+    this.dueTime,
     this.projectName,
+    this.isPinned = false,
     this.onTap,
     this.onComplete,
     this.isCompleted = false,
@@ -32,34 +37,15 @@ class TodoItem extends StatefulWidget {
   State<TodoItem> createState() => _TodoItemState();
 }
 
-class _TodoItemState extends State<TodoItem> with SingleTickerProviderStateMixin {
+class _TodoItemState extends State<TodoItem> {
   bool _isCompleting = false;
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
+  // Minimal completion feedback: briefly show the checked state, then let the
+  // provider move/remove the row. No full-row shrink animation.
   void _handleComplete() async {
-    setState(() {
-      _isCompleting = true;
-    });
-    await _controller.forward();
+    if (_isCompleting) return;
+    setState(() => _isCompleting = true);
+    await Future.delayed(const Duration(milliseconds: 160));
     widget.onComplete?.call();
   }
 
@@ -67,52 +53,43 @@ class _TodoItemState extends State<TodoItem> with SingleTickerProviderStateMixin
   Widget build(BuildContext context) {
     final priorityColor = AppColors.getPriorityColor(widget.priority);
     final showAsCompleted = _isCompleting || widget.isCompleted;
+    final size = widget.largeCheckbox ? 28.0 : 22.0;
 
-    return ScaleTransition(
-      scale: _scaleAnimation,
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 160),
+      opacity: showAsCompleted ? 0.55 : 1.0,
       child: InkWell(
         onTap: widget.onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: const BoxDecoration(
             border: Border(
-              bottom: BorderSide(
-                color: AppColors.divider,
-                width: 0.5,
-              ),
+              bottom: BorderSide(color: AppColors.divider, width: 0.5),
             ),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Checkbox - with larger tap target
+              // Circle checkbox
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: _isCompleting ? null : _handleComplete,
                 child: Padding(
-                  padding: EdgeInsets.only(
-                    right: widget.largeCheckbox ? 8 : 4,
-                    top: 2,
-                    bottom: 2,
-                  ),
+                  padding: const EdgeInsets.only(right: 4, top: 2, bottom: 2),
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: widget.largeCheckbox ? 32 : 22,
-                    height: widget.largeCheckbox ? 32 : 22,
+                    duration: const Duration(milliseconds: 160),
+                    width: size,
+                    height: size,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
+                      color: showAsCompleted ? AppColors.green : Colors.transparent,
                       border: Border.all(
                         color: showAsCompleted ? AppColors.green : priorityColor,
-                        width: widget.largeCheckbox ? 2.5 : 2,
+                        width: 2,
                       ),
-                      color: showAsCompleted ? AppColors.green : Colors.transparent,
                     ),
                     child: showAsCompleted
-                        ? Icon(
-                            SolarIconsBold.checkSquare,
-                            size: widget.largeCheckbox ? 20 : 14,
-                            color: Colors.white,
-                          )
+                        ? Icon(Icons.check, size: widget.largeCheckbox ? 16 : 14, color: Colors.white)
                         : null,
                   ),
                 ),
@@ -124,67 +101,77 @@ class _TodoItemState extends State<TodoItem> with SingleTickerProviderStateMixin
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Title
-                    Text(
-                      widget.title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: showAsCompleted
-                            ? AppColors.textSecondary
-                            : AppColors.textPrimary,
-                        decoration: showAsCompleted
-                            ? TextDecoration.lineThrough
-                            : null,
-                      ),
+                    Row(
+                      children: [
+                        if (widget.isPinned && !showAsCompleted) ...[
+                          Icon(SolarIconsBold.bookmark, size: 13, color: AppColors.orange),
+                          const SizedBox(width: 4),
+                        ],
+                        // Single-line title with ellipsis
+                        Expanded(
+                          child: Text(
+                            widget.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: showAsCompleted
+                                  ? AppColors.textSecondary
+                                  : AppColors.textPrimary,
+                              decoration: showAsCompleted
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
+                          ),
+                        ),
+                        if (widget.priority < 4 && !showAsCompleted) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: priorityColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'P${widget.priority}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: priorityColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
 
-                    // Description (if any)
-                    if (widget.description != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        widget.description!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-
-                    // Metadata row (due date, project)
-                    if (widget.dueDate != null || widget.projectName != null) ...[
+                    // Meta row: due date + time + project (single line)
+                    if (_hasMeta && !showAsCompleted) ...[
                       const SizedBox(height: 6),
                       Row(
                         children: [
                           if (widget.dueDate != null) ...[
-                            Icon(
-                              SolarIconsOutline.calendar,
-                              size: 12,
-                              color: _getDueDateColor(),
-                            ),
+                            Icon(SolarIconsOutline.calendar, size: 12, color: _getDueDateColor()),
                             const SizedBox(width: 4),
-                            Text(
-                              _formatDueDate(),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: _getDueDateColor(),
+                            Flexible(
+                              child: Text(
+                                _formatDueLabel(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 12, color: _getDueDateColor()),
                               ),
                             ),
                             const SizedBox(width: 12),
                           ],
                           if (widget.projectName != null) ...[
-                            Icon(
-                              SolarIconsOutline.folder,
-                              size: 12,
-                              color: AppColors.textSecondary,
-                            ),
+                            Icon(SolarIconsOutline.folder, size: 12, color: AppColors.textSecondary),
                             const SizedBox(width: 4),
-                            Text(
-                              widget.projectName!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
+                            Flexible(
+                              child: Text(
+                                widget.projectName!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                               ),
                             ),
                           ],
@@ -201,47 +188,27 @@ class _TodoItemState extends State<TodoItem> with SingleTickerProviderStateMixin
     );
   }
 
+  bool get _hasMeta => widget.dueDate != null || widget.projectName != null;
+
+  String _two(int v) => v.toString().padLeft(2, '0');
+
   Color _getDueDateColor() {
     if (widget.dueDate == null) return AppColors.textSecondary;
-
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final dueDate = DateTime(
-      widget.dueDate!.year,
-      widget.dueDate!.month,
-      widget.dueDate!.day,
-    );
-
-    if (dueDate.isBefore(today)) {
-      return AppColors.error; // Overdue
-    } else if (dueDate == today) {
-      return AppColors.green; // Today
-    } else if (dueDate == today.add(const Duration(days: 1))) {
-      return AppColors.orange; // Tomorrow
-    }
+    final dueDate = DateTime(widget.dueDate!.year, widget.dueDate!.month, widget.dueDate!.day);
+    if (dueDate.isBefore(today)) return AppColors.error;
+    if (dueDate == today) return AppColors.green;
+    if (dueDate == today.add(const Duration(days: 1))) return AppColors.orange;
     return AppColors.textSecondary;
   }
 
-  String _formatDueDate() {
+  String _formatDueLabel() {
     if (widget.dueDate == null) return '';
-
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final dueDate = DateTime(
-      widget.dueDate!.year,
-      widget.dueDate!.month,
-      widget.dueDate!.day,
-    );
-
-    if (dueDate == today) {
-      return 'Heute';
-    } else if (dueDate == today.add(const Duration(days: 1))) {
-      return 'Morgen';
-    } else if (dueDate.isBefore(today)) {
-      final diff = today.difference(dueDate).inDays;
-      return 'Vor $diff Tagen';
-    } else {
-      return '${dueDate.day}.${dueDate.month}';
+    final label = DateParser.formatDate(widget.dueDate!, Language.german);
+    if (widget.dueTime != null) {
+      return '$label ${_two(widget.dueTime!.hour)}:${_two(widget.dueTime!.minute)}';
     }
+    return label;
   }
 }

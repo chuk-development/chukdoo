@@ -7,10 +7,15 @@ class DateParseResult {
   final TimeOfDay? time;
   final String matchedText;
 
+  /// Matched text for the time portion when it is separate from the date
+  /// (e.g. "montag" + "15 uhr"). Lets the NLP layer strip both from the title.
+  final String? timeMatchedText;
+
   DateParseResult({
     required this.date,
     this.time,
     required this.matchedText,
+    this.timeMatchedText,
   });
 }
 
@@ -88,108 +93,182 @@ class DateParser {
     DateTime.sunday: 'Sunday',
   };
 
+  // Named times of day → (hour, minute). Only used when no explicit time given.
+  static const Map<String, int> _germanNamedTimes = {
+    'früh': 8,
+    'morgens': 8,
+    'vormittag': 10,
+    'vormittags': 10,
+    'mittag': 12,
+    'mittags': 12,
+    'nachmittag': 15,
+    'nachmittags': 15,
+    'abend': 18,
+    'abends': 18,
+    'nacht': 22,
+    'nachts': 22,
+  };
+
+  static const Map<String, int> _englishNamedTimes = {
+    'morning': 8,
+    'noon': 12,
+    'afternoon': 15,
+    'evening': 18,
+    'night': 22,
+  };
+
   DateParseResult? parse(String input, Language language) {
     final lower = input.toLowerCase();
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
 
-    // Check relative keywords first
-    final relativeMap = language == Language.german
-        ? _germanRelative
-        : _englishRelative;
+    DateTime? date;
+    String? dateMatch;
 
+    // ── 1. Determine the DATE ──
+
+    // Relative keywords (heute / morgen / übermorgen, today / tomorrow)
+    final relativeMap =
+        language == Language.german ? _germanRelative : _englishRelative;
     for (final entry in relativeMap.entries) {
-      final match = RegExp(r'\b' + entry.key + r'\b', caseSensitive: false);
-      final m = match.firstMatch(lower);
+      final m = RegExp(r'\b' + entry.key + r'\b', caseSensitive: false)
+          .firstMatch(lower);
       if (m != null) {
-        final date = DateTime(now.year, now.month, now.day)
-            .add(Duration(days: entry.value));
-        return DateParseResult(
-          date: date,
-          matchedText: m.group(0)!,
-        );
+        date = today.add(Duration(days: entry.value));
+        dateMatch = m.group(0);
+        break;
       }
     }
 
-    // Check "next week" / "nächste woche"
-    final nextWeekMatch = language == Language.german
-        ? RegExp(r'\bnächste\s+woche\b', caseSensitive: false).firstMatch(lower)
-        : RegExp(r'\bnext\s+week\b', caseSensitive: false).firstMatch(lower);
-    if (nextWeekMatch != null) {
-      final date = DateTime(now.year, now.month, now.day)
-          .add(const Duration(days: 7));
-      return DateParseResult(
-        date: date,
-        matchedText: nextWeekMatch.group(0)!,
-      );
+    // "next week" / "nächste woche"
+    if (date == null) {
+      final m = (language == Language.german
+              ? RegExp(r'\bnächste\s+woche\b', caseSensitive: false)
+              : RegExp(r'\bnext\s+week\b', caseSensitive: false))
+          .firstMatch(lower);
+      if (m != null) {
+        date = today.add(const Duration(days: 7));
+        dateMatch = m.group(0);
+      }
     }
 
-    // Check day shortcuts (mo, di, mi, etc. or mon, tue, wed, etc.)
-    final dayShortcuts = language == Language.german
-        ? _germanDayShortcuts
-        : _englishDayShortcuts;
+    // Weekend
+    if (date == null) {
+      final m = (language == Language.german
+              ? RegExp(r'\bwochenende\b', caseSensitive: false)
+              : RegExp(r'\bweekend\b', caseSensitive: false))
+          .firstMatch(lower);
+      if (m != null) {
+        var d = today;
+        while (d.weekday != DateTime.saturday) {
+          d = d.add(const Duration(days: 1));
+        }
+        date = d;
+        dateMatch = m.group(0);
+      }
+    }
 
-    // Use word boundary regex to find day shortcuts
-    // This prevents false positives like "milch" matching "mi"
-    // We need to check that the shortcut is not part of a larger word
-    for (final entry in dayShortcuts.entries) {
-      // Use negative lookbehind/lookahead for letters (including German umlauts)
-      final pattern = RegExp(
-        r'(?<![a-zA-ZäöüßÄÖÜ])' + entry.key + r'(?![a-zA-ZäöüßÄÖÜ])',
-        caseSensitive: false,
-      );
-      final match = pattern.firstMatch(lower);
-      if (match != null) {
-        final targetWeekday = entry.value;
-        var targetDate = DateTime(now.year, now.month, now.day);
-
-        // Find the next occurrence of this weekday
-        while (targetDate.weekday != targetWeekday) {
+    // Day shortcuts (mo, di, ... or mon, tue, ...). Pick the EARLIEST match in
+    // the text so "milch mo kaufen fr" resolves to Monday, not map order.
+    if (date == null) {
+      final dayShortcuts = language == Language.german
+          ? _germanDayShortcuts
+          : _englishDayShortcuts;
+      int bestIndex = 1 << 30;
+      int? bestWeekday;
+      String? bestText;
+      for (final entry in dayShortcuts.entries) {
+        final match = RegExp(
+          r'(?<![a-zA-ZäöüßÄÖÜ])' + entry.key + r'(?![a-zA-ZäöüßÄÖÜ])',
+          caseSensitive: false,
+        ).firstMatch(lower);
+        if (match != null && match.start < bestIndex) {
+          bestIndex = match.start;
+          bestWeekday = entry.value;
+          bestText = match.group(0);
+        }
+      }
+      if (bestWeekday != null) {
+        var targetDate = today;
+        while (targetDate.weekday != bestWeekday) {
           targetDate = targetDate.add(const Duration(days: 1));
         }
-
-        // If it's today, move to next week
-        if (targetDate.day == now.day &&
-            targetDate.month == now.month &&
-            targetDate.year == now.year) {
+        // If it's today, jump to next week's occurrence.
+        if (targetDate == today) {
           targetDate = targetDate.add(const Duration(days: 7));
         }
-
-        return DateParseResult(
-          date: targetDate,
-          matchedText: match.group(0)!,
-        );
+        date = targetDate;
+        dateMatch = bestText;
       }
     }
 
-    // Check for time patterns (10:00, 10 uhr, 10am, 14:30)
-    final timePattern = RegExp(
-      r'\b(\d{1,2})(?::(\d{2}))?\s*(uhr|am|pm)?\b',
-      caseSensitive: false,
+    // Explicit numeric dates (DD.MM / MM/DD)
+    if (date == null) {
+      final explicit = _parseExplicitDate(input, language, now);
+      if (explicit != null) {
+        date = explicit.date;
+        dateMatch = explicit.matchedText;
+      }
+    }
+
+    // ── 2. Determine the TIME (independent of the date) ──
+    TimeOfDay? time;
+    String? timeMatch;
+
+    // Explicit: 14:30, 10:00, or "10 uhr" / "10am" / "10 pm"
+    final colon = RegExp(r'(?<!\d)(\d{1,2}):(\d{2})(?!\d)').firstMatch(lower);
+    final modified = RegExp(r'(?<!\d)(\d{1,2})\s*(uhr|am|pm)\b', caseSensitive: false)
+        .firstMatch(lower);
+    if (colon != null) {
+      final h = int.parse(colon.group(1)!);
+      final min = int.parse(colon.group(2)!);
+      if (h <= 23 && min <= 59) {
+        time = TimeOfDay(hour: h, minute: min);
+        timeMatch = colon.group(0);
+      }
+    } else if (modified != null) {
+      var h = int.parse(modified.group(1)!);
+      final mod = modified.group(2)!.toLowerCase();
+      if (mod == 'pm' && h < 12) h += 12;
+      if (mod == 'am' && h == 12) h = 0;
+      if (h <= 23) {
+        time = TimeOfDay(hour: h, minute: 0);
+        timeMatch = modified.group(0);
+      }
+    }
+
+    // Named time of day ("morgen früh", "samstag abend")
+    if (time == null) {
+      final namedTimes =
+          language == Language.german ? _germanNamedTimes : _englishNamedTimes;
+      for (final entry in namedTimes.entries) {
+        final m = RegExp(r'\b' + entry.key + r'\b', caseSensitive: false)
+            .firstMatch(lower);
+        if (m != null) {
+          time = TimeOfDay(hour: entry.value, minute: 0);
+          timeMatch = m.group(0);
+          break;
+        }
+      }
+    }
+
+    // ── 3. Combine ──
+    if (date == null && time == null) return null;
+    date ??= today;
+
+    return DateParseResult(
+      date: date,
+      time: time,
+      matchedText: dateMatch ?? timeMatch ?? '',
+      // Only carry timeMatch separately when it's not already the main match.
+      timeMatchedText: (dateMatch != null) ? timeMatch : null,
     );
-    final timeMatch = timePattern.firstMatch(lower);
-    if (timeMatch != null) {
-      var hour = int.parse(timeMatch.group(1)!);
-      final minute = timeMatch.group(2) != null
-          ? int.parse(timeMatch.group(2)!)
-          : 0;
-      final modifier = timeMatch.group(3)?.toLowerCase();
+  }
 
-      // Handle AM/PM
-      if (modifier == 'pm' && hour < 12) {
-        hour += 12;
-      } else if (modifier == 'am' && hour == 12) {
-        hour = 0;
-      }
-
-      // Return today's date with the time
-      return DateParseResult(
-        date: DateTime(now.year, now.month, now.day),
-        time: TimeOfDay(hour: hour, minute: minute),
-        matchedText: timeMatch.group(0)!,
-      );
-    }
-
-    // Check for date patterns (1.12, 12/1, Dec 1)
+  /// Numeric date forms — German DD.MM[.YYYY], US MM/DD[/YYYY].
+  DateParseResult? _parseExplicitDate(
+      String input, Language language, DateTime now) {
+    // German format: DD.MM or DD.MM.YYYY
     // German format: DD.MM or DD.MM.YYYY
     final germanDatePattern = RegExp(r'\b(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?\b');
     final germanDateMatch = germanDatePattern.firstMatch(input);

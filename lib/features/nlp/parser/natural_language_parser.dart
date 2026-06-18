@@ -100,6 +100,9 @@ class NaturalLanguageParser {
         value: dueDate,
       ));
       remaining = _removeMatch(remaining, dateResult.matchedText);
+      if (dateResult.timeMatchedText != null) {
+        remaining = _removeMatch(remaining, dateResult.timeMatchedText!);
+      }
     }
 
     // Parse project (#project_name)

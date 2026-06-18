@@ -18,6 +18,22 @@ enum TodoPriority {
   }
 }
 
+enum TodoStatus {
+  todo('todo'),
+  inProgress('in_progress'),
+  done('done');
+
+  const TodoStatus(this.value);
+  final String value;
+
+  static TodoStatus fromValue(String value) {
+    return TodoStatus.values.firstWhere(
+      (s) => s.value == value,
+      orElse: () => TodoStatus.todo,
+    );
+  }
+}
+
 class Todo {
   final String id;
   final String userId;
@@ -37,6 +53,8 @@ class Todo {
   final List<String> labelIds;
   final DateTime? reminderAt; // When to show reminder notification
   final int version; // Incremented on each update for conflict detection
+  final TodoStatus status; // Kanban status: todo, in_progress, done
+  final bool isPinned; // Pinned to top (local-only preference)
 
   const Todo({
     required this.id,
@@ -57,6 +75,8 @@ class Todo {
     this.labelIds = const [],
     this.reminderAt,
     this.version = 1,
+    this.status = TodoStatus.todo,
+    this.isPinned = false,
   });
 
   /// Creates a payload to be encrypted (sensitive data)
@@ -86,6 +106,7 @@ class Todo {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'encryption_context': encryptionContext,
+      'status': status.value,
     };
   }
 
@@ -124,6 +145,7 @@ class Todo {
       updatedAt: DateTime.parse(row['updated_at'] as String),
       encryptionContext: row['encryption_context'] as String?,
       labelIds: const [],
+      status: TodoStatus.fromValue(row['status'] as String? ?? 'todo'),
     );
   }
 
@@ -150,6 +172,8 @@ class Todo {
       'label_ids': labelIds,
       'reminder_at': reminderAt?.toIso8601String(),
       'version': version,
+      'status': status.value,
+      'is_pinned': isPinned,
     };
   }
 
@@ -191,6 +215,8 @@ class Todo {
           ? DateTime.parse(json['reminder_at'] as String)
           : null,
       version: json['version'] as int? ?? 1,
+      status: TodoStatus.fromValue(json['status'] as String? ?? 'todo'),
+      isPinned: json['is_pinned'] as bool? ?? false,
     );
   }
 
@@ -213,12 +239,29 @@ class Todo {
     List<String>? labelIds,
     DateTime? reminderAt,
     int? version,
+    TodoStatus? status,
+    bool? isPinned,
     bool clearDueDate = false,
     bool clearDueTime = false,
     bool clearDescription = false,
     bool clearProjectId = false,
     bool clearReminder = false,
   }) {
+    // Keep status and isCompleted consistent
+    final resolvedIsCompleted = isCompleted ?? this.isCompleted;
+    var resolvedStatus = status ?? this.status;
+
+    if (isCompleted == true) {
+      // When toggling isCompleted to true, status becomes done
+      resolvedStatus = TodoStatus.done;
+    } else if (status == TodoStatus.done) {
+      // When status is set to done, isCompleted becomes true
+      // (handled below via resolvedIsCompleted override)
+    }
+
+    final effectiveIsCompleted =
+        (status == TodoStatus.done) ? true : resolvedIsCompleted;
+
     return Todo(
       id: id ?? this.id,
       userId: userId ?? this.userId,
@@ -229,7 +272,7 @@ class Todo {
       priority: priority ?? this.priority,
       dueDate: clearDueDate ? null : (dueDate ?? this.dueDate),
       dueTime: clearDueTime ? null : (dueTime ?? this.dueTime),
-      isCompleted: isCompleted ?? this.isCompleted,
+      isCompleted: effectiveIsCompleted,
       completedAt: completedAt ?? this.completedAt,
       recurrenceRule: recurrenceRule ?? this.recurrenceRule,
       sortOrder: sortOrder ?? this.sortOrder,
@@ -239,6 +282,8 @@ class Todo {
       labelIds: labelIds ?? this.labelIds,
       reminderAt: clearReminder ? null : (reminderAt ?? this.reminderAt),
       version: version ?? this.version,
+      status: resolvedStatus,
+      isPinned: isPinned ?? this.isPinned,
     );
   }
 
