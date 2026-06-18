@@ -52,7 +52,36 @@ class InboxPage extends ConsumerWidget {
     final completedTodos = showAll
         ? todoState.todos.where((t) => t.isCompleted).toList()
         : todoState.completedInboxTodos;
-    final showCompleted = todoState.showCompleted;
+    final large = settings.checkboxSize == CheckboxSize.large;
+
+    final pinned = todos.where((t) => t.isPinned).toList();
+    final unpinned = todos.where((t) => !t.isPinned).toList();
+
+    Widget item(Todo t, {bool isCompleted = false}) =>
+        _buildTodoItem(context, ref, t, large, isCompleted: isCompleted);
+
+    final sections = <Widget>[];
+    if (pinned.isNotEmpty) {
+      sections.add(_CollapsibleSection(
+        title: 'Angeheftet',
+        count: pinned.length,
+        children: pinned.map((t) => item(t)).toList(),
+      ));
+      sections.add(_CollapsibleSection(
+        title: 'Weitere',
+        count: unpinned.length,
+        children: unpinned.map((t) => item(t)).toList(),
+      ));
+    } else {
+      sections.addAll(unpinned.map((t) => item(t)));
+    }
+    if (completedTodos.isNotEmpty) {
+      sections.add(_CollapsibleSection(
+        title: 'Erledigt',
+        count: completedTodos.length,
+        children: completedTodos.map((t) => item(t, isCompleted: true)).toList(),
+      ));
+    }
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -71,53 +100,18 @@ class InboxPage extends ConsumerWidget {
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchPage())),
             tooltip: 'Suchen',
           ),
-          if (completedTodos.isNotEmpty)
-            IconButton(
-              icon: Icon(
-                showCompleted ? SolarIconsBold.checkCircle : SolarIconsOutline.checkCircle,
-                color: showCompleted ? AppColors.primary : null,
-              ),
-              onPressed: () => ref.read(todoProvider.notifier).toggleShowCompleted(),
-              tooltip: showCompleted ? 'Erledigte ausblenden' : 'Erledigte anzeigen',
-            ),
         ],
       ),
       body: todoState.isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // Todo list (projects live in the sidebar / drawer)
-                Expanded(
-                  child: todos.isEmpty && (!showCompleted || completedTodos.isEmpty)
-                      ? _buildEmptyState()
-                      : SlidableAutoCloseBehavior(
-                          child: ListView(
-                            padding: const EdgeInsets.only(bottom: 100),
-                            children: [
-                              ...todos.map((todo) => _buildTodoItem(context, ref, todo, settings.checkboxSize == CheckboxSize.large)),
-                              if (showCompleted && completedTodos.isNotEmpty) ...[
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                                  child: Row(
-                                    children: [
-                                      Text('Erledigt', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                        decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(12)),
-                                        child: Text('${completedTodos.length}', style: const TextStyle(fontSize: 11)),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                ...completedTodos.map((todo) => _buildTodoItem(context, ref, todo, settings.checkboxSize == CheckboxSize.large, isCompleted: true)),
-                              ],
-                            ],
-                          ),
-                        ),
+          : (todos.isEmpty && completedTodos.isEmpty)
+              ? _buildEmptyState()
+              : SlidableAutoCloseBehavior(
+                  child: ListView(
+                    padding: const EdgeInsets.only(bottom: 100),
+                    children: sections,
+                  ),
                 ),
-              ],
-            ),
       floatingActionButton: QuickAddFab(
         onPressed: () => _showAddTodoSheet(context, ref),
       ),
@@ -164,6 +158,58 @@ class InboxPage extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Collapsible list section with a title, count and chevron (Pinned/Completed…).
+class _CollapsibleSection extends StatefulWidget {
+  final String title;
+  final int count;
+  final List<Widget> children;
+
+  const _CollapsibleSection({
+    required this.title,
+    required this.count,
+    required this.children,
+  });
+
+  @override
+  State<_CollapsibleSection> createState() => _CollapsibleSectionState();
+}
+
+class _CollapsibleSectionState extends State<_CollapsibleSection> {
+  bool _expanded = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        InkWell(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 16, 16, 6),
+            child: Row(
+              children: [
+                AnimatedRotation(
+                  turns: _expanded ? 0 : -0.25,
+                  duration: const Duration(milliseconds: 150),
+                  child: const Icon(SolarIconsOutline.altArrowDown, size: 16, color: AppColors.textSecondary),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  widget.title,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                ),
+                const SizedBox(width: 8),
+                Text('${widget.count}', style: const TextStyle(fontSize: 13, color: AppColors.textTertiary)),
+              ],
+            ),
+          ),
+        ),
+        if (_expanded) ...widget.children,
+      ],
     );
   }
 }

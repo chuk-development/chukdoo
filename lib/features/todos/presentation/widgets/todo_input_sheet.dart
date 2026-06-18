@@ -249,7 +249,7 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
                   borderRadius: BorderRadius.circular(8),
                   child: _chipBox(
                     icon: SolarIconsOutline.calendar,
-                    label: _dateLabel ?? 'Datum',
+                    label: _dateLabel,
                     color: _selectedDate != null ? AppColors.purple : null,
                   ),
                 ),
@@ -286,7 +286,7 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
                   ],
                   child: _chipBox(
                     icon: _hasPriority ? SolarIconsBold.flag : SolarIconsOutline.flag,
-                    label: _hasPriority ? 'P$_selectedPriority' : 'Priorität',
+                    label: _hasPriority ? 'P$_selectedPriority' : null,
                     color: _hasPriority ? AppColors.getPriorityColor(_selectedPriority!) : null,
                   ),
                 ),
@@ -344,7 +344,7 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
                   },
                   child: _chipBox(
                     icon: SolarIconsOutline.folder,
-                    label: _selectedProjectName ?? 'Eingang',
+                    label: _selectedProjectName,
                     color: _selectedProjectName != null ? AppColors.primary : null,
                     trailingArrow: true,
                   ),
@@ -380,10 +380,10 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
     return label;
   }
 
-  /// Compact bordered chip (icon + label) — matches the detail editor style.
+  /// Compact bordered chip — icon only until a value is chosen, then icon+value.
   Widget _chipBox({
     required IconData icon,
-    required String label,
+    String? label,
     Color? color,
     bool trailingArrow = false,
   }) {
@@ -398,14 +398,10 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 18, color: c),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: color != null ? AppColors.textPrimary : AppColors.textSecondary,
-            ),
-          ),
+          if (label != null) ...[
+            const SizedBox(width: 6),
+            Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+          ],
           if (trailingArrow) ...[
             const SizedBox(width: 4),
             const Icon(SolarIconsOutline.altArrowDown, size: 14, color: AppColors.textSecondary),

@@ -15,6 +15,7 @@ import '../../../projects/presentation/pages/project_page.dart';
 import '../../../projects/presentation/widgets/project_edit_dialog.dart';
 import '../../../projects/providers/project_provider.dart';
 import '../../../settings/providers/settings_provider.dart';
+import '../../domain/models/todo.dart';
 import '../../providers/todo_provider.dart';
 import '../../../kanban/presentation/pages/kanban_page.dart';
 import 'inbox_page.dart';
@@ -173,19 +174,15 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ],
                     ),
                   ),
-                  // Right detail panel (TickTick-style 3rd column)
-                  if (selectedTodo != null) ...[
-                    Container(width: 1, color: AppColors.divider),
-                    SizedBox(
-                      width: 380,
-                      child: TodoDetailPage(
-                        key: ValueKey(selectedTodo.id),
-                        todo: selectedTodo,
-                        onClose: () =>
-                            ref.read(selectedTodoProvider.notifier).state = null,
-                      ),
+                  // Right detail panel (TickTick-style 3rd column) — responsive
+                  if (selectedTodo != null)
+                    _DesktopDetailPanel(
+                      key: ValueKey(selectedTodo.id),
+                      width: (constraints.maxWidth * 0.32).clamp(420.0, 620.0),
+                      todo: selectedTodo,
+                      onClose: () =>
+                          ref.read(selectedTodoProvider.notifier).state = null,
                     ),
-                  ],
                 ],
               ),
             );
@@ -442,6 +439,61 @@ class _DrawerProjectTile extends StatelessWidget {
           ? Text('$count', style: const TextStyle(fontSize: 13, color: AppColors.textTertiary))
           : null,
       onTap: onTap,
+    );
+  }
+}
+
+/// Desktop right-hand detail panel: responsive width, reveals from the right.
+class _DesktopDetailPanel extends StatefulWidget {
+  final double width;
+  final Todo todo;
+  final VoidCallback onClose;
+
+  const _DesktopDetailPanel({
+    super.key,
+    required this.width,
+    required this.todo,
+    required this.onClose,
+  });
+
+  @override
+  State<_DesktopDetailPanel> createState() => _DesktopDetailPanelState();
+}
+
+class _DesktopDetailPanelState extends State<_DesktopDetailPanel>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 240))..forward();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, child) {
+        final t = Curves.easeOutCubic.transform(_c.value);
+        return ClipRect(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            widthFactor: t < 0.001 ? 0.001 : t,
+            child: Opacity(opacity: _c.value, child: child),
+          ),
+        );
+      },
+      child: Row(
+        children: [
+          Container(width: 1, color: AppColors.divider),
+          SizedBox(
+            width: widget.width,
+            child: TodoDetailPage(todo: widget.todo, onClose: widget.onClose),
+          ),
+        ],
+      ),
     );
   }
 }
