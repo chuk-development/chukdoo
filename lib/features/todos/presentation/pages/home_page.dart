@@ -174,10 +174,12 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ],
                     ),
                   ),
-                  // Right detail panel (TickTick-style 3rd column) — responsive
+                  // Right detail panel (TickTick-style 3rd column) — responsive.
+                  // No key here: the panel frame stays mounted so switching
+                  // notes does NOT re-animate. The inner page is keyed on the
+                  // todo id so its fields reload on switch.
                   if (selectedTodo != null)
                     _DesktopDetailPanel(
-                      key: ValueKey(selectedTodo.id),
                       width: (constraints.maxWidth * 0.32).clamp(420.0, 620.0),
                       todo: selectedTodo,
                       onClose: () =>
@@ -443,57 +445,34 @@ class _DrawerProjectTile extends StatelessWidget {
   }
 }
 
-/// Desktop right-hand detail panel: responsive width, reveals from the right.
-class _DesktopDetailPanel extends StatefulWidget {
+/// Desktop right-hand detail panel: responsive width. The frame stays mounted
+/// across note switches (no slide-in re-animation); only the inner page swaps,
+/// keyed on the todo id so its fields reload.
+class _DesktopDetailPanel extends StatelessWidget {
   final double width;
   final Todo todo;
   final VoidCallback onClose;
 
   const _DesktopDetailPanel({
-    super.key,
     required this.width,
     required this.todo,
     required this.onClose,
   });
 
   @override
-  State<_DesktopDetailPanel> createState() => _DesktopDetailPanelState();
-}
-
-class _DesktopDetailPanelState extends State<_DesktopDetailPanel>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 240))..forward();
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, child) {
-        final t = Curves.easeOutCubic.transform(_c.value);
-        return ClipRect(
-          child: Align(
-            alignment: Alignment.centerLeft,
-            widthFactor: t < 0.001 ? 0.001 : t,
-            child: Opacity(opacity: _c.value, child: child),
+    return Row(
+      children: [
+        Container(width: 1, color: AppColors.divider),
+        SizedBox(
+          width: width,
+          child: TodoDetailPage(
+            key: ValueKey(todo.id),
+            todo: todo,
+            onClose: onClose,
           ),
-        );
-      },
-      child: Row(
-        children: [
-          Container(width: 1, color: AppColors.divider),
-          SizedBox(
-            width: widget.width,
-            child: TodoDetailPage(todo: widget.todo, onClose: widget.onClose),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

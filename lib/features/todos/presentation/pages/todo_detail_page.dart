@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -28,6 +29,8 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
   late TextEditingController _titleController;
   late TextEditingController _descriptionController;
   late TextEditingController _tagController;
+  late FocusNode _descFocus;
+  bool _editingDesc = false;
   late DateTime? _dueDate;
   late TimeOfDay? _dueTime;
   late TodoPriority _priority;
@@ -36,12 +39,22 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
   String? _projectId;
   late List<String> _tags;
 
+  /// In panel mode (onClose set) edits persist without an explicit Save.
+  bool get _panelMode => widget.onClose != null;
+  bool _skipAutoSave = false;
+
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.todo.title);
     _descriptionController = TextEditingController(text: widget.todo.description ?? '');
     _tagController = TextEditingController();
+    _descFocus = FocusNode();
+    _descFocus.addListener(() {
+      if (!_descFocus.hasFocus && _editingDesc) {
+        setState(() => _editingDesc = false);
+      }
+    });
     _dueDate = widget.todo.dueDate;
     _dueTime = widget.todo.dueTime;
     _priority = widget.todo.priority;
@@ -53,9 +66,16 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
 
   @override
   void dispose() {
+    // Persist pending edits when the panel swaps notes / closes.
+    if (_panelMode && !_skipAutoSave) {
+      ref.read(todoProvider.notifier).updateTodo(_buildUpdated());
+      ref.read(settingsProvider.notifier).rememberTags(_tags);
+      ReminderScheduler.instance.scheduleForTodo(_buildUpdated());
+    }
     _titleController.dispose();
     _descriptionController.dispose();
     _tagController.dispose();
+    _descFocus.dispose();
     super.dispose();
   }
 
@@ -67,12 +87,12 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
     }
   }
 
-  void _save() {
-    final updated = widget.todo.copyWith(
-      title: _titleController.text.trim(),
-      description: _descriptionController.text.trim().isEmpty
-          ? null
-          : _descriptionController.text.trim(),
+  Todo _buildUpdated() {
+    final title = _titleController.text.trim();
+    final desc = _descriptionController.text.trim();
+    return widget.todo.copyWith(
+      title: title.isEmpty ? widget.todo.title : title,
+      description: desc.isEmpty ? null : desc,
       dueDate: _dueDate,
       dueTime: _dueTime,
       priority: _priority,
@@ -80,12 +100,17 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
       isPinned: _isPinned,
       projectId: _projectId,
       labelIds: _tags,
-      clearDescription: _descriptionController.text.trim().isEmpty,
+      clearDescription: desc.isEmpty,
       clearDueDate: _dueDate == null,
       clearDueTime: _dueTime == null,
       clearReminder: _reminderTime == null,
       clearProjectId: _projectId == null,
     );
+  }
+
+  void _save() {
+    _skipAutoSave = true;
+    final updated = _buildUpdated();
     ref.read(todoProvider.notifier).updateTodo(updated);
     ref.read(settingsProvider.notifier).rememberTags(_tags);
     ReminderScheduler.instance.scheduleForTodo(updated);
@@ -106,6 +131,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
           ),
           TextButton(
             onPressed: () {
+              _skipAutoSave = true; // don't let dispose re-create it
               Navigator.pop(context); // close dialog
               ReminderScheduler.instance.cancelForTodo(widget.todo.id);
               ref.read(todoProvider.notifier).deleteTodo(widget.todo.id);
@@ -178,21 +204,8 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
             ),
             const Divider(height: 8),
 
-            // Description
-            TextField(
-              controller: _descriptionController,
-              style: const TextStyle(fontSize: 16),
-              decoration: InputDecoration(
-                hintText: 'Beschreibung hinzufügen',
-                hintStyle: TextStyle(color: AppColors.textSecondary),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                filled: false,
-              ),
-              maxLines: null,
-              minLines: 3,
-            ),
+            // Description — Markdown: rendered when not editing, raw on tap.
+            _buildDescription(),
             const SizedBox(height: 20),
 
             // Metadata card — icon chips, value shown when set.
@@ -319,6 +332,48 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
     );
   }
 
+  // ── Description with Markdown ──
+  // Renders Markdown when not focused; tap to edit the raw text.
+  Widget _buildDescription() {
+    final text = _descriptionController.text.trim();
+
+    if (_editingDesc || text.isEmpty) {
+      return TextField(
+        controller: _descriptionController,
+        focusNode: _descFocus,
+        autofocus: _editingDesc,
+        style: const TextStyle(fontSize: 16, height: 1.4),
+        decoration: InputDecoration(
+          hintText: 'Beschreibung (Markdown unterstützt)',
+          hintStyle: const TextStyle(color: AppColors.textSecondary),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          filled: false,
+        ),
+        maxLines: null,
+        minLines: 3,
+        onChanged: (_) => setState(() {}),
+      );
+    }
+
+    return InkWell(
+      onTap: () {
+        setState(() => _editingDesc = true);
+        _descFocus.requestFocus();
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: GptMarkdown(
+          text,
+          style: const TextStyle(fontSize: 16, height: 1.4, color: AppColors.textPrimary),
+        ),
+      ),
+    );
+  }
+
   /// Rounded surface card used to group the metadata / tags sections.
   Widget _sectionCard({required Widget child}) {
     return Container(
@@ -364,7 +419,6 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
                 decoration: BoxDecoration(
                   color: AppColors.background,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.divider),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -592,7 +646,6 @@ class _Chip extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.background,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.divider),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

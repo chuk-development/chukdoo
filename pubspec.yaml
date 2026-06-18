@@ -9,79 +9,84 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
-  # State Management (keeping 2.x - 3.x requires major migration)
-  flutter_riverpod: ^2.6.1
-  riverpod_annotation: ^2.6.1
+  # State Management
+  flutter_riverpod: ^3.3.2
 
   # Navigation
-  go_router: ^14.8.1
+  go_router: ^17.3.0
 
   # Backend
-  supabase_flutter: ^2.9.0
+  supabase_flutter: ^2.15.0
 
   # Encryption
   cryptography: ^2.7.0
-  flutter_secure_storage: ^9.2.4
+  flutter_secure_storage: ^10.3.1
 
   # Local Storage
   hive: ^2.2.3
   hive_flutter: ^1.1.0
-  shared_preferences: ^2.5.1
-  path_provider: ^2.1.5
+  shared_preferences: ^2.5.5
+  path_provider: ^2.1.6
 
   # File Operations
-  file_picker: ^8.1.7
+  file_picker: ^11.0.2
   share_plus: ^10.1.4
 
   # Notifications
-  flutter_local_notifications: ^19.5.0
-  timezone: ^0.10.1
+  flutter_local_notifications: ^22.0.1
+  timezone: ^0.11.0
 
   # Background Tasks
   workmanager: ^0.9.0
 
   # UI
   cupertino_icons: ^1.0.8
-  flutter_slidable: ^3.1.2
-  google_fonts: ^6.3.3
-  solar_icons: ^0.0.5
+  flutter_slidable: ^4.0.3
+  google_fonts: ^8.1.0
+  solar_icons: ^0.1.0
+  gpt_markdown: ^1.0.19
 
   # Date/Time & i18n
   intl: ^0.20.2
 
   # Utilities
   uuid: ^4.5.1
-  connectivity_plus: ^6.1.4
+  connectivity_plus: ^7.1.1
   path: ^1.9.0
 
   # Desktop (System Tray & Window Management)
-  tray_manager: ^0.2.3
-  window_manager: ^0.4.3
+  tray_manager: ^0.5.3
+  window_manager: ^0.5.1
 
   # Subscriptions (RevenueCat)
-  purchases_flutter: ^8.11.0
-  purchases_ui_flutter: ^8.11.0
-
-  # App Icon Generation
-  flutter_launcher_icons: ^0.14.3
+  purchases_flutter: ^10.2.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  build_runner: ^2.4.13
-  riverpod_generator: ^2.4.0
-  hive_generator: ^2.0.1
+  flutter_launcher_icons: ^0.14.3
   flutter_lints: ^6.0.0
 
 flutter_launcher_icons:
-  android: true
+  android: false  # Using manual adaptive icons with Material You support
   ios: true
+  web:
+    generate: true
+    image_path: "assets/images/app_icon.png"
+    background_color: "#FEF7FF"
+    theme_color: "#6750A4"
+  windows:
+    generate: true
+    image_path: "assets/images/app_icon.png"
+    icon_size: 256
+  macos:
+    generate: true
+    image_path: "assets/images/app_icon.png"
   image_path: "assets/images/app_icon.png"
-  min_sdk_android: 21
-  adaptive_icon_background: "#009688"
-  adaptive_icon_foreground: "assets/images/app_icon.png"
   remove_alpha_ios: true
 
 flutter:
