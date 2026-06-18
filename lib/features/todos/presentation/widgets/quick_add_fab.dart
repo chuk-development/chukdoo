@@ -19,7 +19,7 @@ class QuickAddFab extends StatelessWidget {
       shape: const CircleBorder(),
       child: const Icon(
         Icons.add,
-        color: Colors.white,
+        color: AppColors.onPrimary,
         size: 30,
       ),
     );

@@ -173,7 +173,7 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: AppColors.warning.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.warning.withOpacity(0.3)),
               ),
               child: Row(
@@ -262,7 +262,7 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
                       width: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: AppColors.onPrimary,
                       ),
                     )
                   : const Text(

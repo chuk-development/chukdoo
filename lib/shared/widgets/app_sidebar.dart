@@ -143,7 +143,7 @@ class _IconRail extends StatelessWidget {
             child: const Text(
               'C',
               style: TextStyle(
-                color: Colors.white,
+                color: AppColors.onPrimary,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),

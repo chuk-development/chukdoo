@@ -242,13 +242,17 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
             ),
           ),
 
-          // Quick action chips — icon-led, combined date+time, popup priority
+          // Chips + send button on one row
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
                 // Combined date + time
                 InkWell(
                   onTap: _pickDateTime,
@@ -355,20 +359,15 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
                     color: _pinned ? AppColors.orange : null,
                   ),
                 ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                _SendButton(
+                  enabled: _controller.text.trim().isNotEmpty,
+                  onPressed: _handleSubmit,
+                ),
               ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Send button row
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: _SendButton(
-                enabled: _controller.text.trim().isNotEmpty,
-                onPressed: _handleSubmit,
-              ),
             ),
           ),
         ],
@@ -516,7 +515,7 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
   }
 }
 
-/// Primary pill send button — "↑ Hinzufügen".
+/// Primary square send button (big, rounded-square — matches the FAB family).
 class _SendButton extends StatelessWidget {
   final bool enabled;
   final VoidCallback onPressed;
@@ -525,13 +524,16 @@ class _SendButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FilledButton.icon(
-      onPressed: enabled ? onPressed : null,
-      icon: const Icon(SolarIconsBold.altArrowUp, size: 18),
-      label: const Text('Hinzufügen'),
-      style: FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+    return SizedBox(
+      width: 56,
+      height: 56,
+      child: FilledButton(
+        onPressed: enabled ? onPressed : null,
+        style: FilledButton.styleFrom(
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        child: const Icon(SolarIconsBold.plain, size: 24),
       ),
     );
   }

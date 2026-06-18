@@ -89,7 +89,32 @@ class NaturalLanguageParser {
       remaining = _removeMatch(remaining, priorityResult.matchedText);
     }
 
-    // Parse date/time
+    // Parse project (*project_name) and tags (#tag) BEFORE the date, so a tag
+    // like "#so" is never mis-read as a weekday (Sonntag) etc.
+    final projectResult = _projectParser.parse(remaining);
+    if (projectResult != null) {
+      projectName = projectResult.projectName;
+      segments.add(ParsedSegment(
+        text: projectResult.matchedText,
+        type: SegmentType.project,
+        value: projectName,
+      ));
+      remaining = _removeMatch(remaining, projectResult.matchedText);
+    }
+
+    // Parse labels / tags (#tag1 #tag2)
+    final labelResult = _labelParser.parse(remaining);
+    labels = labelResult.labels;
+    for (final label in labelResult.matchedTexts) {
+      segments.add(ParsedSegment(
+        text: label,
+        type: SegmentType.label,
+        value: label.substring(1), // Remove #
+      ));
+      remaining = _removeMatch(remaining, label);
+    }
+
+    // Parse date/time (after tags/project are stripped)
     final dateResult = _dateParser.parse(remaining, language);
     if (dateResult != null) {
       dueDate = dateResult.date;
@@ -103,30 +128,6 @@ class NaturalLanguageParser {
       if (dateResult.timeMatchedText != null) {
         remaining = _removeMatch(remaining, dateResult.timeMatchedText!);
       }
-    }
-
-    // Parse project (#project_name)
-    final projectResult = _projectParser.parse(remaining);
-    if (projectResult != null) {
-      projectName = projectResult.projectName;
-      segments.add(ParsedSegment(
-        text: projectResult.matchedText,
-        type: SegmentType.project,
-        value: projectName,
-      ));
-      remaining = _removeMatch(remaining, projectResult.matchedText);
-    }
-
-    // Parse labels (@label1 @label2)
-    final labelResult = _labelParser.parse(remaining);
-    labels = labelResult.labels;
-    for (final label in labelResult.matchedTexts) {
-      segments.add(ParsedSegment(
-        text: label,
-        type: SegmentType.label,
-        value: label.substring(1), // Remove @
-      ));
-      remaining = _removeMatch(remaining, label);
     }
 
     // Clean up remaining text

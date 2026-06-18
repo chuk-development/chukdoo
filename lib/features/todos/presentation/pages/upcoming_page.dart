@@ -226,7 +226,7 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-                        color: isToday ? Colors.white : AppColors.textPrimary,
+                        color: isToday ? AppColors.onPrimary : AppColors.textPrimary,
                       ),
                     ),
                   ),

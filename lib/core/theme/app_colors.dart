@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 class AppColors {
   const AppColors._();
 
-  // Primary colors - Teal/Cyan theme (different from Todoist red)
-  static const Color primary = Color(0xFF00BFA5);
-  static const Color primaryLight = Color(0xFF5DF2D6);
-  static const Color primaryDark = Color(0xFF008E76);
+  // Primary accent — neutral, premium, minimal "platinum" (no green/teal).
+  static const Color primary = Color(0xFFE7E7EC);
+  static const Color primaryLight = Color(0xFFF5F5F8);
+  static const Color primaryDark = Color(0xFFCFCFD8);
+
+  /// Dark foreground to sit on the light accent (buttons, FAB, checkmarks).
+  static const Color onPrimary = Color(0xFF121218);
 
   // Background colors - Darker, more blue-tinted
   static const Color background = Color(0xFF121218);
@@ -32,10 +35,12 @@ class AppColors {
 
   // Accent colors
   static const Color purple = Color(0xFFB388FF);
-  static const Color green = Color(0xFF66BB6A);
+  // "green"/"teal" kept as names for compatibility but mapped to a neutral
+  // cool-grey so completion/today states read minimal instead of green.
+  static const Color green = Color(0xFF8C90A0);
   static const Color blue = Color(0xFF64B5F6);
   static const Color orange = Color(0xFFFFB74D);
-  static const Color teal = Color(0xFF00BFA5);
+  static const Color teal = Color(0xFFE7E7EC);
   static const Color pink = Color(0xFFFF80AB);
   static const Color cyan = Color(0xFF18FFFF);
   static const Color lime = Color(0xFFC6FF00);
@@ -46,15 +51,15 @@ class AppColors {
 
   // Project colors (for user selection)
   static const List<Color> projectColors = [
-    Color(0xFF00BFA5), // Teal (primary)
+    Color(0xFF7C82E0), // Indigo
     Color(0xFFFF5252), // Red
     Color(0xFFFFB74D), // Amber
-    Color(0xFFC6FF00), // Lime
-    Color(0xFF66BB6A), // Green
+    Color(0xFFC9A66B), // Sand
+    Color(0xFF8C90A0), // Slate
     Color(0xFF64B5F6), // Blue
     Color(0xFFB388FF), // Purple
     Color(0xFFFF80AB), // Pink
-    Color(0xFF18FFFF), // Cyan
+    Color(0xFFE7E7EC), // Platinum
     Color(0xFF78909C), // Blue Grey
   ];
 
