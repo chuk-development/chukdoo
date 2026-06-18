@@ -4,9 +4,6 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../projects/presentation/pages/project_page.dart';
-import '../../../projects/presentation/widgets/project_edit_dialog.dart';
-import '../../../projects/providers/project_provider.dart';
 import '../../../settings/providers/settings_provider.dart';
 import '../../domain/models/todo.dart';
 import '../../providers/todo_provider.dart';
@@ -48,7 +45,6 @@ class InboxPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final todoState = ref.watch(todoProvider);
-    final projectState = ref.watch(projectProvider);
     final settings = ref.watch(settingsProvider);
     final todos = showAll
         ? todoState.todos.where((t) => !t.isCompleted).toList()
@@ -57,8 +53,6 @@ class InboxPage extends ConsumerWidget {
         ? todoState.todos.where((t) => t.isCompleted).toList()
         : todoState.completedInboxTodos;
     final showCompleted = todoState.showCompleted;
-    final projects = projectState.sortedProjects;
-    final isMobile = MediaQuery.of(context).size.width < 768;
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -92,49 +86,7 @@ class InboxPage extends ConsumerWidget {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // Project chips (desktop only — mobile uses the drawer)
-                if (projects.isNotEmpty && !isMobile)
-                  SizedBox(
-                    height: 44,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      children: [
-                        ...projects.map((project) {
-                          final count = todoState.todos.where((t) => !t.isCompleted && t.projectId == project.id).length;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: ActionChip(
-                              avatar: Container(
-                                width: 10, height: 10,
-                                decoration: BoxDecoration(color: Color(project.color), shape: BoxShape.circle),
-                              ),
-                              label: Text(
-                                count > 0 ? '${project.name} ($count)' : project.name,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                              onPressed: () {
-                                Navigator.push(context, MaterialPageRoute(builder: (_) => ProjectPage(project: project)));
-                              },
-                              backgroundColor: AppColors.surface,
-                              side: BorderSide(color: AppColors.divider),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            ),
-                          );
-                        }),
-                        // Add project chip
-                        ActionChip(
-                          avatar: Icon(Icons.add, size: 16, color: AppColors.textSecondary),
-                          label: Text('Projekt', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                          onPressed: () => ProjectEditDialog.show(context),
-                          backgroundColor: Colors.transparent,
-                          side: BorderSide(color: AppColors.divider, style: BorderStyle.solid),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        ),
-                      ],
-                    ),
-                  ),
-                // Todo list
+                // Todo list (projects live in the sidebar / drawer)
                 Expanded(
                   child: todos.isEmpty && (!showCompleted || completedTodos.isEmpty)
                       ? _buildEmptyState()

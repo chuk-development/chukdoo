@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -235,43 +236,59 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
             ),
           ),
 
-          // Quick action chips
+          // Quick action chips — icon-led, combined date+time, popup priority
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                // Date chip
-                _buildChip(
-                  icon: SolarIconsOutline.calendar,
-                  label: _selectedDate != null
-                      ? DateParser.formatDate(_selectedDate!, Language.german)
-                      : 'Datum',
-                  color: _selectedDate != null ? AppColors.purple : null,
-                  onTap: () => _showDatePicker(),
+                // Combined date + time
+                InkWell(
+                  onTap: _pickDateTime,
+                  borderRadius: BorderRadius.circular(8),
+                  child: _chipBox(
+                    icon: SolarIconsOutline.calendar,
+                    label: _dateLabel ?? 'Datum',
+                    color: _selectedDate != null ? AppColors.purple : null,
+                  ),
                 ),
 
-                // Time chip
-                _buildChip(
-                  icon: SolarIconsOutline.clockCircle,
-                  label: _selectedTime != null
-                      ? _formatTime(_selectedTime!)
-                      : 'Zeit',
-                  color: _selectedTime != null ? AppColors.blue : null,
-                  onTap: () => _showTimePicker(),
-                ),
-
-                // Priority chip
-                _buildChip(
-                  icon: SolarIconsOutline.flag,
-                  label: _selectedPriority != null && _selectedPriority! < 4
-                      ? 'P$_selectedPriority'
-                      : 'Priorität',
-                  color: _selectedPriority != null && _selectedPriority! < 4
-                      ? AppColors.getPriorityColor(_selectedPriority!)
-                      : null,
-                  onTap: () => _showPriorityPicker(),
+                // Priority — small anchored popup
+                PopupMenuButton<int>(
+                  color: AppColors.surface,
+                  position: PopupMenuPosition.under,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  onSelected: (p) => setState(() {
+                    _selectedPriority = p == 4 ? null : p;
+                    _priorityFromParsing = false;
+                  }),
+                  itemBuilder: (_) => [
+                    for (final p in [1, 2, 3])
+                      PopupMenuItem(
+                        value: p,
+                        height: 40,
+                        child: Row(children: [
+                          Icon(SolarIconsBold.flag, size: 16, color: AppColors.getPriorityColor(p)),
+                          const SizedBox(width: 10),
+                          Text('Priorität $p'),
+                        ]),
+                      ),
+                    PopupMenuItem(
+                      value: 4,
+                      height: 40,
+                      child: Row(children: const [
+                        Icon(SolarIconsOutline.flag, size: 16, color: AppColors.textSecondary),
+                        SizedBox(width: 10),
+                        Text('Keine'),
+                      ]),
+                    ),
+                  ],
+                  child: _chipBox(
+                    icon: _hasPriority ? SolarIconsBold.flag : SolarIconsOutline.flag,
+                    label: _hasPriority ? 'P$_selectedPriority' : 'Priorität',
+                    color: _hasPriority ? AppColors.getPriorityColor(_selectedPriority!) : null,
+                  ),
                 ),
               ],
             ),
@@ -283,44 +300,53 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Row(
               children: [
-                // Project selector
-                InkWell(
-                  onTap: () => _showProjectPicker(),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppColors.divider),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          SolarIconsOutline.inboxLine,
-                          size: 16,
-                          color: _selectedProjectName != null
-                              ? AppColors.primary
-                              : AppColors.textSecondary,
+                // Project — small anchored dropdown
+                PopupMenuButton<String?>(
+                  color: AppColors.surface,
+                  position: PopupMenuPosition.under,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  onSelected: _onProjectSelected,
+                  itemBuilder: (_) {
+                    final projects = ref.read(projectProvider).sortedProjects;
+                    return [
+                      const PopupMenuItem(
+                        value: null,
+                        height: 40,
+                        child: Row(children: [
+                          Icon(SolarIconsOutline.inbox, size: 16, color: AppColors.textSecondary),
+                          SizedBox(width: 10),
+                          Text('Eingang'),
+                        ]),
+                      ),
+                      for (final p in projects)
+                        PopupMenuItem(
+                          value: p.id,
+                          height: 40,
+                          child: Row(children: [
+                            Container(
+                              width: 12, height: 12,
+                              decoration: BoxDecoration(color: Color(p.color), borderRadius: BorderRadius.circular(3)),
+                            ),
+                            const SizedBox(width: 10),
+                            Flexible(child: Text(p.name, overflow: TextOverflow.ellipsis)),
+                          ]),
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _selectedProjectName ?? 'Eingang',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: _selectedProjectName != null
-                                ? AppColors.primary
-                                : AppColors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          SolarIconsOutline.altArrowDown,
-                          size: 16,
-                          color: AppColors.textSecondary,
-                        ),
-                      ],
-                    ),
+                      const PopupMenuItem(
+                        value: '__new__',
+                        height: 40,
+                        child: Row(children: [
+                          Icon(SolarIconsOutline.addCircle, size: 16, color: AppColors.primary),
+                          SizedBox(width: 10),
+                          Text('Neues Projekt', style: TextStyle(color: AppColors.primary)),
+                        ]),
+                      ),
+                    ];
+                  },
+                  child: _chipBox(
+                    icon: SolarIconsOutline.folder,
+                    label: _selectedProjectName ?? 'Eingang',
+                    color: _selectedProjectName != null ? AppColors.primary : null,
+                    trailingArrow: true,
                   ),
                 ),
                 const Spacer(),
@@ -329,15 +355,12 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
                 SizedBox(
                   width: 48,
                   height: 48,
-                  child: ElevatedButton(
+                  child: FilledButton(
                     onPressed: _controller.text.trim().isNotEmpty ? _handleSubmit : null,
-                    style: ElevatedButton.styleFrom(
+                    style: FilledButton.styleFrom(
                       padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
                     ),
-                    child: const Icon(SolarIconsBold.roundArrowUp),
+                    child: const Icon(SolarIconsBold.roundArrowUp, size: 20),
                   ),
                 ),
               ],
@@ -348,245 +371,99 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
     );
   }
 
-  Widget _buildChip({
+  bool get _hasPriority => _selectedPriority != null && _selectedPriority! < 4;
+
+  String? get _dateLabel {
+    if (_selectedDate == null) return null;
+    final label = DateParser.formatDate(_selectedDate!, Language.german);
+    if (_selectedTime != null) return '$label ${_formatTime(_selectedTime!)}';
+    return label;
+  }
+
+  /// Compact bordered chip (icon + label) — matches the detail editor style.
+  Widget _chipBox({
     required IconData icon,
     required String label,
     Color? color,
-    required VoidCallback onTap,
+    bool trailingArrow = false,
   }) {
-    final isActive = color != null;
-    final displayColor = color ?? AppColors.textSecondary;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive ? displayColor.withOpacity(0.15) : AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: displayColor),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                color: displayColor,
-              ),
+    final c = color ?? AppColors.textSecondary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: c),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: color != null ? AppColors.textPrimary : AppColors.textSecondary,
             ),
+          ),
+          if (trailingArrow) ...[
+            const SizedBox(width: 4),
+            const Icon(SolarIconsOutline.altArrowDown, size: 14, color: AppColors.textSecondary),
           ],
-        ),
+        ],
       ),
     );
   }
 
-  void _showDatePicker() async {
+  /// Combined date + time picker (one flow).
+  Future<void> _pickDateTime() async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
+    Widget themed(BuildContext context, Widget? child) => Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(primary: AppColors.primary, surface: AppColors.surface),
+          ),
+          child: child!,
+        );
+
+    final date = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? now,
       firstDate: now.subtract(const Duration(days: 365)),
       lastDate: now.add(const Duration(days: 365 * 5)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.primary,
-              surface: AppColors.surface,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      builder: themed,
     );
+    if (date == null || !mounted) return;
 
-    if (picked != null) {
-      setState(() {
-        _selectedDate = picked;
-        _dateFromParsing = false; // Manual selection
-      });
-    }
-  }
-
-  void _showTimePicker() async {
-    final picked = await showTimePicker(
+    final time = await showTimePicker(
       context: context,
       initialTime: _selectedTime ?? TimeOfDay.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.primary,
-              surface: AppColors.surface,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      builder: themed,
     );
 
-    if (picked != null) {
-      setState(() {
-        _selectedTime = picked;
-        _timeFromParsing = false; // Manual selection
-      });
+    setState(() {
+      _selectedDate = date;
+      _selectedTime = time; // null = date only
+      _dateFromParsing = false;
+      _timeFromParsing = false;
+    });
+  }
+
+  void _onProjectSelected(String? value) {
+    if (value == '__new__') {
+      _showCreateProjectDialog();
+      return;
     }
-  }
-
-  void _showPriorityPicker() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.textSecondary,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Priorität',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ...List.generate(3, (index) {
-              final priority = index + 1;
-              final color = AppColors.getPriorityColor(priority);
-              return ListTile(
-                leading: Icon(SolarIconsBold.flag, color: color),
-                title: Text('Priorität $priority'),
-                trailing: _selectedPriority == priority
-                    ? const Icon(SolarIconsBold.checkSquare, color: AppColors.primary)
-                    : null,
-                onTap: () {
-                  setState(() {
-                    _selectedPriority = priority;
-                    _priorityFromParsing = false; // Manual selection
-                  });
-                  Navigator.pop(context);
-                },
-              );
-            }),
-            ListTile(
-              leading: Icon(SolarIconsOutline.flag, color: AppColors.textSecondary),
-              title: const Text('Keine Priorität'),
-              trailing: _selectedPriority == null || _selectedPriority == 4
-                  ? const Icon(SolarIconsBold.checkSquare, color: AppColors.primary)
-                  : null,
-              onTap: () {
-                setState(() {
-                  _selectedPriority = null;
-                  _priorityFromParsing = false; // Manual selection
-                });
-                Navigator.pop(context);
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showProjectPicker() {
-    final projectState = ref.read(projectProvider);
-    final projects = projectState.sortedProjects;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.textSecondary,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Projekt',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: Icon(SolarIconsBold.inboxLine, color: AppColors.blue),
-              title: const Text('Eingang'),
-              trailing: _selectedProjectId == null
-                  ? const Icon(SolarIconsBold.checkSquare, color: AppColors.primary)
-                  : null,
-              onTap: () {
-                setState(() {
-                  _selectedProjectName = null;
-                  _selectedProjectId = null;
-                  _projectFromParsing = false; // Manual selection
-                });
-                Navigator.pop(context);
-              },
-            ),
-            if (projects.isNotEmpty) ...[
-              const Divider(),
-              ...projects.map((project) => ListTile(
-                leading: Icon(
-                  SolarIconsOutline.folder,
-                  color: Color(project.color),
-                ),
-                title: Text(project.name),
-                trailing: _selectedProjectId == project.id
-                    ? const Icon(SolarIconsBold.checkSquare, color: AppColors.primary)
-                    : null,
-                onTap: () {
-                  setState(() {
-                    _selectedProjectName = project.name;
-                    _selectedProjectId = project.id;
-                    _projectFromParsing = false; // Manual selection
-                  });
-                  Navigator.pop(context);
-                },
-              )),
-            ],
-            const Divider(),
-            ListTile(
-              leading: Icon(SolarIconsOutline.addCircle, color: AppColors.textSecondary),
-              title: const Text('Neues Projekt erstellen'),
-              onTap: () {
-                Navigator.pop(context);
-                _showCreateProjectDialog();
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
+    setState(() {
+      if (value == null) {
+        _selectedProjectName = null;
+        _selectedProjectId = null;
+      } else {
+        final p = ref.read(projectProvider).getById(value);
+        _selectedProjectName = p?.name;
+        _selectedProjectId = value;
+      }
+      _projectFromParsing = false;
+    });
   }
 
   void _showCreateProjectDialog() {
@@ -608,22 +485,27 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
         title: const Text('Neues Projekt'),
         content: TextField(
           controller: projectController,
           autofocus: true,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             hintText: 'Projektname',
+            filled: true,
+            fillColor: AppColors.surfaceLight,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
           ),
           onSubmitted: (_) => createProject(),
         ),
         actions: [
-          TextButton(
+          OutlinedButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Abbrechen'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: createProject,
             child: const Text('Erstellen'),
           ),
