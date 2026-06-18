@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../nlp/parser/natural_language_parser.dart';
@@ -182,6 +183,20 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
     _focusNode.requestFocus();
   }
 
+  /// Keep the keyboard up after tapping a chip / picker / popup. Those steal
+  /// focus from the text field, which collapses the keyboard; re-requesting
+  /// focus keeps it open so the user can keep typing.
+  void _refocus() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _focusNode.requestFocus();
+      // requestFocus alone won't re-show the keyboard if focus never fully
+      // left the field — force the IME to show.
+      SystemChannels.textInput.invokeMethod('TextInput.show');
+    });
+  }
+
   String _formatTime(TimeOfDay time) {
     final hour = time.hour.toString().padLeft(2, '0');
     final minute = time.minute.toString().padLeft(2, '0');
@@ -192,9 +207,9 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      curve: Curves.easeOut,
+    // Plain Container (no AnimatedContainer): the implicit resize animation
+    // fights the Android keyboard insets and stutters on some ROMs.
+    return Container(
       decoration: const BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -204,52 +219,46 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Handle
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(top: 8),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.textSecondary.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-
-          // Input field
+          // Input field — borderless (no box around it), just bigger.
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(18, 14, 10, 4),
             child: TextField(
               controller: _controller,
               focusNode: _focusNode,
-              style: const TextStyle(fontSize: 18),
+              style: const TextStyle(fontSize: 20),
               decoration: InputDecoration(
-                hintText: 'z.B. Arzt anrufen 10 6 15 40 !1 #wichtig *projekt',
+                hintText: 'Task  (mi 15:00 !1 #projekt)',
                 hintStyle: TextStyle(
-                  color: AppColors.textSecondary.withOpacity(0.5),
+                  fontSize: 20,
+                  color: AppColors.textSecondary.withValues(alpha: 0.5),
                 ),
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
                 errorBorder: InputBorder.none,
                 filled: false,
-                contentPadding: EdgeInsets.zero,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                suffixIcon: _SendButton(
+                  enabled: _controller.text.trim().isNotEmpty,
+                  onPressed: _handleSubmit,
+                ),
+                suffixIconConstraints: const BoxConstraints(
+                  minWidth: 46,
+                  minHeight: 46,
+                ),
               ),
-              maxLines: null,
+              minLines: 1,
+              maxLines: 1,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _handleSubmit(),
             ),
           ),
 
-          // Chips + send button on one row
+          // Chips row
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: Wrap(
+            padding: const EdgeInsets.fromLTRB(18, 2, 18, 16),
+            child: Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: [
@@ -257,11 +266,7 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
                 InkWell(
                   onTap: _pickDateTime,
                   borderRadius: BorderRadius.circular(8),
-                  child: _chipBox(
-                    icon: SolarIconsOutline.calendar,
-                    label: _dateLabel,
-                    color: _selectedDate != null ? AppColors.purple : null,
-                  ),
+                  child: _dateChip(),
                 ),
 
                 // Priority — small anchored popup
@@ -269,33 +274,37 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
                   color: AppColors.surface,
                   position: PopupMenuPosition.under,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  onSelected: (p) => setState(() {
-                    _selectedPriority = p == 4 ? null : p;
-                    _priorityFromParsing = false;
-                  }),
+                  onCanceled: _refocus,
+                  onSelected: (p) {
+                    setState(() {
+                      _selectedPriority = p == 4 ? null : p;
+                      _priorityFromParsing = false;
+                    });
+                    _refocus();
+                  },
                   itemBuilder: (_) => [
                     for (final p in [1, 2, 3])
                       PopupMenuItem(
                         value: p,
                         height: 40,
                         child: Row(children: [
-                          Icon(SolarIconsBold.flag, size: 16, color: AppColors.getPriorityColor(p)),
+                          Icon(MdiIcons.flag, size: 16, color: AppColors.getPriorityColor(p)),
                           const SizedBox(width: 10),
-                          Text('Priorität $p'),
+                          Text('Priority $p'),
                         ]),
                       ),
                     PopupMenuItem(
                       value: 4,
                       height: 40,
-                      child: Row(children: const [
-                        Icon(SolarIconsOutline.flag, size: 16, color: AppColors.textSecondary),
+                      child: Row(children: [
+                        Icon(MdiIcons.flagOutline, size: 16, color: AppColors.textSecondary),
                         SizedBox(width: 10),
-                        Text('Keine'),
+                        Text('None'),
                       ]),
                     ),
                   ],
                   child: _chipBox(
-                    icon: _hasPriority ? SolarIconsBold.flag : SolarIconsOutline.flag,
+                    icon: _hasPriority ? MdiIcons.flag : MdiIcons.flagOutline,
                     label: _hasPriority ? 'P$_selectedPriority' : null,
                     color: _hasPriority ? AppColors.getPriorityColor(_selectedPriority!) : null,
                   ),
@@ -306,17 +315,18 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
                   color: AppColors.surface,
                   position: PopupMenuPosition.under,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  onCanceled: _refocus,
                   onSelected: _onProjectSelected,
                   itemBuilder: (_) {
                     final projects = ref.read(projectProvider).sortedProjects;
                     return [
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: null,
                         height: 40,
                         child: Row(children: [
-                          Icon(SolarIconsOutline.inbox, size: 16, color: AppColors.textSecondary),
+                          Icon(MdiIcons.inboxOutline, size: 16, color: AppColors.textSecondary),
                           SizedBox(width: 10),
-                          Text('Eingang'),
+                          Text('Inbox'),
                         ]),
                       ),
                       for (final p in projects)
@@ -332,19 +342,19 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
                             Flexible(child: Text(p.name, overflow: TextOverflow.ellipsis)),
                           ]),
                         ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: '__new__',
                         height: 40,
                         child: Row(children: [
-                          Icon(SolarIconsOutline.addCircle, size: 16, color: AppColors.primary),
+                          Icon(MdiIcons.plusCircleOutline, size: 16, color: AppColors.primary),
                           SizedBox(width: 10),
-                          Text('Neues Projekt', style: TextStyle(color: AppColors.primary)),
+                          Text('New Project', style: TextStyle(color: AppColors.primary)),
                         ]),
                       ),
                     ];
                   },
                   child: _chipBox(
-                    icon: SolarIconsOutline.folder,
+                    icon: MdiIcons.folderOutline,
                     label: _selectedProjectName,
                     color: _selectedProjectName != null ? AppColors.primary : null,
                   ),
@@ -352,23 +362,18 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
 
                 // Pin toggle — same chip, on/off
                 InkWell(
-                  onTap: () => setState(() => _pinned = !_pinned),
+                  onTap: () {
+                    setState(() => _pinned = !_pinned);
+                    _refocus();
+                  },
                   borderRadius: BorderRadius.circular(8),
                   child: _chipBox(
-                    icon: _pinned ? SolarIconsBold.bookmark : SolarIconsOutline.bookmark,
+                    icon: _pinned ? MdiIcons.bookmark : MdiIcons.bookmarkOutline,
                     color: _pinned ? AppColors.orange : null,
                   ),
                 ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 12),
-                _SendButton(
-                  enabled: _controller.text.trim().isNotEmpty,
-                  onPressed: _handleSubmit,
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -377,11 +382,50 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
 
   bool get _hasPriority => _selectedPriority != null && _selectedPriority! < 4;
 
-  String? get _dateLabel {
-    if (_selectedDate == null) return null;
-    final label = DateParser.formatDate(_selectedDate!, Language.german);
-    if (_selectedTime != null) return '$label ${_formatTime(_selectedTime!)}';
+  /// Short date label — drops the year when it falls in the current year so
+  /// far-off dates don't stretch the chip (e.g. "21.6." instead of "21.6.2025").
+  String get _dateLabelShort {
+    final d = _selectedDate!;
+    final label = DateParser.formatDate(d, Language.german);
+    if (label.endsWith('.${DateTime.now().year}')) {
+      return '${d.day}.${d.month}.';
+    }
     return label;
+  }
+
+  /// Elegant date chip: date as the primary value, optional time as a subtle
+  /// secondary segment behind a thin divider — reads as one tidy unit instead
+  /// of a long stretched label.
+  Widget _dateChip() {
+    final hasDate = _selectedDate != null;
+    final accent = hasDate ? AppColors.purple : AppColors.textSecondary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(MdiIcons.calendarOutline, size: 25, color: accent),
+          if (hasDate) ...[
+            const SizedBox(width: 6),
+            Text(_dateLabelShort,
+                style: const TextStyle(fontSize: 13.5, color: AppColors.textPrimary)),
+            if (_selectedTime != null) ...[
+              const SizedBox(width: 7),
+              Container(width: 1, height: 16, color: AppColors.divider),
+              const SizedBox(width: 7),
+              Icon(MdiIcons.clockOutline, size: 18, color: AppColors.textSecondary),
+              const SizedBox(width: 4),
+              Text(_formatTime(_selectedTime!),
+                  style: const TextStyle(fontSize: 13.5, color: AppColors.textSecondary)),
+            ],
+          ],
+        ],
+      ),
+    );
   }
 
   /// Compact bordered chip — icon only until a value is chosen, then icon+value.
@@ -393,22 +437,22 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
   }) {
     final c = color ?? AppColors.textSecondary;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(9),
         border: Border.all(color: AppColors.divider),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: c),
+          Icon(icon, size: 25, color: c),
           if (label != null) ...[
             const SizedBox(width: 6),
-            Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+            Text(label, style: const TextStyle(fontSize: 13.5, color: AppColors.textPrimary)),
           ],
           if (trailingArrow) ...[
             const SizedBox(width: 4),
-            const Icon(SolarIconsOutline.altArrowDown, size: 14, color: AppColors.textSecondary),
+            Icon(MdiIcons.chevronDown, size: 14, color: AppColors.textSecondary),
           ],
         ],
       ),
@@ -446,6 +490,7 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
       _dateFromParsing = false;
       _timeFromParsing = false;
     });
+    _refocus();
   }
 
   void _onProjectSelected(String? value) {
@@ -464,6 +509,7 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
       }
       _projectFromParsing = false;
     });
+    _refocus();
   }
 
   void _showCreateProjectDialog() {
@@ -485,12 +531,12 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Neues Projekt'),
+        title: const Text('New Project'),
         content: TextField(
           controller: projectController,
           autofocus: true,
           decoration: InputDecoration(
-            hintText: 'Projektname',
+            hintText: 'Project name',
             filled: true,
             fillColor: AppColors.surfaceLight,
             border: OutlineInputBorder(
@@ -503,11 +549,11 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
         actions: [
           OutlinedButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Abbrechen'),
+            child: const Text('Cancel'),
           ),
           FilledButton(
             onPressed: createProject,
-            child: const Text('Erstellen'),
+            child: const Text('Create'),
           ),
         ],
       ),
@@ -515,7 +561,7 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
   }
 }
 
-/// Primary square send button (big, rounded-square — matches the FAB family).
+/// Compact send button that sits inside the text field as a suffix icon.
 class _SendButton extends StatelessWidget {
   final bool enabled;
   final VoidCallback onPressed;
@@ -525,15 +571,16 @@ class _SendButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 56,
-      height: 56,
+      width: 38,
+      height: 38,
       child: FilledButton(
         onPressed: enabled ? onPressed : null,
         style: FilledButton.styleFrom(
           padding: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          minimumSize: const Size(38, 38),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
-        child: const Icon(SolarIconsBold.plain, size: 24),
+        child: Icon(MdiIcons.send, size: 20),
       ),
     );
   }

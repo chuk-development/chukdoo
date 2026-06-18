@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/models/habit.dart';
@@ -19,12 +19,12 @@ class HabitsPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gewohnheiten'),
+        title: const Text('Habits'),
         automaticallyImplyLeading: false,
         leading: embedded
             ? null
             : IconButton(
-                icon: const Icon(SolarIconsOutline.altArrowLeft),
+                icon: Icon(MdiIcons.chevronLeft),
                 onPressed: () => Navigator.pop(context),
               ),
       ),
@@ -57,16 +57,16 @@ class HabitsPage extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(SolarIconsOutline.target, size: 64, color: AppColors.textTertiary),
+          Icon(MdiIcons.target, size: 64, color: AppColors.textTertiary),
           const SizedBox(height: 16),
-          Text('Keine Gewohnheiten', style: TextStyle(fontSize: 18, color: AppColors.textSecondary)),
+          Text('No habits', style: TextStyle(fontSize: 18, color: AppColors.textSecondary)),
           const SizedBox(height: 8),
-          Text('Erstelle deine erste Gewohnheit', style: TextStyle(fontSize: 14, color: AppColors.textTertiary)),
+          Text('Create your first habit', style: TextStyle(fontSize: 14, color: AppColors.textTertiary)),
           const SizedBox(height: 24),
           FilledButton.icon(
             onPressed: () => _showHabitSheet(context, ref),
             icon: const Icon(Icons.add, size: 18),
-            label: const Text('Gewohnheit hinzufügen'),
+            label: const Text('Add habit'),
             style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
           ),
         ],
@@ -146,8 +146,8 @@ class _HabitCardState extends ConsumerState<_HabitCard> {
             onPressed: (_) => ref.read(habitProvider.notifier).deleteHabit(habit.id),
             backgroundColor: AppColors.error,
             foregroundColor: Colors.white,
-            icon: SolarIconsBold.trashBin2,
-            label: 'Löschen',
+            icon: MdiIcons.trashCan,
+            label: 'Delete',
           ),
         ],
       ),
@@ -227,7 +227,7 @@ class _HabitCardState extends ConsumerState<_HabitCard> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(SolarIconsBold.fire, size: 13, color: AppColors.orange),
+                              Icon(MdiIcons.fire, size: 13, color: AppColors.orange),
                               const SizedBox(width: 3),
                               Text('$streak', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.orange)),
                             ],
@@ -255,7 +255,7 @@ class _HabitCardState extends ConsumerState<_HabitCard> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(34, 2, 14, 8),
                   child: Text(
-                    habit.frequency == 'daily' ? 'Täglich' : 'Wöchentlich',
+                    habit.frequency == 'daily' ? 'Daily' : 'Weekly',
                     style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
                   ),
                 ),
@@ -393,7 +393,7 @@ class _HabitEditSheetState extends State<_HabitEditSheet> {
     super.initState();
     _nameController = TextEditingController(text: widget.habit?.name ?? '');
     _descriptionController = TextEditingController(text: widget.habit?.description ?? '');
-    _selectedColor = widget.habit?.color ?? AppColors.projectColors.first.value;
+    _selectedColor = widget.habit?.color ?? AppColors.projectColors.first.toARGB32();
     _frequency = widget.habit?.frequency ?? 'daily';
   }
 
@@ -430,7 +430,7 @@ class _HabitEditSheetState extends State<_HabitEditSheet> {
             const SizedBox(height: 16),
 
             Text(
-              _isEditing ? 'Gewohnheit bearbeiten' : 'Neue Gewohnheit',
+              _isEditing ? 'Edit habit' : 'New habit',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
             ),
             const SizedBox(height: 16),
@@ -452,7 +452,7 @@ class _HabitEditSheetState extends State<_HabitEditSheet> {
             TextField(
               controller: _descriptionController,
               decoration: InputDecoration(
-                hintText: 'Beschreibung (optional)',
+                hintText: 'Description (optional)',
                 filled: true,
                 fillColor: AppColors.surfaceLight,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -463,15 +463,15 @@ class _HabitEditSheetState extends State<_HabitEditSheet> {
             const SizedBox(height: 16),
 
             // Color
-            Text('Farbe', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            Text('Color', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: AppColors.projectColors.map((c) {
-                final isSelected = c.value == _selectedColor;
+                final isSelected = c.toARGB32() == _selectedColor;
                 return GestureDetector(
-                  onTap: () => setState(() => _selectedColor = c.value),
+                  onTap: () => setState(() => _selectedColor = c.toARGB32()),
                   child: Container(
                     width: 32, height: 32,
                     decoration: BoxDecoration(
@@ -487,12 +487,12 @@ class _HabitEditSheetState extends State<_HabitEditSheet> {
             const SizedBox(height: 16),
 
             // Frequency
-            Text('Häufigkeit', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            Text('Frequency', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
             const SizedBox(height: 8),
             SegmentedButton<String>(
               segments: const [
-                ButtonSegment(value: 'daily', label: Text('Täglich')),
-                ButtonSegment(value: 'weekly', label: Text('Wöchentlich')),
+                ButtonSegment(value: 'daily', label: Text('Daily')),
+                ButtonSegment(value: 'weekly', label: Text('Weekly')),
               ],
               selected: {_frequency},
               onSelectionChanged: (v) => setState(() => _frequency = v.first),
@@ -521,7 +521,7 @@ class _HabitEditSheetState extends State<_HabitEditSheet> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: Text(_isEditing ? 'Speichern' : 'Erstellen'),
+                child: Text(_isEditing ? 'Save' : 'Create'),
               ),
             ),
 
@@ -535,10 +535,10 @@ class _HabitEditSheetState extends State<_HabitEditSheet> {
                     showDialog(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        title: const Text('Gewohnheit löschen?'),
-                        content: const Text('Alle Daten dieser Gewohnheit werden gelöscht.'),
+                        title: const Text('Delete habit?'),
+                        content: const Text('All data for this habit will be deleted.'),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Abbrechen')),
+                          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
                           FilledButton(
                             onPressed: () {
                               widget.onDelete!();
@@ -546,14 +546,14 @@ class _HabitEditSheetState extends State<_HabitEditSheet> {
                               Navigator.pop(context);
                             },
                             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-                            child: const Text('Löschen'),
+                            child: const Text('Delete'),
                           ),
                         ],
                       ),
                     );
                   },
-                  icon: const Icon(SolarIconsOutline.trashBinTrash, size: 18),
-                  label: const Text('Gewohnheit löschen'),
+                  icon: Icon(MdiIcons.trashCanOutline, size: 18),
+                  label: const Text('Delete habit'),
                   style: TextButton.styleFrom(foregroundColor: AppColors.error),
                 ),
               ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../settings/providers/settings_provider.dart';
@@ -54,7 +54,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(SolarIconsOutline.altArrowLeft),
+          icon: Icon(MdiIcons.chevronLeft),
           onPressed: () => Navigator.pop(context),
         ),
         title: TextField(
@@ -77,7 +77,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         actions: [
           if (_query.isNotEmpty)
             IconButton(
-              icon: const Icon(SolarIconsOutline.closeCircle),
+              icon: Icon(MdiIcons.closeCircleOutline),
               onPressed: () {
                 _searchController.clear();
                 setState(() {
@@ -121,9 +121,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              SolarIconsOutline.magnifier,
+              MdiIcons.magnify,
               size: 80,
-              color: AppColors.textSecondary.withOpacity(0.5),
+              color: AppColors.textSecondary.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 24),
             const Text(
@@ -156,9 +156,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              SolarIconsOutline.magnifier,
+              MdiIcons.magnify,
               size: 80,
-              color: AppColors.textSecondary.withOpacity(0.5),
+              color: AppColors.textSecondary.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 24),
             const Text(

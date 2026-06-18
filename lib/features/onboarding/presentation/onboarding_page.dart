@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -54,7 +54,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 padding: const EdgeInsets.all(16),
                 child: TextButton(
                   onPressed: _skipOnboarding,
-                  child: const Text('Überspringen'),
+                  child: const Text('Skip'),
                 ),
               ),
             ),
@@ -108,7 +108,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                     backgroundColor: AppColors.primary,
                   ),
                   child: Text(
-                    _currentPage == 2 ? 'Loslegen' : 'Weiter',
+                    _currentPage == 2 ? 'Get started' : 'Continue',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -138,18 +138,18 @@ class _WelcomeScreen extends StatelessWidget {
             width: 120,
             height: 120,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.15),
+              color: AppColors.primary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(30),
             ),
             child: Icon(
-              SolarIconsBold.checklistMinimalistic,
+              MdiIcons.formatListChecks,
               size: 64,
               color: AppColors.primary,
             ),
           ),
           const SizedBox(height: 40),
           const Text(
-            'Willkommen bei Chukdoo',
+            'Welcome to Chukdoo',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -159,7 +159,7 @@ class _WelcomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Deine Todos, deine Daten.\nEinfach, privat und schnell.',
+            'Your todos, your data.\nSimple, private and fast.',
             style: TextStyle(
               fontSize: 16,
               color: AppColors.textSecondary,
@@ -187,18 +187,18 @@ class _NLPSyntaxScreen extends StatelessWidget {
             width: 120,
             height: 120,
             decoration: BoxDecoration(
-              color: AppColors.purple.withOpacity(0.15),
+              color: AppColors.purple.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(30),
             ),
             child: Icon(
-              SolarIconsBold.pen,
+              MdiIcons.pencil,
               size: 64,
               color: AppColors.purple,
             ),
           ),
           const SizedBox(height: 40),
           const Text(
-            'Schnelle Eingabe',
+            'Quick entry',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -208,7 +208,7 @@ class _NLPSyntaxScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Tippe einfach drauflos - Chukdoo versteht dich.',
+            'Just start typing - Chukdoo understands you.',
             style: TextStyle(
               fontSize: 16,
               color: AppColors.textSecondary,
@@ -229,7 +229,7 @@ class _NLPSyntaxScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Beispiel:',
+                  'Example:',
                   style: TextStyle(
                     fontSize: 12,
                     color: AppColors.textTertiary,
@@ -248,10 +248,10 @@ class _NLPSyntaxScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 const Divider(color: AppColors.divider),
                 const SizedBox(height: 12),
-                _buildSyntaxItem('mi', 'Mittwoch', SolarIconsOutline.calendar),
-                _buildSyntaxItem('15:00', 'Uhrzeit', SolarIconsOutline.clockCircle),
-                _buildSyntaxItem('!!2', 'Priorität 2', SolarIconsOutline.flag),
-                _buildSyntaxItem('#einkauf', 'Projekt', SolarIconsOutline.folder),
+                _buildSyntaxItem('mi', 'Wednesday', MdiIcons.calendarOutline),
+                _buildSyntaxItem('15:00', 'Time', MdiIcons.clockOutline),
+                _buildSyntaxItem('!!2', 'Priority 2', MdiIcons.flagOutline),
+                _buildSyntaxItem('#einkauf', 'Project', MdiIcons.folderOutline),
               ],
             ),
           ),
@@ -271,7 +271,7 @@ class _NLPSyntaxScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
               color: AppColors.surfaceLight,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
               syntax,
@@ -310,18 +310,18 @@ class _OfflineFirstScreen extends StatelessWidget {
             width: 120,
             height: 120,
             decoration: BoxDecoration(
-              color: AppColors.success.withOpacity(0.15),
+              color: AppColors.success.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(30),
             ),
             child: Icon(
-              SolarIconsBold.shieldCheck,
+              MdiIcons.shieldCheck,
               size: 64,
               color: AppColors.success,
             ),
           ),
           const SizedBox(height: 40),
           const Text(
-            'Funktioniert Offline',
+            'Works offline',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -331,7 +331,7 @@ class _OfflineFirstScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Deine Daten bleiben auf deinem Gerät.\nKein Konto nötig - starte sofort!',
+            'Your data stays on your device.\nNo account needed - start right away!',
             style: TextStyle(
               fontSize: 16,
               color: AppColors.textSecondary,
@@ -342,19 +342,19 @@ class _OfflineFirstScreen extends StatelessWidget {
           const SizedBox(height: 32),
           // Features list
           _buildFeatureItem(
-            SolarIconsOutline.smartphone,
-            'Lokal gespeichert',
-            'Alles bleibt auf deinem Gerät',
+            MdiIcons.cellphone,
+            'Stored locally',
+            'Everything stays on your device',
           ),
           _buildFeatureItem(
-            SolarIconsOutline.cloudCross,
-            'Kein Internet nötig',
-            'Funktioniert auch offline',
+            MdiIcons.cloudOffOutline,
+            'No internet needed',
+            'Works offline too',
           ),
           _buildFeatureItem(
-            SolarIconsOutline.cloudUpload,
-            'Optional: Cloud Sync',
-            'Später mit Konto verbinden',
+            MdiIcons.cloudUploadOutline,
+            'Optional: Cloud sync',
+            'Connect an account later',
           ),
         ],
       ),

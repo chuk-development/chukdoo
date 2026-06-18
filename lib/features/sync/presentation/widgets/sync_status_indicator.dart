@@ -45,20 +45,20 @@ class _SyncStatusIndicatorState extends State<SyncStatusIndicator> {
         if (queueSize > 0) {
           return _buildChip(
             icon: Icons.cloud_upload_outlined,
-            label: '$queueSize ausstehend',
+            label: '$queueSize pending',
             color: AppColors.warning,
           );
         }
         return _buildChip(
           icon: Icons.cloud_done_outlined,
-          label: 'Synchronisiert',
+          label: 'Synced',
           color: AppColors.success,
         );
 
       case SyncStatus.syncing:
         return _buildChip(
           icon: Icons.sync,
-          label: 'Synchronisiert...',
+          label: 'Syncing…',
           color: AppColors.primary,
           isAnimated: true,
         );
@@ -66,7 +66,7 @@ class _SyncStatusIndicatorState extends State<SyncStatusIndicator> {
       case SyncStatus.error:
         return _buildChip(
           icon: Icons.cloud_off_outlined,
-          label: 'Fehler',
+          label: 'Error',
           color: AppColors.error,
         );
 
@@ -88,7 +88,7 @@ class _SyncStatusIndicatorState extends State<SyncStatusIndicator> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(

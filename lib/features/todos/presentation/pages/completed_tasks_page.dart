@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../settings/providers/settings_provider.dart';
@@ -23,24 +23,24 @@ class CompletedTasksPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         leading: onMenu != null
-            ? IconButton(icon: const Icon(SolarIconsOutline.hamburgerMenu), onPressed: onMenu, tooltip: 'Menu')
+            ? IconButton(icon: Icon(MdiIcons.menu), onPressed: onMenu, tooltip: 'Menu')
             : null,
         title: const Text('Completed'),
         actions: [
           if (completedTodos.isNotEmpty)
             PopupMenuButton<String>(
-              icon: const Icon(SolarIconsOutline.menuDots),
+              icon: Icon(MdiIcons.dotsHorizontal),
               onSelected: (value) {
                 if (value == 'delete_all') {
                   _showDeleteAllConfirmation(context, ref, completedTodos);
                 }
               },
               itemBuilder: (context) => [
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'delete_all',
                   child: Row(
                     children: [
-                      Icon(SolarIconsOutline.trashBinTrash, color: AppColors.error),
+                      Icon(MdiIcons.trashCanOutline, color: AppColors.error),
                       SizedBox(width: 8),
                       Text('Delete all', style: TextStyle(color: AppColors.error)),
                     ],
@@ -120,9 +120,9 @@ class CompletedTasksPage extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              SolarIconsOutline.checkCircle,
+              MdiIcons.checkCircleOutline,
               size: 80,
-              color: AppColors.textSecondary.withOpacity(0.5),
+              color: AppColors.textSecondary.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 24),
             const Text(

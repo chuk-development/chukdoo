@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../domain/models/sync_conflict.dart';
@@ -30,9 +30,9 @@ class ConflictDialog extends StatelessWidget {
       backgroundColor: AppColors.surface,
       title: Row(
         children: [
-          Icon(SolarIconsOutline.dangerTriangle, color: AppColors.warning),
+          Icon(MdiIcons.alertOutline, color: AppColors.warning),
           const SizedBox(width: 12),
-          const Text('Sync-Konflikt'),
+          const Text('Sync Conflict'),
         ],
       ),
       content: SingleChildScrollView(
@@ -41,12 +41,12 @@ class ConflictDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Diese Aufgabe wurde auf einem anderen Gerät geändert.',
+              'This task was changed on another device.',
               style: TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 16),
             Text(
-              'Geänderte Felder:',
+              'Changed fields:',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: AppColors.textSecondary,
@@ -72,8 +72,8 @@ class ConflictDialog extends StatelessWidget {
 
             // Local version
             _buildVersionCard(
-              icon: SolarIconsOutline.smartphone,
-              label: 'Lokal (Dieses Gerät)',
+              icon: MdiIcons.cellphone,
+              label: 'Local (This Device)',
               todo: local,
               color: AppColors.blue,
             ),
@@ -81,8 +81,8 @@ class ConflictDialog extends StatelessWidget {
 
             // Server version
             _buildVersionCard(
-              icon: SolarIconsOutline.cloud,
-              label: 'Server (Anderes Gerät)',
+              icon: MdiIcons.cloudOutline,
+              label: 'Server (Other Device)',
               todo: server,
               color: AppColors.purple,
             ),
@@ -93,20 +93,20 @@ class ConflictDialog extends StatelessWidget {
         // Keep local
         TextButton.icon(
           onPressed: () => Navigator.pop(context, ConflictResolution.keepLocal),
-          icon: Icon(SolarIconsOutline.smartphone, size: 18),
-          label: const Text('Lokal behalten'),
+          icon: Icon(MdiIcons.cellphone, size: 18),
+          label: const Text('Keep Local'),
         ),
         // Keep server
         TextButton.icon(
           onPressed: () => Navigator.pop(context, ConflictResolution.keepServer),
-          icon: Icon(SolarIconsOutline.cloud, size: 18),
-          label: const Text('Server übernehmen'),
+          icon: Icon(MdiIcons.cloudOutline, size: 18),
+          label: const Text('Keep Server'),
         ),
         // Keep both
         TextButton.icon(
           onPressed: () => Navigator.pop(context, ConflictResolution.keepBoth),
-          icon: Icon(SolarIconsOutline.copy, size: 18),
-          label: const Text('Beide behalten'),
+          icon: Icon(MdiIcons.contentCopy, size: 18),
+          label: const Text('Keep Both'),
         ),
       ],
       actionsAlignment: MainAxisAlignment.spaceEvenly,
@@ -123,9 +123,9 @@ class ConflictDialog extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/models/todo.dart';
@@ -30,6 +30,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
   late TextEditingController _descriptionController;
   late TextEditingController _tagController;
   late FocusNode _descFocus;
+  late FocusNode _tagFocus;
   bool _editingDesc = false;
   late DateTime? _dueDate;
   late TimeOfDay? _dueTime;
@@ -49,6 +50,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
     _titleController = TextEditingController(text: widget.todo.title);
     _descriptionController = TextEditingController(text: widget.todo.description ?? '');
     _tagController = TextEditingController();
+    _tagFocus = FocusNode();
     _descFocus = FocusNode();
     _descFocus.addListener(() {
       if (!_descFocus.hasFocus && _editingDesc) {
@@ -75,6 +77,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
     _titleController.dispose();
     _descriptionController.dispose();
     _tagController.dispose();
+    _tagFocus.dispose();
     _descFocus.dispose();
     super.dispose();
   }
@@ -122,12 +125,12 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Aufgabe löschen?'),
-        content: const Text('Diese Aktion kann nicht rückgängig gemacht werden.'),
+        title: const Text('Delete task?'),
+        content: const Text('This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Abbrechen'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
@@ -138,7 +141,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
               _close();
             },
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Löschen'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -164,23 +167,23 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(SolarIconsOutline.closeCircle),
+          icon: Icon(MdiIcons.closeCircleOutline),
           onPressed: _close,
         ),
         actions: [
           IconButton(
             icon: Icon(
-              _isPinned ? SolarIconsBold.bookmark : SolarIconsOutline.bookmark,
+              _isPinned ? MdiIcons.bookmark : MdiIcons.bookmarkOutline,
               color: _isPinned ? AppColors.orange : null,
             ),
-            tooltip: _isPinned ? 'Lösen' : 'Anheften',
+            tooltip: _isPinned ? 'Unpin' : 'Pin',
             onPressed: () => setState(() => _isPinned = !_isPinned),
           ),
           IconButton(
-            icon: const Icon(SolarIconsOutline.trashBinTrash),
+            icon: Icon(MdiIcons.trashCanOutline),
             onPressed: _delete,
           ),
-          TextButton(onPressed: _save, child: const Text('Speichern')),
+          TextButton(onPressed: _save, child: const Text('Save')),
         ],
       ),
       body: SingleChildScrollView(
@@ -188,141 +191,139 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title
+            // Title — normal text weight, not a heading.
             TextField(
               controller: _titleController,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600, height: 1.25),
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500, height: 1.35),
               decoration: const InputDecoration(
-                hintText: 'Aufgabe',
+                hintText: 'Task',
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
                 filled: false,
-                contentPadding: EdgeInsets.symmetric(vertical: 8),
+                isCollapsed: true,
+                contentPadding: EdgeInsets.symmetric(vertical: 6),
               ),
               maxLines: null,
             ),
-            const Divider(height: 8),
+            const SizedBox(height: 6),
+            const Divider(height: 1, thickness: 1, color: AppColors.divider),
+            const SizedBox(height: 14),
 
             // Description — Markdown: rendered when not editing, raw on tap.
             _buildDescription(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
-            // Metadata card — icon chips, value shown when set.
-            _sectionCard(
-              child: Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                // Date + time combined
-                _Chip(
-                  icon: SolarIconsOutline.calendar,
-                  iconColor: _dueDate != null ? AppColors.purple : null,
-                  value: _dateLabel,
-                  onTap: _pickDateTime,
-                  onClear: _dueDate != null
-                      ? () => setState(() {
-                            _dueDate = null;
-                            _dueTime = null;
-                          })
-                      : null,
-                ),
-
-                // Priority — small anchored popup menu
-                PopupMenuButton<TodoPriority>(
-                  color: AppColors.surface,
-                  position: PopupMenuPosition.under,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  onSelected: (p) => setState(() => _priority = p),
-                  itemBuilder: (_) => [
-                    for (final p in [TodoPriority.p1, TodoPriority.p2, TodoPriority.p3])
-                      PopupMenuItem(
-                        value: p,
-                        height: 40,
-                        child: Row(
-                          children: [
-                            Icon(SolarIconsBold.flag, size: 16, color: AppColors.getPriorityColor(p.value)),
-                            const SizedBox(width: 10),
-                            Text('Priorität ${p.value}'),
-                          ],
-                        ),
-                      ),
-                    PopupMenuItem(
-                      value: TodoPriority.p4,
-                      height: 40,
-                      child: Row(
-                        children: [
-                          Icon(SolarIconsOutline.flag, size: 16, color: AppColors.textSecondary),
-                          const SizedBox(width: 10),
-                          const Text('Keine'),
-                        ],
-                      ),
-                    ),
-                  ],
-                  child: _Chip(
-                    icon: _priority == TodoPriority.p4 ? SolarIconsOutline.flag : SolarIconsBold.flag,
-                    iconColor: _priority == TodoPriority.p4
-                        ? null
-                        : AppColors.getPriorityColor(_priority.value),
-                    value: _priority == TodoPriority.p4 ? null : 'P${_priority.value}',
-                  ),
-                ),
-
-                // Project — small anchored popup menu
-                PopupMenuButton<String?>(
-                  color: AppColors.surface,
-                  position: PopupMenuPosition.under,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  onSelected: (id) => setState(() => _projectId = id),
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: null,
-                      height: 40,
-                      child: Row(
-                        children: [
-                          Icon(SolarIconsOutline.inbox, size: 16, color: AppColors.textSecondary),
-                          SizedBox(width: 10),
-                          Text('Kein Projekt'),
-                        ],
-                      ),
-                    ),
-                    for (final p in projects)
-                      PopupMenuItem(
-                        value: p.id,
-                        height: 40,
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(color: Color(p.color), borderRadius: BorderRadius.circular(3)),
-                            ),
-                            const SizedBox(width: 10),
-                            Flexible(child: Text(p.name, overflow: TextOverflow.ellipsis)),
-                          ],
-                        ),
-                      ),
-                  ],
-                  child: _Chip(
-                    icon: SolarIconsOutline.folder,
-                    iconColor: project != null ? Color(project.color) : null,
-                    value: project?.name,
-                  ),
-                ),
-
-                // Reminder
-                _Chip(
-                  icon: SolarIconsOutline.bell,
-                  iconColor: _reminderTime != null ? AppColors.orange : null,
-                  value: _reminderTime != null
-                      ? '${_reminderTime!.day}.${_reminderTime!.month} ${_two(_reminderTime!.hour)}:${_two(_reminderTime!.minute)}'
-                      : null,
-                  onTap: _showReminderPicker,
-                  onClear: _reminderTime != null ? () => setState(() => _reminderTime = null) : null,
-                ),
-              ],
+            // Properties — flat, squared, divided rows.
+            _propGroup([
+              _propRow(
+                icon: MdiIcons.calendarOutline,
+                iconColor: _dueDate != null ? AppColors.purple : null,
+                label: 'Date',
+                value: _dateLabel,
+                valueColor: _dueDate != null ? AppColors.textPrimary : null,
+                onTap: _pickDateTime,
+                onClear: _dueDate != null
+                    ? () => setState(() {
+                          _dueDate = null;
+                          _dueTime = null;
+                        })
+                    : null,
               ),
-            ),
+              PopupMenuButton<TodoPriority>(
+                color: AppColors.surface,
+                position: PopupMenuPosition.under,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                onSelected: (p) => setState(() => _priority = p),
+                itemBuilder: (_) => [
+                  for (final p in [TodoPriority.p1, TodoPriority.p2, TodoPriority.p3])
+                    PopupMenuItem(
+                      value: p,
+                      height: 40,
+                      child: Row(
+                        children: [
+                          Icon(MdiIcons.flag, size: 16, color: AppColors.getPriorityColor(p.value)),
+                          const SizedBox(width: 10),
+                          Text('Priority ${p.value}'),
+                        ],
+                      ),
+                    ),
+                  PopupMenuItem(
+                    value: TodoPriority.p4,
+                    height: 40,
+                    child: Row(
+                      children: [
+                        Icon(MdiIcons.flagOutline, size: 16, color: AppColors.textSecondary),
+                        const SizedBox(width: 10),
+                        const Text('None'),
+                      ],
+                    ),
+                  ),
+                ],
+                child: _propRow(
+                  icon: _priority == TodoPriority.p4 ? MdiIcons.flagOutline : MdiIcons.flag,
+                  iconColor: _priority == TodoPriority.p4
+                      ? null
+                      : AppColors.getPriorityColor(_priority.value),
+                  label: 'Priority',
+                  value: _priority == TodoPriority.p4 ? null : 'P${_priority.value}',
+                  valueColor: AppColors.getPriorityColor(_priority.value),
+                ),
+              ),
+              PopupMenuButton<String?>(
+                color: AppColors.surface,
+                position: PopupMenuPosition.under,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                onSelected: (id) => setState(() => _projectId = id),
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: null,
+                    height: 40,
+                    child: Row(
+                      children: [
+                        Icon(MdiIcons.inboxOutline, size: 16, color: AppColors.textSecondary),
+                        SizedBox(width: 10),
+                        Text('No project'),
+                      ],
+                    ),
+                  ),
+                  for (final p in projects)
+                    PopupMenuItem(
+                      value: p.id,
+                      height: 40,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 12,
+                            height: 12,
+                            color: Color(p.color),
+                          ),
+                          const SizedBox(width: 10),
+                          Flexible(child: Text(p.name, overflow: TextOverflow.ellipsis)),
+                        ],
+                      ),
+                    ),
+                ],
+                child: _propRow(
+                  icon: MdiIcons.folderOutline,
+                  iconColor: project != null ? Color(project.color) : null,
+                  label: 'Project',
+                  value: project?.name,
+                  valueColor: project != null ? AppColors.textPrimary : null,
+                ),
+              ),
+              _propRow(
+                icon: MdiIcons.bellOutline,
+                iconColor: _reminderTime != null ? AppColors.orange : null,
+                label: 'Reminder',
+                value: _reminderTime != null
+                    ? '${_reminderTime!.day}.${_reminderTime!.month} ${_two(_reminderTime!.hour)}:${_two(_reminderTime!.minute)}'
+                    : null,
+                valueColor: _reminderTime != null ? AppColors.textPrimary : null,
+                onTap: _showReminderPicker,
+                onClear: _reminderTime != null ? () => setState(() => _reminderTime = null) : null,
+              ),
+            ]),
 
             const SizedBox(height: 16),
             _buildTags(settings.knownTags),
@@ -344,7 +345,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
         autofocus: _editingDesc,
         style: const TextStyle(fontSize: 16, height: 1.4),
         decoration: InputDecoration(
-          hintText: 'Beschreibung (Markdown unterstützt)',
+          hintText: 'Description (Markdown supported)',
           hintStyle: const TextStyle(color: AppColors.textSecondary),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
@@ -374,7 +375,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
     );
   }
 
-  /// Rounded surface card used to group the metadata / tags sections.
+  /// Rounded surface used to group the tags section.
   Widget _sectionCard({required Widget child}) {
     return Container(
       width: double.infinity,
@@ -384,6 +385,80 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
         borderRadius: BorderRadius.circular(16),
       ),
       child: child,
+    );
+  }
+
+  /// Rounded surface wrapping a vertical list of property rows, hairline-divided.
+  Widget _propGroup(List<Widget> rows) {
+    final children = <Widget>[];
+    for (var i = 0; i < rows.length; i++) {
+      children.add(rows[i]);
+      if (i != rows.length - 1) {
+        children.add(const Divider(
+          height: 1,
+          thickness: 1,
+          indent: 48,
+          color: AppColors.divider,
+        ));
+      }
+    }
+    // Material (not Container) so InkWell ripples clip to the rounded corners
+    // instead of painting a square highlight on the ancestor Material.
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: children,
+      ),
+    );
+  }
+
+  /// A single full-width property row: icon · label · value · clear/chevron.
+  Widget _propRow({
+    required IconData icon,
+    Color? iconColor,
+    required String label,
+    String? value,
+    Color? valueColor,
+    VoidCallback? onTap,
+    VoidCallback? onClear,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: iconColor ?? AppColors.textSecondary),
+            const SizedBox(width: 14),
+            Text(label, style: const TextStyle(fontSize: 15, color: AppColors.textPrimary)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                value ?? '',
+                textAlign: TextAlign.right,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 14, color: valueColor ?? AppColors.textSecondary),
+              ),
+            ),
+            if (onClear != null)
+              GestureDetector(
+                onTap: onClear,
+                child: Padding(
+                  padding: EdgeInsets.only(left: 8),
+                  child: Icon(MdiIcons.closeCircleOutline, size: 18, color: AppColors.textTertiary),
+                ),
+              )
+            else
+              Padding(
+                padding: EdgeInsets.only(left: 6),
+                child: Icon(MdiIcons.chevronRight, size: 16, color: AppColors.textTertiary),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -401,42 +476,45 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          children: const [
-            Icon(SolarIconsOutline.hashtagCircle, size: 18, color: AppColors.textSecondary),
-            SizedBox(width: 8),
-            Text('Tags', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          children: [
+            Icon(MdiIcons.pound, size: 20, color: AppColors.textSecondary),
+            const SizedBox(width: 8),
+            const Text('Tags', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 14),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: 10,
+          runSpacing: 10,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             for (final tag in _tags)
               Container(
-                padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
+                padding: const EdgeInsets.fromLTRB(13, 8, 9, 8),
                 decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(8),
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('#$tag', style: const TextStyle(fontSize: 13, color: AppColors.textPrimary)),
-                    const SizedBox(width: 4),
+                    Text('#$tag',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.primary)),
+                    const SizedBox(width: 6),
                     GestureDetector(
                       onTap: () => setState(() => _tags.remove(tag)),
-                      child: const Icon(SolarIconsOutline.closeCircle, size: 15, color: AppColors.textTertiary),
+                      child: Icon(MdiIcons.closeCircle, size: 18, color: AppColors.primary.withValues(alpha: 0.7)),
                     ),
                   ],
                 ),
               ),
             // Inline input
             SizedBox(
-              width: 140,
+              width: 160,
               child: TextField(
                 controller: _tagController,
+                focusNode: _tagFocus,
+                textInputAction: TextInputAction.next,
                 onChanged: (v) {
                   if (v.endsWith(' ')) {
                     _commitTag(v);
@@ -445,12 +523,14 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
                   }
                 },
                 onSubmitted: _commitTag,
-                style: const TextStyle(fontSize: 14),
-                decoration: InputDecoration(
+                style: const TextStyle(fontSize: 15),
+                decoration: const InputDecoration(
                   isDense: true,
+                  contentPadding: EdgeInsets.symmetric(vertical: 8),
                   prefixText: '#',
-                  hintText: 'Tag',
-                  hintStyle: TextStyle(color: AppColors.textTertiary),
+                  prefixStyle: TextStyle(fontSize: 15, color: AppColors.textSecondary),
+                  hintText: 'Add tag',
+                  hintStyle: TextStyle(color: AppColors.textTertiary, fontSize: 15),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
@@ -460,21 +540,22 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
           ],
         ),
         if (suggestions.isNotEmpty) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 10,
+            runSpacing: 10,
             children: [
               for (final s in suggestions)
                 GestureDetector(
                   onTap: () => _addTag(s),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                       color: AppColors.background,
+                      border: Border.all(color: AppColors.divider, width: 1),
                     ),
-                    child: Text('#$s', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                    child: Text('#$s', style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
                   ),
                 ),
             ],
@@ -488,6 +569,8 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
   void _commitTag(String raw) {
     _addTag(raw);
     _tagController.clear();
+    // Keep the field focused so the next tag can be typed straight away.
+    _tagFocus.requestFocus();
   }
 
   void _addTag(String raw) {
@@ -556,28 +639,28 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 16),
-              const Text('Erinnerung', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              const Text('Reminder', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
               const SizedBox(height: 16),
               if (dueDateTime != null) ...[
                 ListTile(
-                  leading: const Icon(SolarIconsOutline.bellBing),
-                  title: const Text('30 Minuten vorher'),
+                  leading: Icon(MdiIcons.bellRingOutline),
+                  title: const Text('30 minutes before'),
                   onTap: () {
                     setState(() => _reminderTime = dueDateTime.subtract(const Duration(minutes: 30)));
                     Navigator.pop(context);
                   },
                 ),
                 ListTile(
-                  leading: const Icon(SolarIconsOutline.bellBing),
-                  title: const Text('1 Stunde vorher'),
+                  leading: Icon(MdiIcons.bellRingOutline),
+                  title: const Text('1 hour before'),
                   onTap: () {
                     setState(() => _reminderTime = dueDateTime.subtract(const Duration(hours: 1)));
                     Navigator.pop(context);
                   },
                 ),
                 ListTile(
-                  leading: const Icon(SolarIconsOutline.bellBing),
-                  title: const Text('1 Tag vorher'),
+                  leading: Icon(MdiIcons.bellRingOutline),
+                  title: const Text('1 day before'),
                   onTap: () {
                     setState(() => _reminderTime = dueDateTime.subtract(const Duration(days: 1)));
                     Navigator.pop(context);
@@ -586,11 +669,11 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
               ] else
                 const Padding(
                   padding: EdgeInsets.all(16),
-                  child: Text('Setze zuerst ein Fälligkeitsdatum und Uhrzeit'),
+                  child: Text('Set a due date and time first'),
                 ),
               ListTile(
-                leading: const Icon(SolarIconsOutline.calendarAdd),
-                title: const Text('Benutzerdefiniert…'),
+                leading: Icon(MdiIcons.calendarPlusOutline),
+                title: const Text('Custom…'),
                 onTap: () async {
                   Navigator.pop(context);
                   final date = await showDatePicker(
@@ -599,9 +682,9 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
                     firstDate: now,
                     lastDate: now.add(const Duration(days: 365)),
                   );
-                  if (date != null && mounted) {
+                  if (date != null && context.mounted) {
                     final time = await showTimePicker(context: context, initialTime: TimeOfDay.now());
-                    if (time != null && mounted) {
+                    if (time != null && context.mounted) {
                       setState(() {
                         _reminderTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
                       });
@@ -618,54 +701,3 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
   }
 }
 
-/// Compact metadata chip — icon, optional value, optional clear button.
-class _Chip extends StatelessWidget {
-  final IconData icon;
-  final Color? iconColor;
-  final String? value;
-  final VoidCallback? onTap;
-  final VoidCallback? onClear;
-
-  const _Chip({
-    required this.icon,
-    this.iconColor,
-    this.value,
-    this.onTap,
-    this.onClear,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 20, color: iconColor ?? AppColors.textSecondary),
-              if (value != null) ...[
-                const SizedBox(width: 8),
-                Text(value!, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary)),
-              ],
-              if (onClear != null) ...[
-                const SizedBox(width: 6),
-                GestureDetector(
-                  onTap: onClear,
-                  child: const Icon(SolarIconsOutline.closeCircle, size: 16, color: AppColors.textTertiary),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

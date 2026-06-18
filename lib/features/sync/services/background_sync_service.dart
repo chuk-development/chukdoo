@@ -117,10 +117,7 @@ class BackgroundSyncService {
 
   /// Initialize background sync
   static Future<void> initialize() async {
-    await Workmanager().initialize(
-      callbackDispatcher,
-      isInDebugMode: false,
-    );
+    await Workmanager().initialize(callbackDispatcher);
 
     // Register periodic sync task (minimum 15 minutes on Android)
     await Workmanager().registerPeriodicTask(

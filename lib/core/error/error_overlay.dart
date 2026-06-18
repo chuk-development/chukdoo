@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../theme/app_colors.dart';
 import 'error_provider.dart';
@@ -68,11 +68,11 @@ class ErrorBanner extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppColors.error.withOpacity(0.95),
+            color: AppColors.error.withValues(alpha: 0.95),
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: AppColors.error.withOpacity(0.3),
+                color: AppColors.error.withValues(alpha: 0.3),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -102,7 +102,7 @@ class ErrorBanner extends StatelessWidget {
                         ),
                         if (errorState.canRetry)
                           const Text(
-                            'Tippen zum Wiederholen',
+                            'Tap to retry',
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 12,
@@ -134,28 +134,28 @@ class ErrorBanner extends StatelessWidget {
     IconData icon;
     switch (errorState.errorType) {
       case ErrorType.sync:
-        icon = SolarIconsOutline.cloudCross;
+        icon = MdiIcons.cloudOffOutline;
         break;
       case ErrorType.encryption:
-        icon = SolarIconsOutline.lock;
+        icon = MdiIcons.lockOutline;
         break;
       case ErrorType.network:
-        icon = SolarIconsOutline.cloudCross;
+        icon = MdiIcons.cloudOffOutline;
         break;
       case ErrorType.storage:
-        icon = SolarIconsOutline.database;
+        icon = MdiIcons.databaseOutline;
         break;
       case ErrorType.general:
       case null:
-        icon = SolarIconsOutline.dangerCircle;
+        icon = MdiIcons.alertCircleOutline;
     }
 
     return Container(
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(10),
+        color: Colors.white.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Icon(icon, color: Colors.white, size: 22),
     );

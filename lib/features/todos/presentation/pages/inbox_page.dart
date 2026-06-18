@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../settings/providers/settings_provider.dart';
@@ -90,13 +90,13 @@ class _InboxPageState extends ConsumerState<InboxPage> {
       appBar: AppBar(
         leading: _searching
             ? IconButton(
-                icon: const Icon(SolarIconsOutline.altArrowLeft),
+                icon: Icon(MdiIcons.chevronLeft),
                 onPressed: _stopSearch,
                 tooltip: 'Back',
               )
             : (widget.onMenu != null
                 ? IconButton(
-                    icon: const Icon(SolarIconsOutline.hamburgerMenu),
+                    icon: Icon(MdiIcons.menu),
                     onPressed: widget.onMenu,
                     tooltip: 'Menu',
                   )
@@ -122,7 +122,7 @@ class _InboxPageState extends ConsumerState<InboxPage> {
             ? [
                 if (_query.isNotEmpty)
                   IconButton(
-                    icon: const Icon(SolarIconsBold.closeCircle),
+                    icon: Icon(MdiIcons.closeCircle),
                     onPressed: () => setState(() {
                       _query = '';
                       _searchController.clear();
@@ -132,7 +132,7 @@ class _InboxPageState extends ConsumerState<InboxPage> {
               ]
             : [
                 IconButton(
-                  icon: const Icon(SolarIconsBold.magnifier),
+                  icon: Icon(MdiIcons.magnify),
                   onPressed: () => setState(() => _searching = true),
                   tooltip: 'Search',
                 ),
@@ -156,7 +156,7 @@ class _InboxPageState extends ConsumerState<InboxPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(SolarIconsOutline.magnifier, size: 64, color: AppColors.textTertiary),
+            Icon(MdiIcons.magnify, size: 64, color: AppColors.textTertiary),
             const SizedBox(height: 16),
             Text('No matches for "$_query"',
                 style: const TextStyle(fontSize: 16, color: AppColors.textSecondary),
@@ -175,9 +175,9 @@ class _InboxPageState extends ConsumerState<InboxPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              SolarIconsOutline.inboxLine,
+              MdiIcons.inboxOutline,
               size: 80,
-              color: AppColors.textSecondary.withOpacity(0.5),
+              color: AppColors.textSecondary.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 24),
             Text(

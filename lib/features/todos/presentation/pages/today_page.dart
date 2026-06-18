@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../settings/providers/settings_provider.dart';
@@ -52,7 +52,7 @@ class TodayPage extends ConsumerWidget {
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         leading: onMenu != null
-            ? IconButton(icon: const Icon(SolarIconsOutline.hamburgerMenu), onPressed: onMenu, tooltip: 'Menu')
+            ? IconButton(icon: Icon(MdiIcons.menu), onPressed: onMenu, tooltip: 'Menu')
             : null,
         title: const Text('Today'),
         actions: [
@@ -61,7 +61,7 @@ class TodayPage extends ConsumerWidget {
               message: showCompleted ? 'Hide completed' : 'Show completed',
               child: IconButton(
                 icon: Icon(
-                  showCompleted ? SolarIconsBold.checkCircle : SolarIconsOutline.checkCircle,
+                  showCompleted ? MdiIcons.checkCircle : MdiIcons.checkCircleOutline,
                   color: showCompleted ? AppColors.primary : null,
                 ),
                 onPressed: () {
@@ -145,9 +145,9 @@ class TodayPage extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(60),
               ),
               child: Icon(
-                SolarIconsOutline.sun,
+                MdiIcons.weatherSunny,
                 size: 60,
-                color: AppColors.textSecondary.withOpacity(0.5),
+                color: AppColors.textSecondary.withValues(alpha: 0.5),
               ),
             ),
             const SizedBox(height: 32),

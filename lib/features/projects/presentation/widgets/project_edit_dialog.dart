@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/models/project.dart';
@@ -36,7 +36,7 @@ class _ProjectEditDialogState extends ConsumerState<ProjectEditDialog> {
     super.initState();
     _nameController = TextEditingController(text: widget.project?.name ?? '');
     _descriptionController = TextEditingController(text: widget.project?.description ?? '');
-    _selectedColor = widget.project?.color ?? AppColors.projectColors[0].value;
+    _selectedColor = widget.project?.color ?? AppColors.projectColors[0].toARGB32();
     _selectedIcon = widget.project?.icon ?? kDefaultProjectIcon;
   }
 
@@ -77,15 +77,15 @@ class _ProjectEditDialogState extends ConsumerState<ProjectEditDialog> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Projekt löschen?'),
+        title: const Text('Delete project?'),
         content: Text(
-          'Das Projekt "${widget.project!.name}" wird gelöscht. '
-          'Aufgaben bleiben im Eingang erhalten.',
+          'The project "${widget.project!.name}" will be deleted. '
+          'Tasks stay in the inbox.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Abbrechen'),
+            child: const Text('Cancel'),
           ),
           FilledButton(
             onPressed: () {
@@ -94,7 +94,7 @@ class _ProjectEditDialogState extends ConsumerState<ProjectEditDialog> {
               Navigator.pop(context, null);
             },
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Löschen'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -104,7 +104,7 @@ class _ProjectEditDialogState extends ConsumerState<ProjectEditDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(_isEditing ? 'Projekt bearbeiten' : 'Neues Projekt'),
+      title: Text(_isEditing ? 'Edit project' : 'New project'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -114,7 +114,7 @@ class _ProjectEditDialogState extends ConsumerState<ProjectEditDialog> {
               controller: _nameController,
               autofocus: !_isEditing,
               decoration: InputDecoration(
-                hintText: 'Projektname',
+                hintText: 'Project name',
                 filled: true,
                 fillColor: AppColors.surfaceLight,
                 border: OutlineInputBorder(
@@ -127,7 +127,7 @@ class _ProjectEditDialogState extends ConsumerState<ProjectEditDialog> {
             TextField(
               controller: _descriptionController,
               decoration: InputDecoration(
-                hintText: 'Beschreibung (optional)',
+                hintText: 'Description (optional)',
                 filled: true,
                 fillColor: AppColors.surfaceLight,
                 border: OutlineInputBorder(
@@ -141,7 +141,7 @@ class _ProjectEditDialogState extends ConsumerState<ProjectEditDialog> {
             ),
             const SizedBox(height: 20),
             Text(
-              'Farbe',
+              'Color',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 8),
@@ -149,9 +149,9 @@ class _ProjectEditDialogState extends ConsumerState<ProjectEditDialog> {
               spacing: 10,
               runSpacing: 10,
               children: AppColors.projectColors.map((color) {
-                final isSelected = color.value == _selectedColor;
+                final isSelected = color.toARGB32() == _selectedColor;
                 return GestureDetector(
-                  onTap: () => setState(() => _selectedColor = color.value),
+                  onTap: () => setState(() => _selectedColor = color.toARGB32()),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
                     width: 36,
@@ -168,7 +168,7 @@ class _ProjectEditDialogState extends ConsumerState<ProjectEditDialog> {
             ),
             const SizedBox(height: 20),
             Text(
-              'Symbol',
+              'Icon',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 8),
@@ -204,8 +204,8 @@ class _ProjectEditDialogState extends ConsumerState<ProjectEditDialog> {
               const SizedBox(height: 8),
               TextButton.icon(
                 onPressed: _confirmDelete,
-                icon: const Icon(SolarIconsOutline.trashBinTrash, size: 18),
-                label: const Text('Projekt löschen'),
+                icon: Icon(MdiIcons.trashCanOutline, size: 18),
+                label: const Text('Delete project'),
                 style: TextButton.styleFrom(foregroundColor: AppColors.error),
               ),
             ],
@@ -215,12 +215,12 @@ class _ProjectEditDialogState extends ConsumerState<ProjectEditDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Abbrechen'),
+          child: const Text('Cancel'),
         ),
         FilledButton(
           onPressed: _save,
           style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-          child: Text(_isEditing ? 'Speichern' : 'Erstellen'),
+          child: Text(_isEditing ? 'Save' : 'Create'),
         ),
       ],
     );

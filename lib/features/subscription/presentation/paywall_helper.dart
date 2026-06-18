@@ -40,17 +40,32 @@ class PaywallHelper {
       return true; // Already has access
     }
 
+    if (!context.mounted) return false;
     return showPaywall(context);
   }
 
-  /// Present the RevenueCat customer center for subscription management
+  /// Open Play Store subscription management
   static Future<void> showCustomerCenter(BuildContext context) async {
     if (!RevenueCatService.isAvailable) {
       _showUnavailableDialog(context);
       return;
     }
 
-    await RevenueCatService.presentCustomerCenter();
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Manage subscription'),
+        content: const Text(
+          'Open the Play Store app > Menu > Subscriptions to manage or cancel your Chukdoo Pro subscription.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Show a dialog when RevenueCat is unavailable
@@ -58,9 +73,9 @@ class PaywallHelper {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Nicht verfügbar'),
+        title: const Text('Not available'),
         content: const Text(
-          'In-App-Käufe sind in dieser Version nicht verfügbar.',
+          'In-app purchases are not available in this version.',
         ),
         actions: [
           TextButton(

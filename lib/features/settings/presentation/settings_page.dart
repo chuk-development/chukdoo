@@ -1,12 +1,12 @@
-import 'dart:io';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../core/config/env_config.dart';
+import '../../../core/utils/native_io.dart' as native_io;
+import '../../../core/utils/platform_utils.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/services/encryption_service.dart';
@@ -21,6 +21,7 @@ import '../../todos/providers/todo_provider.dart';
 import '../../projects/providers/project_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/export_service.dart';
+import '../../integrations/sunrise_export_service.dart';
 import 'import_preview_page.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -34,38 +35,44 @@ class SettingsPage extends ConsumerWidget {
     final isInLocalMode = authState.status == AuthStatus.localMode;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Einstellungen'),
-      ),
+      appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
           // Account section
-          _buildSectionHeader('Konto'),
+          _buildSectionHeader('Account'),
           if (isInLocalMode) ...[
             // User is in local mode - show connect option
             _buildInfoTile(
-              icon: SolarIconsOutline.smartphone,
-              label: 'Modus',
-              value: 'Nur lokal',
+              icon: MdiIcons.cellphone,
+              label: 'Mode',
+              value: 'Local only',
             ),
             ListTile(
-              leading: Icon(SolarIconsOutline.cloudUpload, color: AppColors.primary),
-              title: const Text('Mit Cloud verbinden'),
-              subtitle: const Text('Anmelden um Daten geräteübergreifend zu synchronisieren'),
-              trailing: Icon(SolarIconsOutline.altArrowRight, color: AppColors.textSecondary),
+              leading: Icon(
+                MdiIcons.cloudUploadOutline,
+                color: AppColors.primary,
+              ),
+              title: const Text('Connect to cloud'),
+              subtitle: const Text(
+                'Sign in to sync your data across devices',
+              ),
+              trailing: Icon(
+                MdiIcons.chevronRight,
+                color: AppColors.textSecondary,
+              ),
               onTap: () => _connectToCloud(context, ref),
             ),
           ] else if (!isLocalOnlyMode && authState.user != null) ...[
             _buildInfoTile(
-              icon: SolarIconsOutline.letter,
-              label: 'E-Mail',
-              value: authState.user!.email ?? 'Keine E-Mail',
+              icon: MdiIcons.emailOutline,
+              label: 'Email',
+              value: authState.user!.email ?? 'No email',
             ),
           ] else if (isLocalOnlyMode) ...[
             _buildInfoTile(
-              icon: SolarIconsOutline.smartphone,
-              label: 'Modus',
-              value: 'Nur lokal (Offline)',
+              icon: MdiIcons.cellphone,
+              label: 'Mode',
+              value: 'Local only (offline)',
             ),
           ],
 
@@ -73,29 +80,50 @@ class SettingsPage extends ConsumerWidget {
 
           // Subscription section (only if RevenueCat is available)
           if (!isLocalOnlyMode) ...[
-            _buildSectionHeader('Abonnement'),
+            _buildSectionHeader('Subscription'),
             _buildSubscriptionTile(context, ref, subscriptionState),
             if (subscriptionState.isPro) ...[
-              Builder(builder: (context) {
-                final isDesktop = Platform.isLinux || Platform.isWindows || Platform.isMacOS;
-                return ListTile(
-                  leading: Icon(SolarIconsOutline.settings, color: AppColors.textPrimary),
-                  title: const Text('Abo verwalten'),
-                  subtitle: Text(isDesktop
-                      ? 'Nur in der mobilen App verfügbar'
-                      : 'Abo ansehen, kündigen oder ändern'),
-                  trailing: isDesktop
-                      ? Icon(SolarIconsOutline.smartphone, color: AppColors.textSecondary)
-                      : Icon(SolarIconsOutline.altArrowRight, color: AppColors.textSecondary),
-                  onTap: isDesktop ? null : () => PaywallHelper.showCustomerCenter(context),
-                );
-              }),
+              Builder(
+                builder: (context) {
+                  final isDesktop = PlatformUtils.isDesktop;
+                  return ListTile(
+                    leading: Icon(
+                      MdiIcons.cogOutline,
+                      color: AppColors.textPrimary,
+                    ),
+                    title: const Text('Manage subscription'),
+                    subtitle: Text(
+                      isDesktop
+                          ? 'Available in the mobile app only'
+                          : 'View, cancel or change your subscription',
+                    ),
+                    trailing: isDesktop
+                        ? Icon(
+                            MdiIcons.cellphone,
+                            color: AppColors.textSecondary,
+                          )
+                        : Icon(
+                            MdiIcons.chevronRight,
+                            color: AppColors.textSecondary,
+                          ),
+                    onTap: isDesktop
+                        ? null
+                        : () => PaywallHelper.showCustomerCenter(context),
+                  );
+                },
+              ),
             ] else ...[
               ListTile(
-                leading: Icon(SolarIconsOutline.refresh, color: AppColors.textPrimary),
-                title: const Text('Käufe wiederherstellen'),
-                subtitle: const Text('Frühere Käufe wiederherstellen'),
-                trailing: Icon(SolarIconsOutline.altArrowRight, color: AppColors.textSecondary),
+                leading: Icon(
+                  MdiIcons.refresh,
+                  color: AppColors.textPrimary,
+                ),
+                title: const Text('Restore purchases'),
+                subtitle: const Text('Restore previous purchases'),
+                trailing: Icon(
+                  MdiIcons.chevronRight,
+                  color: AppColors.textSecondary,
+                ),
                 onTap: () => _restorePurchases(context, ref),
               ),
             ],
@@ -103,55 +131,81 @@ class SettingsPage extends ConsumerWidget {
             const Divider(height: 32),
 
             // Sync section
-            _buildSectionHeader('Synchronisation'),
+            _buildSectionHeader('Sync'),
             _buildSyncTile(context, ref, subscriptionState),
 
             const Divider(height: 32),
 
             // Security section (only for cloud users)
             if (!isInLocalMode) ...[
-              _buildSectionHeader('Sicherheit'),
+              _buildSectionHeader('Security'),
               _buildBackupCodesTile(context, ref),
               const Divider(height: 32),
             ],
           ],
 
           // Behavior section
-          _buildSectionHeader('Verhalten'),
+          _buildSectionHeader('Behavior'),
           _buildCheckboxSizeTile(ref),
 
           const Divider(height: 32),
 
+          // Integrations section
+          _buildSectionHeader('Integrations'),
+          const _SunriseToggleTile(),
+
+          const Divider(height: 32),
+
           // Data section - Export/Import
-          _buildSectionHeader('Daten'),
+          _buildSectionHeader('Data'),
           ListTile(
-            leading: Icon(SolarIconsOutline.export, color: AppColors.textPrimary),
-            title: const Text('Daten exportieren'),
-            subtitle: const Text('Alle Aufgaben und Projekte als JSON speichern'),
-            trailing: Icon(SolarIconsOutline.altArrowRight, color: AppColors.textSecondary),
+            leading: Icon(
+              MdiIcons.export,
+              color: AppColors.textPrimary,
+            ),
+            title: const Text('Export data'),
+            subtitle: const Text(
+              'Save all tasks and projects as JSON',
+            ),
+            trailing: Icon(
+              MdiIcons.chevronRight,
+              color: AppColors.textSecondary,
+            ),
             onTap: () => _exportData(context),
           ),
           ListTile(
-            leading: Icon(SolarIconsOutline.import, color: AppColors.textPrimary),
-            title: const Text('Daten importieren'),
-            subtitle: const Text('Daten aus JSON-Datei importieren'),
-            trailing: Icon(SolarIconsOutline.altArrowRight, color: AppColors.textSecondary),
+            leading: Icon(
+              MdiIcons.import,
+              color: AppColors.textPrimary,
+            ),
+            title: const Text('Import data'),
+            subtitle: const Text('Import data from a JSON file'),
+            trailing: Icon(
+              MdiIcons.chevronRight,
+              color: AppColors.textSecondary,
+            ),
             onTap: () => _importData(context),
           ),
 
           const Divider(height: 32),
 
           // About section
-          _buildSectionHeader('Info'),
+          _buildSectionHeader('About'),
           _buildInfoTile(
-            icon: SolarIconsOutline.infoCircle,
+            icon: MdiIcons.informationOutline,
             label: 'Version',
             value: AppConstants.appVersion,
           ),
           ListTile(
-            leading: Icon(SolarIconsOutline.documentText, color: AppColors.textPrimary),
-            title: const Text('Lizenzen'),
-            trailing: Icon(SolarIconsOutline.altArrowRight, color: AppColors.textSecondary),
+            leading: Icon(
+              MdiIcons.fileDocumentOutline,
+              color: AppColors.textPrimary,
+            ),
+            title: const Text('Licenses'),
+            trailing: Icon(
+              MdiIcons.chevronRight,
+              color: AppColors.textSecondary,
+            ),
             onTap: () {
               showLicensePage(
                 context: context,
@@ -166,8 +220,8 @@ class SettingsPage extends ConsumerWidget {
           // Sign out (show for authenticated cloud users)
           if (!isLocalOnlyMode && !isInLocalMode) ...[
             ListTile(
-              leading: Icon(SolarIconsOutline.logout_2, color: AppColors.error),
-              title: Text('Abmelden', style: TextStyle(color: AppColors.error)),
+              leading: Icon(MdiIcons.logout, color: AppColors.error),
+              title: Text('Sign out', style: TextStyle(color: AppColors.error)),
               onTap: () => _signOut(context, ref),
             ),
             const SizedBox(height: 32),
@@ -200,10 +254,7 @@ class SettingsPage extends ConsumerWidget {
     return ListTile(
       leading: Icon(icon, color: AppColors.textPrimary),
       title: Text(label),
-      trailing: Text(
-        value,
-        style: TextStyle(color: AppColors.textSecondary),
-      ),
+      trailing: Text(value, style: TextStyle(color: AppColors.textSecondary)),
     );
   }
 
@@ -212,21 +263,22 @@ class SettingsPage extends ConsumerWidget {
     final isLarge = settings.checkboxSize == CheckboxSize.large;
 
     return SwitchListTile(
-      secondary: Icon(SolarIconsOutline.checkCircle, color: AppColors.textPrimary),
-      title: const Text('Großer Abhak-Kreis'),
+      secondary: Icon(
+        MdiIcons.checkCircleOutline,
+        color: AppColors.textPrimary,
+      ),
+      title: const Text('Large checkbox'),
       subtitle: Text(
-        isLarge
-            ? 'Größerer Kreis für einfacheres Tippen'
-            : 'Normaler Kreis',
+        isLarge ? 'Bigger circle for easier tapping' : 'Normal circle',
         style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
       ),
       value: isLarge,
       onChanged: (value) {
-        ref.read(settingsProvider.notifier).setCheckboxSize(
-          value ? CheckboxSize.large : CheckboxSize.normal,
-        );
+        ref
+            .read(settingsProvider.notifier)
+            .setCheckboxSize(value ? CheckboxSize.large : CheckboxSize.normal);
       },
-      activeColor: AppColors.primary,
+      activeThumbColor: AppColors.primary,
     );
   }
 
@@ -237,39 +289,45 @@ class SettingsPage extends ConsumerWidget {
   ) {
     final isPro = state.isPro;
     final status = state.status;
-    final isDesktop = Platform.isLinux || Platform.isWindows || Platform.isMacOS;
+    final isDesktop = PlatformUtils.isDesktop;
 
     return ListTile(
       leading: Icon(
-        isPro ? SolarIconsBold.crownStar : SolarIconsOutline.crownStar,
+        isPro ? MdiIcons.crown : MdiIcons.crownOutline,
         color: isPro ? AppColors.warning : AppColors.textPrimary,
       ),
-      title: Text(isPro ? 'Chukdoo Pro' : 'Kostenlos'),
+      title: Text(isPro ? 'Chukdoo Pro' : 'Free'),
       subtitle: isPro
           ? Text(
               status.expiresAt != null
-                  ? 'Gültig bis ${_formatDate(status.expiresAt!)}'
-                  : 'Aktiv',
+                  ? 'Valid until ${_formatDate(status.expiresAt!)}'
+                  : 'Active',
             )
-          : Text(isDesktop
-              ? 'Upgrade in der mobilen App'
-              : 'Nur lokale Speicherung'),
+          : Text(
+              isDesktop
+                  ? 'Upgrade in the mobile app'
+                  : 'Local storage only',
+            ),
       trailing: isPro
-          ? Chip(
-              label: const Text('PRO'),
-              backgroundColor: AppColors.warning.withOpacity(0.2),
-              labelStyle: TextStyle(
-                color: AppColors.warning,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
+          ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: DefaultTextStyle(
+                style: TextStyle(color: AppColors.warning),
+                child: const Text('PRO',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
               ),
             )
           : isDesktop
-              ? Icon(SolarIconsOutline.smartphone, color: AppColors.textSecondary)
-              : TextButton(
-                  onPressed: () => _showPaywall(context, ref),
-                  child: const Text('Upgrade'),
-                ),
+          ? Icon(MdiIcons.cellphone, color: AppColors.textSecondary)
+          : TextButton(
+              onPressed: () => _showPaywall(context, ref),
+              child: const Text('Upgrade'),
+            ),
     );
   }
 
@@ -279,17 +337,22 @@ class SettingsPage extends ConsumerWidget {
     SubscriptionState subscriptionState,
   ) {
     final canSync = subscriptionState.canSync;
-    final isDesktop = Platform.isLinux || Platform.isWindows || Platform.isMacOS;
+    final isDesktop = PlatformUtils.isDesktop;
 
     if (!canSync) {
       return ListTile(
-        leading: Icon(SolarIconsOutline.cloudCross, color: AppColors.textSecondary),
-        title: const Text('Cloud-Sync'),
-        subtitle: Text(isDesktop
-            ? 'Upgrade in der mobilen App für Cloud-Sync'
-            : 'Upgrade auf Pro für Cloud-Sync'),
+        leading: Icon(
+          MdiIcons.cloudOffOutline,
+          color: AppColors.textSecondary,
+        ),
+        title: const Text('Cloud sync'),
+        subtitle: Text(
+          isDesktop
+              ? 'Upgrade in the mobile app for cloud sync'
+              : 'Upgrade to Pro for cloud sync',
+        ),
         trailing: isDesktop
-            ? Icon(SolarIconsOutline.smartphone, color: AppColors.textSecondary)
+            ? Icon(MdiIcons.cellphone, color: AppColors.textSecondary)
             : TextButton(
                 onPressed: () => _showPaywall(context, ref),
                 child: const Text('Upgrade'),
@@ -300,20 +363,26 @@ class SettingsPage extends ConsumerWidget {
     return Column(
       children: [
         ListTile(
-          leading: Icon(SolarIconsOutline.cloudCheck, color: AppColors.success),
-          title: const Text('Cloud-Sync'),
-          subtitle: const Text('Aktiviert'),
+          leading: Icon(MdiIcons.cloudCheckOutline, color: AppColors.success),
+          title: const Text('Cloud sync'),
+          subtitle: const Text('Enabled'),
           trailing: const SyncStatusIndicator(),
         ),
         ListTile(
-          leading: Icon(SolarIconsOutline.refresh, color: AppColors.textPrimary),
-          title: const Text('Jetzt synchronisieren'),
+          leading: Icon(
+            MdiIcons.refresh,
+            color: AppColors.textPrimary,
+          ),
+          title: const Text('Sync now'),
           subtitle: Text(
             SyncService.lastSyncTime != null
-                ? 'Zuletzt: ${_formatDateTime(SyncService.lastSyncTime!)}'
-                : 'Noch nie synchronisiert',
+                ? 'Last: ${_formatDateTime(SyncService.lastSyncTime!)}'
+                : 'Never synced',
           ),
-          trailing: Icon(SolarIconsOutline.altArrowRight, color: AppColors.textSecondary),
+          trailing: Icon(
+            MdiIcons.chevronRight,
+            color: AppColors.textSecondary,
+          ),
           onTap: () => _manualSync(context, ref),
         ),
       ],
@@ -329,47 +398,49 @@ class SettingsPage extends ConsumerWidget {
         if (!hasSetup) {
           // Legacy user without Master Key - show migration option
           return ListTile(
-            leading: Icon(SolarIconsOutline.key, color: AppColors.textPrimary),
-            title: const Text('Backup-Codes'),
-            subtitle: const Text('Noch nicht eingerichtet'),
+            leading: Icon(MdiIcons.keyOutline, color: AppColors.textPrimary),
+            title: const Text('Backup codes'),
+            subtitle: const Text('Not set up yet'),
             trailing: TextButton(
               onPressed: () => _showMigrationDialog(context, ref),
-              child: const Text('Einrichten'),
+              child: const Text('Set up'),
             ),
           );
         }
 
         return availableCodes.when(
           data: (count) => ListTile(
-            leading: Icon(SolarIconsOutline.key, color: AppColors.textPrimary),
-            title: const Text('Backup-Codes'),
-            subtitle: Text('$count von ${AppConstants.backupCodeCount} Codes verfügbar'),
+            leading: Icon(MdiIcons.keyOutline, color: AppColors.textPrimary),
+            title: const Text('Backup codes'),
+            subtitle: Text(
+              '$count of ${AppConstants.backupCodeCount} codes available',
+            ),
             trailing: TextButton(
               onPressed: () => _regenerateBackupCodes(context, ref),
-              child: const Text('Neu generieren'),
+              child: const Text('Regenerate'),
             ),
           ),
           loading: () => ListTile(
-            leading: Icon(SolarIconsOutline.key, color: AppColors.textPrimary),
-            title: const Text('Backup-Codes'),
-            subtitle: const Text('Laden...'),
+            leading: Icon(MdiIcons.keyOutline, color: AppColors.textPrimary),
+            title: const Text('Backup codes'),
+            subtitle: const Text('Loading...'),
           ),
-          error: (_, __) => ListTile(
-            leading: Icon(SolarIconsOutline.key, color: AppColors.textPrimary),
-            title: const Text('Backup-Codes'),
-            subtitle: const Text('Fehler beim Laden'),
+          error: (_, _) => ListTile(
+            leading: Icon(MdiIcons.keyOutline, color: AppColors.textPrimary),
+            title: const Text('Backup codes'),
+            subtitle: const Text('Failed to load'),
           ),
         );
       },
       loading: () => ListTile(
-        leading: Icon(SolarIconsOutline.key, color: AppColors.textPrimary),
-        title: const Text('Backup-Codes'),
-        subtitle: const Text('Laden...'),
+        leading: Icon(MdiIcons.keyOutline, color: AppColors.textPrimary),
+        title: const Text('Backup codes'),
+        subtitle: const Text('Loading...'),
       ),
-      error: (_, __) => ListTile(
-        leading: Icon(SolarIconsOutline.key, color: AppColors.textPrimary),
-        title: const Text('Backup-Codes'),
-        subtitle: const Text('Fehler beim Laden'),
+      error: (_, _) => ListTile(
+        leading: Icon(MdiIcons.keyOutline, color: AppColors.textPrimary),
+        title: const Text('Backup codes'),
+        subtitle: const Text('Failed to load'),
       ),
     );
   }
@@ -378,7 +449,7 @@ class SettingsPage extends ConsumerWidget {
     final user = SupabaseService.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kein Benutzer angemeldet.')),
+        const SnackBar(content: Text('No user signed in.')),
       );
       return;
     }
@@ -388,22 +459,20 @@ class SettingsPage extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Backup-Codes einrichten'),
+        title: const Text('Set up backup codes'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Backup-Codes ermöglichen dir, auf dein Konto zuzugreifen, falls du dein Passwort vergisst.\n\n'
-              'Gib dein aktuelles Passwort ein, um Backup-Codes zu generieren.',
+              'Backup codes let you access your account if you forget your password.\n\n'
+              'Enter your current password to generate backup codes.',
             ),
             const SizedBox(height: 16),
             TextField(
               controller: passwordController,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Passwort',
-              ),
+              decoration: const InputDecoration(labelText: 'Password'),
               autofocus: true,
             ),
           ],
@@ -411,11 +480,11 @@ class SettingsPage extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Abbrechen'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Einrichten'),
+            child: const Text('Set up'),
           ),
         ],
       ),
@@ -432,7 +501,7 @@ class SettingsPage extends ConsumerWidget {
           children: [
             CircularProgressIndicator(),
             SizedBox(width: 16),
-            Text('Richte Backup-Codes ein...'),
+            Text('Setting up backup codes...'),
           ],
         ),
       ),
@@ -461,34 +530,35 @@ class SettingsPage extends ConsumerWidget {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result.error ?? 'Fehler bei der Migration.'),
+          content: Text(result.error ?? 'Migration failed.'),
           backgroundColor: AppColors.error,
         ),
       );
     }
   }
 
-  Future<void> _regenerateBackupCodes(BuildContext context, WidgetRef ref) async {
+  Future<void> _regenerateBackupCodes(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final passwordController = TextEditingController();
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Neue Backup-Codes generieren'),
+        title: const Text('Generate new backup codes'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Alle bisherigen Codes werden ungültig. Gib dein Passwort ein, um fortzufahren.',
+              'All existing codes will become invalid. Enter your password to continue.',
             ),
             const SizedBox(height: 16),
             TextField(
               controller: passwordController,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Passwort',
-              ),
+              decoration: const InputDecoration(labelText: 'Password'),
               autofocus: true,
             ),
           ],
@@ -496,11 +566,11 @@ class SettingsPage extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Abbrechen'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Generieren'),
+            child: const Text('Generate'),
           ),
         ],
       ),
@@ -517,15 +587,15 @@ class SettingsPage extends ConsumerWidget {
           children: [
             CircularProgressIndicator(),
             SizedBox(width: 16),
-            Text('Generiere Codes...'),
+            Text('Generating codes...'),
           ],
         ),
       ),
     );
 
-    final newCodes = await ref.read(authProvider.notifier).regenerateBackupCodes(
-      passwordController.text,
-    );
+    final newCodes = await ref
+        .read(authProvider.notifier)
+        .regenerateBackupCodes(passwordController.text);
 
     if (!context.mounted) return;
     Navigator.pop(context); // Close loading dialog
@@ -544,7 +614,7 @@ class SettingsPage extends ConsumerWidget {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Falsches Passwort oder Fehler beim Generieren.'),
+          content: Text('Wrong password or failed to generate.'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -565,7 +635,7 @@ class SettingsPage extends ConsumerWidget {
       ref.read(subscriptionProvider.notifier).refresh();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Willkommen bei Chukdoo Pro!')),
+          const SnackBar(content: Text('Welcome to Chukdoo Pro!')),
         );
       }
     }
@@ -577,12 +647,12 @@ class SettingsPage extends ConsumerWidget {
     if (context.mounted) {
       if (state.isPro) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Käufe erfolgreich wiederhergestellt!')),
+          const SnackBar(content: Text('Purchases restored successfully!')),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Keine Käufe gefunden.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('No purchases found.')));
       }
     }
   }
@@ -599,13 +669,13 @@ class SettingsPage extends ConsumerWidget {
       if (status == SyncStatus.error) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Sync-Fehler: ${SyncService.lastError}'),
+            content: Text('Sync error: ${SyncService.lastError}'),
             backgroundColor: AppColors.error,
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Synchronisation abgeschlossen')),
+          const SnackBar(content: Text('Sync complete')),
         );
       }
     }
@@ -615,21 +685,21 @@ class SettingsPage extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Abmelden'),
-        content: const Text('Möchtest du dich wirklich abmelden?'),
+        title: const Text('Sign out'),
+        content: const Text('Are you sure you want to sign out?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Abbrechen'),
+            child: const Text('Cancel'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () {
               Navigator.pop(context);
               Navigator.pop(context); // Pop settings page
               ref.read(authProvider.notifier).signOut();
             },
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Abmelden'),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Sign out'),
           ),
         ],
       ),
@@ -640,23 +710,29 @@ class SettingsPage extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Mit Cloud verbinden'),
-        content: const Text(
-          'Verbinde dein Konto mit der Cloud, um deine Daten auf allen Geräten zu synchronisieren.\n\n'
-          'Deine lokalen Daten bleiben erhalten und werden nach dem Login synchronisiert.',
+        title: const Text('Connect to cloud'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Connect your account to the cloud to sync your data across all devices.\n\n'
+              'Your local data stays intact and is synced after you sign in.',
+            ),
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Abbrechen'),
+            child: const Text('Cancel'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () {
               Navigator.pop(context);
               Navigator.pop(context); // Pop settings page
               ref.read(authProvider.notifier).goToLogin();
             },
-            child: const Text('Zur Anmeldung'),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+            child: const Text('Sign in'),
           ),
         ],
       ),
@@ -673,7 +749,7 @@ class SettingsPage extends ConsumerWidget {
           children: [
             CircularProgressIndicator(),
             SizedBox(width: 16),
-            Text('Exportiere Daten...'),
+            Text('Exporting data...'),
           ],
         ),
       ),
@@ -688,21 +764,27 @@ class SettingsPage extends ConsumerWidget {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Export erfolgreich'),
-          content: Text(
-            '${result.todoCount} Aufgaben und ${result.projectCount} Projekte wurden exportiert.',
+          title: const Text('Export successful'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${result.todoCount} tasks and ${result.projectCount} projects were exported.',
+              ),
+            ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('OK'),
             ),
-            TextButton(
+            FilledButton(
               onPressed: () {
                 Navigator.pop(context);
                 ExportService.shareExport(result.filePath!);
               },
-              child: const Text('Teilen'),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+              child: const Text('Share'),
             ),
           ],
         ),
@@ -710,7 +792,9 @@ class SettingsPage extends ConsumerWidget {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Export fehlgeschlagen: ${result.error ?? "Unbekannter Fehler"}'),
+          content: Text(
+            'Export failed: ${result.error ?? "Unknown error"}',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -719,15 +803,24 @@ class SettingsPage extends ConsumerWidget {
 
   Future<void> _importData(BuildContext context) async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
       );
 
       if (result == null || result.files.isEmpty) return;
 
-      final file = File(result.files.single.path!);
-      final content = await file.readAsString();
+      final bytes = result.files.single.bytes;
+      final filePath = result.files.single.path;
+      final String content;
+      if (bytes != null) {
+        content = String.fromCharCodes(bytes);
+      } else if (filePath != null) {
+        // On native platforms, read from file path via conditional import
+        content = await native_io.readFileAsString(filePath);
+      } else {
+        throw Exception('Could not read file');
+      }
 
       final preview = ExportService.previewImport(content);
 
@@ -736,7 +829,7 @@ class SettingsPage extends ConsumerWidget {
       if (!preview.isValid) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(preview.error ?? 'Ungültige Datei'),
+            content: Text(preview.error ?? 'Invalid file'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -754,7 +847,7 @@ class SettingsPage extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Fehler beim Lesen der Datei: $e'),
+          content: Text('Failed to read file: $e'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -769,7 +862,8 @@ class _ShowNewBackupCodesPage extends StatefulWidget {
   const _ShowNewBackupCodesPage({required this.codes});
 
   @override
-  State<_ShowNewBackupCodesPage> createState() => _ShowNewBackupCodesPageState();
+  State<_ShowNewBackupCodesPage> createState() =>
+      _ShowNewBackupCodesPageState();
 }
 
 class _ShowNewBackupCodesPageState extends State<_ShowNewBackupCodesPage> {
@@ -784,7 +878,7 @@ class _ShowNewBackupCodesPageState extends State<_ShowNewBackupCodesPage> {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Codes in Zwischenablage kopiert'),
+        content: Text('Codes copied to clipboard'),
         duration: Duration(seconds: 2),
       ),
     );
@@ -794,7 +888,7 @@ class _ShowNewBackupCodesPageState extends State<_ShowNewBackupCodesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Neue Backup-Codes'),
+        title: const Text('New backup codes'),
         automaticallyImplyLeading: false,
       ),
       body: SafeArea(
@@ -814,11 +908,14 @@ class _ShowNewBackupCodesPageState extends State<_ShowNewBackupCodesPage> {
                 ),
                 child: Row(
                   children: [
-                    Icon(SolarIconsOutline.dangerTriangle, color: AppColors.warning),
+                    Icon(
+                      MdiIcons.alertOutline,
+                      color: AppColors.warning,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Deine alten Backup-Codes sind jetzt ungültig. Speichere die neuen Codes sicher!',
+                        'Your old backup codes are now invalid. Store the new codes somewhere safe!',
                         style: TextStyle(color: AppColors.warning),
                       ),
                     ),
@@ -871,8 +968,8 @@ class _ShowNewBackupCodesPageState extends State<_ShowNewBackupCodesPage> {
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: _copyAllCodes,
-                icon: const Icon(SolarIconsOutline.copy),
-                label: const Text('Alle kopieren'),
+                icon: Icon(MdiIcons.contentCopy),
+                label: const Text('Copy all'),
               ),
               const SizedBox(height: 24),
               CheckboxListTile(
@@ -883,7 +980,7 @@ class _ShowNewBackupCodesPageState extends State<_ShowNewBackupCodesPage> {
                   });
                 },
                 title: const Text(
-                  'Ich habe die Codes sicher aufbewahrt',
+                  'I have stored the codes safely',
                   style: TextStyle(fontSize: 14),
                 ),
                 controlAffinity: ListTileControlAffinity.leading,
@@ -894,13 +991,58 @@ class _ShowNewBackupCodesPageState extends State<_ShowNewBackupCodesPage> {
                 height: 48,
                 child: ElevatedButton(
                   onPressed: _hasSaved ? () => Navigator.pop(context) : null,
-                  child: const Text('Fertig'),
+                  child: const Text('Done'),
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SunriseToggleTile extends StatefulWidget {
+  const _SunriseToggleTile();
+
+  @override
+  State<_SunriseToggleTile> createState() => _SunriseToggleTileState();
+}
+
+class _SunriseToggleTileState extends State<_SunriseToggleTile> {
+  bool _enabled = false;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final v = await SunriseExportService.isEnabled();
+    if (mounted) {
+      setState(() {
+        _enabled = v;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _toggle(bool v) async {
+    setState(() => _enabled = v);
+    await SunriseExportService.setEnabled(v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      secondary: Icon(MdiIcons.weatherSunny, color: AppColors.textPrimary),
+      title: const Text('Connect Sunrise'),
+      subtitle: const Text(
+          'Show today\'s tasks in the Sunrise app (this device only, unencrypted).'),
+      value: _loading ? false : _enabled,
+      onChanged: _loading ? null : _toggle,
     );
   }
 }

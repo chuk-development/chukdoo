@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../services/export_service.dart';
@@ -34,7 +34,7 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Import erfolgreich: ${widget.preview.todoCount} Aufgaben, ${widget.preview.projectCount} Projekte',
+            'Import successful: ${widget.preview.todoCount} tasks, ${widget.preview.projectCount} projects',
           ),
           backgroundColor: AppColors.success,
         ),
@@ -43,7 +43,7 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Import fehlgeschlagen'),
+          content: Text('Import failed'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -56,7 +56,7 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Import Vorschau'),
+        title: const Text('Import preview'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -74,11 +74,11 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.15),
+                          color: AppColors.primary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
-                          SolarIconsOutline.import,
+                          MdiIcons.import,
                           color: AppColors.primary,
                           size: 28,
                         ),
@@ -97,7 +97,7 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
                             ),
                             if (preview.exportedAt != null)
                               Text(
-                                'Exportiert am ${_formatDate(preview.exportedAt!)}',
+                                'Exported on ${_formatDate(preview.exportedAt!)}',
                                 style: TextStyle(
                                   color: AppColors.textSecondary,
                                   fontSize: 13,
@@ -113,14 +113,14 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
                   const SizedBox(height: 12),
                   // Stats
                   _buildStatRow(
-                    SolarIconsOutline.checklistMinimalistic,
-                    'Aufgaben',
+                    MdiIcons.formatListChecks,
+                    'Tasks',
                     preview.todoCount.toString(),
                   ),
                   const SizedBox(height: 8),
                   _buildStatRow(
-                    SolarIconsOutline.folder,
-                    'Projekte',
+                    MdiIcons.folderOutline,
+                    'Projects',
                     preview.projectCount.toString(),
                   ),
                 ],
@@ -131,7 +131,7 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
 
           // Import options
           Text(
-            'Import Optionen',
+            'Import options',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -149,17 +149,17 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
                   onChanged: (value) {
                     setState(() => _replaceExisting = value);
                   },
-                  title: const Text('Bestehende Daten ersetzen'),
+                  title: const Text('Replace existing data'),
                   subtitle: Text(
                     _replaceExisting
-                        ? 'Alle lokalen Daten werden gelöscht'
-                        : 'Neue Daten werden hinzugefügt',
+                        ? 'All local data will be deleted'
+                        : 'New data will be added',
                     style: TextStyle(color: AppColors.textSecondary),
                   ),
                   secondary: Icon(
                     _replaceExisting
-                        ? SolarIconsOutline.trashBinTrash
-                        : SolarIconsOutline.addCircle,
+                        ? MdiIcons.trashCanOutline
+                        : MdiIcons.plusCircleOutline,
                     color: _replaceExisting ? AppColors.warning : AppColors.textSecondary,
                   ),
                 ),
@@ -172,17 +172,17 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.warning.withOpacity(0.15),
+                color: AppColors.warning.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+                border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
-                  Icon(SolarIconsOutline.dangerTriangle, color: AppColors.warning, size: 20),
+                  Icon(MdiIcons.alertOutline, color: AppColors.warning, size: 20),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Achtung: Alle bestehenden Aufgaben und Projekte werden gelöscht!',
+                      'Warning: all existing tasks and projects will be deleted!',
                       style: TextStyle(color: AppColors.warning, fontSize: 13),
                     ),
                   ),
@@ -196,7 +196,7 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
           // Todo preview
           if (preview.todos.isNotEmpty) ...[
             Text(
-              'Aufgaben Vorschau',
+              'Task preview',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -211,12 +211,12 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: preview.todos.take(5).length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
+                separatorBuilder: (_, _) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final todo = preview.todos[index];
                   return ListTile(
                     leading: Icon(
-                      SolarIconsOutline.checkCircle,
+                      MdiIcons.checkCircleOutline,
                       color: AppColors.textSecondary,
                     ),
                     title: Text(
@@ -238,7 +238,7 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  '... und ${preview.todos.length - 5} weitere',
+                  '... and ${preview.todos.length - 5} more',
                   style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                   textAlign: TextAlign.center,
                 ),
@@ -266,7 +266,7 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
                       ),
                     )
                   : const Text(
-                      'Importieren',
+                      'Import',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
