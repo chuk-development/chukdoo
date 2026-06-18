@@ -17,18 +17,24 @@ class AppSettings {
   /// User-chosen name for the main list (formerly "Eingang").
   final String mainListName;
 
+  /// All tag names the user has ever used — drives autocomplete suggestions.
+  final List<String> knownTags;
+
   const AppSettings({
     this.checkboxSize = CheckboxSize.normal,
     this.mainListName = 'Aufgaben',
+    this.knownTags = const [],
   });
 
   AppSettings copyWith({
     CheckboxSize? checkboxSize,
     String? mainListName,
+    List<String>? knownTags,
   }) {
     return AppSettings(
       checkboxSize: checkboxSize ?? this.checkboxSize,
       mainListName: mainListName ?? this.mainListName,
+      knownTags: knownTags ?? this.knownTags,
     );
   }
 }
@@ -40,6 +46,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 
   static const _checkboxSizeKey = 'checkbox_size';
   static const _mainListNameKey = 'main_list_name';
+  static const _knownTagsKey = 'known_tags';
 
   Box? _box;
 
@@ -55,7 +62,15 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
         : CheckboxSize.normal;
     final mainListName =
         _settingsBox.get(_mainListNameKey, defaultValue: 'Aufgaben') as String;
-    state = AppSettings(checkboxSize: size, mainListName: mainListName);
+    final knownTags = (_settingsBox.get(_knownTagsKey) as List?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        const <String>[];
+    state = AppSettings(
+      checkboxSize: size,
+      mainListName: mainListName,
+      knownTags: knownTags,
+    );
   }
 
   Future<void> setCheckboxSize(CheckboxSize size) async {
@@ -68,6 +83,24 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     if (trimmed.isEmpty) return;
     await _settingsBox.put(_mainListNameKey, trimmed);
     state = state.copyWith(mainListName: trimmed);
+  }
+
+  /// Remember new tag names so they can be suggested later (case-insensitive).
+  Future<void> rememberTags(Iterable<String> tags) async {
+    final existing = {for (final t in state.knownTags) t.toLowerCase(): t};
+    var changed = false;
+    for (final raw in tags) {
+      final t = raw.trim();
+      if (t.isEmpty) continue;
+      if (!existing.containsKey(t.toLowerCase())) {
+        existing[t.toLowerCase()] = t;
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    final merged = existing.values.toList()..sort();
+    await _settingsBox.put(_knownTagsKey, merged);
+    state = state.copyWith(knownTags: merged);
   }
 }
 
