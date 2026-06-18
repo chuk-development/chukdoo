@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../services/revenuecat_service.dart';
@@ -16,7 +16,6 @@ class PaywallPage extends ConsumerStatefulWidget {
 class _PaywallPageState extends ConsumerState<PaywallPage> {
   bool _isLoading = false;
   Package? _yearlyPackage;
-  String? _error;
 
   @override
   void initState() {
@@ -32,8 +31,8 @@ class _PaywallPageState extends ConsumerState<PaywallPage> {
       if (offerings != null && offerings.current != null) {
         _yearlyPackage = offerings.current!.annual;
       }
-    } catch (e) {
-      _error = e.toString();
+    } catch (_) {
+      // Offerings fetch failed; UI falls back to no-package state.
     }
 
     setState(() => _isLoading = false);
@@ -45,8 +44,8 @@ class _PaywallPageState extends ConsumerState<PaywallPage> {
     setState(() => _isLoading = true);
 
     try {
-      final customerInfo = await Purchases.purchasePackage(_yearlyPackage!);
-      final isPro = customerInfo.entitlements.all['Chukdoo Pro']?.isActive ?? false;
+      final result = await Purchases.purchasePackage(_yearlyPackage!);
+      final isPro = result.customerInfo.entitlements.all['Chukdoo Pro']?.isActive ?? false;
 
       if (isPro && mounted) {
         Navigator.pop(context, true);
@@ -54,7 +53,7 @@ class _PaywallPageState extends ConsumerState<PaywallPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Kauf fehlgeschlagen: $e')),
+          SnackBar(content: Text('Purchase failed: $e')),
         );
       }
     }
@@ -71,13 +70,13 @@ class _PaywallPageState extends ConsumerState<PaywallPage> {
         Navigator.pop(context, true);
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Keine Käufe gefunden')),
+          const SnackBar(content: Text('No purchases found')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Error: $e')),
         );
       }
     }
@@ -113,7 +112,7 @@ class _PaywallPageState extends ConsumerState<PaywallPage> {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  SolarIconsBold.crownStar,
+                  MdiIcons.crown,
                   size: 40,
                   color: AppColors.warning,
                 ),
@@ -134,7 +133,7 @@ class _PaywallPageState extends ConsumerState<PaywallPage> {
               const SizedBox(height: 8),
 
               Text(
-                'Synchronisiere deine Aufgaben überall',
+                'Sync your tasks everywhere',
                 style: TextStyle(
                   fontSize: 16,
                   color: AppColors.textSecondary,
@@ -145,19 +144,19 @@ class _PaywallPageState extends ConsumerState<PaywallPage> {
 
               // Features
               _buildFeature(
-                icon: SolarIconsOutline.cloudCheck,
-                title: 'Cloud-Sync',
-                description: 'Alle Geräte synchron',
+                icon: MdiIcons.cloudCheckOutline,
+                title: 'Cloud sync',
+                description: 'All devices in sync',
               ),
               _buildFeature(
-                icon: SolarIconsOutline.shield,
-                title: 'Ende-zu-Ende verschlüsselt',
-                description: 'Nur du kannst deine Daten lesen',
+                icon: MdiIcons.shieldOutline,
+                title: 'End-to-end encrypted',
+                description: 'Only you can read your data',
               ),
               _buildFeature(
-                icon: SolarIconsOutline.infinity,
-                title: 'Unbegrenzte Projekte',
-                description: 'Keine Limits, volle Kontrolle',
+                icon: MdiIcons.infinity,
+                title: 'Unlimited projects',
+                description: 'No limits, full control',
               ),
 
               const Spacer(),
@@ -173,7 +172,7 @@ class _PaywallPageState extends ConsumerState<PaywallPage> {
                   ),
                 ),
                 Text(
-                  'pro Jahr',
+                  'per year',
                   style: TextStyle(
                     fontSize: 16,
                     color: AppColors.textSecondary,
@@ -191,7 +190,7 @@ class _PaywallPageState extends ConsumerState<PaywallPage> {
                   ),
                 ),
                 Text(
-                  'pro Jahr',
+                  'per year',
                   style: TextStyle(
                     fontSize: 16,
                     color: AppColors.textSecondary,
@@ -224,7 +223,7 @@ class _PaywallPageState extends ConsumerState<PaywallPage> {
                           ),
                         )
                       : const Text(
-                          'Jetzt upgraden',
+                          'Upgrade now',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
@@ -239,7 +238,7 @@ class _PaywallPageState extends ConsumerState<PaywallPage> {
               TextButton(
                 onPressed: _isLoading ? null : _restore,
                 child: Text(
-                  'Käufe wiederherstellen',
+                  'Restore purchases',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                   ),
@@ -250,7 +249,7 @@ class _PaywallPageState extends ConsumerState<PaywallPage> {
 
               // Terms
               Text(
-                'Es gelten die AGB und Datenschutzrichtlinien.\nDas Abo verlängert sich automatisch.',
+                'Terms and Privacy Policy apply.\nThe subscription renews automatically.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,

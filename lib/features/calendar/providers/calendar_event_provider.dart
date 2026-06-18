@@ -184,7 +184,9 @@ class CalendarEventNotifier extends StateNotifier<CalendarEventState> {
 
   /// Move an event to a new time (preserves duration) — for drag-and-drop
   Future<void> moveEvent(String eventId, DateTime newStart) async {
-    final event = state.events.firstWhere((e) => e.id == eventId);
+    final idx = state.events.indexWhere((e) => e.id == eventId);
+    if (idx == -1) return;
+    final event = state.events[idx];
     final duration = event.duration;
     final updated = event.copyWith(
       startTime: newStart,
@@ -195,7 +197,9 @@ class CalendarEventNotifier extends StateNotifier<CalendarEventState> {
 
   /// Resize an event (change end time) — for drag-to-resize
   Future<void> resizeEvent(String eventId, DateTime newEnd) async {
-    final event = state.events.firstWhere((e) => e.id == eventId);
+    final idx = state.events.indexWhere((e) => e.id == eventId);
+    if (idx == -1) return;
+    final event = state.events[idx];
     if (newEnd.isAfter(event.startTime)) {
       final updated = event.copyWith(endTime: newEnd);
       await updateEvent(updated);

@@ -11,12 +11,17 @@ import '../../todos/domain/models/todo.dart';
 import '../domain/models/sync_conflict.dart';
 import '../repositories/todo_sync_repository.dart';
 import '../repositories/project_sync_repository.dart';
+import '../repositories/calendar_sync_repository.dart';
+import '../repositories/calendar_event_sync_repository.dart';
+import '../repositories/habit_sync_repository.dart';
+import '../../calendar/domain/models/calendar_event.dart';
+import '../../habits/domain/models/habit.dart';
 
 /// Operation types for sync queue
 enum SyncOperation { create, update, delete }
 
 /// Entity types for sync
-enum SyncEntityType { todo, project }
+enum SyncEntityType { todo, project, calendar, calendarEvent, habit }
 
 /// A queued sync operation
 class SyncQueueItem {
@@ -73,6 +78,9 @@ class SyncService {
   static SyncStatus _status = SyncStatus.idle;
   static String? _lastError;
   static DateTime? _lastSyncTime;
+  // In-flight guard shared by processQueue() and fullSync() so overlapping
+  // sync triggers (periodic timer, realtime, connectivity) don't interleave.
+  static bool _isSyncing = false;
 
   static final _statusController = StreamController<SyncStatus>.broadcast();
   static final _conflictController = StreamController<SyncConflict>.broadcast();
@@ -152,21 +160,16 @@ class SyncService {
       return;
     }
 
-    if (_status == SyncStatus.syncing) {
+    if (_isSyncing) {
       return; // Already syncing
     }
 
+    _isSyncing = true;
     _status = SyncStatus.syncing;
     _statusController.add(_status);
 
     try {
-      final items = getPendingOperations();
-      debugPrint('SyncService: Processing ${items.length} pending operations');
-
-      for (final item in items) {
-        await _processItem(item);
-        await _queue.delete(item.id);
-      }
+      await _drainQueue();
 
       _lastSyncTime = DateTime.now();
       _lastError = null;
@@ -175,14 +178,34 @@ class SyncService {
       _lastError = e.toString();
       _status = SyncStatus.error;
       debugPrint('SyncService: Error processing queue: $e');
+    } finally {
+      _isSyncing = false;
     }
 
     _statusController.add(_status);
   }
 
+  /// Upload and clear all pending queue items. Caller owns the in-flight
+  /// guard and status reporting.
+  static Future<void> _drainQueue() async {
+    final items = getPendingOperations();
+    debugPrint('SyncService: Processing ${items.length} pending operations');
+
+    for (final item in items) {
+      await _processItem(item);
+      await _queue.delete(item.id);
+    }
+  }
+
   /// Process a single sync item
   static Future<void> _processItem(SyncQueueItem item) async {
-    final tableName = item.entityType == SyncEntityType.todo ? 'todos' : 'projects';
+    final tableName = switch (item.entityType) {
+      SyncEntityType.todo => 'todos',
+      SyncEntityType.project => 'projects',
+      SyncEntityType.calendar => 'calendars',
+      SyncEntityType.calendarEvent => 'calendar_events',
+      SyncEntityType.habit => 'habits',
+    };
 
     switch (item.operation) {
       case SyncOperation.create:
@@ -219,12 +242,18 @@ class SyncService {
       return;
     }
 
+    if (_isSyncing) {
+      return; // Already syncing
+    }
+
+    _isSyncing = true;
     _status = SyncStatus.syncing;
     _statusController.add(_status);
 
     try {
-      // First, upload any pending changes
-      await processQueue();
+      // First, upload any pending changes. Call the drain directly: going
+      // through processQueue() would hit the in-flight guard and skip uploads.
+      await _drainQueue();
 
       // Then download latest from server
       await _downloadFromServer();
@@ -238,6 +267,8 @@ class SyncService {
       _lastError = e.toString();
       _status = SyncStatus.error;
       debugPrint('SyncService: Full sync error: $e');
+    } finally {
+      _isSyncing = false;
     }
 
     _statusController.add(_status);
@@ -290,6 +321,78 @@ class SyncService {
     } catch (e) {
       debugPrint('SyncService: Error downloading todos: $e');
       rethrow;
+    }
+
+    // Download calendars
+    try {
+      final calendarsBox = Hive.box<Map>(AppConstants.hiveCalendarsBox);
+      final serverCalendars = await CalendarSyncRepository.downloadCalendars();
+      debugPrint('SyncService: Downloaded ${serverCalendars.length} calendars from server');
+
+      for (final serverCalendar in serverCalendars) {
+        final localData = calendarsBox.get(serverCalendar.id);
+
+        if (localData == null) {
+          await calendarsBox.put(serverCalendar.id, serverCalendar.toJson());
+        } else {
+          final localUpdatedAt = DateTime.tryParse(localData['updated_at'] as String? ?? '');
+          if (localUpdatedAt == null || serverCalendar.updatedAt.isAfter(localUpdatedAt)) {
+            await calendarsBox.put(serverCalendar.id, serverCalendar.toJson());
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('SyncService: Error downloading calendars: $e');
+    }
+
+    // Download calendar events
+    try {
+      final calendarEventsBox = Hive.box<Map>(AppConstants.hiveCalendarEventsBox);
+      final serverEvents = await CalendarEventSyncRepository.downloadEvents();
+      debugPrint('SyncService: Downloaded ${serverEvents.length} calendar events from server');
+
+      for (final serverEvent in serverEvents) {
+        final localData = calendarEventsBox.get(serverEvent.id);
+
+        if (localData == null) {
+          await calendarEventsBox.put(serverEvent.id, serverEvent.toJson());
+        } else {
+          final localEvent = CalendarEvent.fromJson(Map<String, dynamic>.from(localData));
+          if (serverEvent.version > localEvent.version ||
+              (serverEvent.version == localEvent.version &&
+               serverEvent.updatedAt.isAfter(localEvent.updatedAt))) {
+            await calendarEventsBox.put(serverEvent.id, serverEvent.toJson());
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('SyncService: Error downloading calendar events: $e');
+    }
+
+    // Download habits
+    try {
+      final habitsBox = Hive.box<Map>(AppConstants.hiveHabitsBox);
+      final serverHabits = await HabitSyncRepository.downloadHabits();
+      debugPrint('SyncService: Downloaded ${serverHabits.length} habits from server');
+
+      for (final serverHabit in serverHabits) {
+        final localData = habitsBox.get(serverHabit.id);
+
+        if (localData == null) {
+          await habitsBox.put(serverHabit.id, serverHabit.toJson());
+          debugPrint('SyncService: Added new habit from server: ${serverHabit.id}');
+        } else {
+          final localHabit = Habit.fromJson(Map<String, dynamic>.from(localData));
+          if (serverHabit.version > localHabit.version ||
+              (serverHabit.version == localHabit.version &&
+               serverHabit.updatedAt.isAfter(localHabit.updatedAt))) {
+            await habitsBox.put(serverHabit.id, serverHabit.toJson());
+            debugPrint('SyncService: Updated habit from server: ${serverHabit.id}');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('SyncService: Error downloading habits: $e');
     }
 
     // Download projects

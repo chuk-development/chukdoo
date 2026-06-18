@@ -210,13 +210,17 @@ class TodoNotifier extends StateNotifier<TodoState> {
 
   /// Pin / unpin a todo (sticks to top of every list).
   Future<void> togglePin(String todoId) async {
-    final todo = state.todos.firstWhere((t) => t.id == todoId);
+    final idx = state.todos.indexWhere((t) => t.id == todoId);
+    if (idx == -1) return;
+    final todo = state.todos[idx];
     await _persist(todo.copyWith(isPinned: !todo.isPinned, updatedAt: DateTime.now()));
   }
 
   /// Quick-set the due date (and optionally time) from a swipe action.
   Future<void> setDueDate(String todoId, DateTime? date, {TimeOfDay? time}) async {
-    final todo = state.todos.firstWhere((t) => t.id == todoId);
+    final idx = state.todos.indexWhere((t) => t.id == todoId);
+    if (idx == -1) return;
+    final todo = state.todos[idx];
     await _persist(todo.copyWith(
       dueDate: date,
       dueTime: time,
@@ -228,7 +232,9 @@ class TodoNotifier extends StateNotifier<TodoState> {
 
   /// Move a todo into another project (null = inbox / main list).
   Future<void> moveToProject(String todoId, String? projectId) async {
-    final todo = state.todos.firstWhere((t) => t.id == todoId);
+    final idx = state.todos.indexWhere((t) => t.id == todoId);
+    if (idx == -1) return;
+    final todo = state.todos[idx];
     await _persist(todo.copyWith(
       projectId: projectId,
       updatedAt: DateTime.now(),
@@ -264,7 +270,9 @@ class TodoNotifier extends StateNotifier<TodoState> {
   }
 
   Future<void> toggleComplete(String todoId) async {
-    final todo = state.todos.firstWhere((t) => t.id == todoId);
+    final idx = state.todos.indexWhere((t) => t.id == todoId);
+    if (idx == -1) return;
+    final todo = state.todos[idx];
     final updated = todo.copyWith(
       isCompleted: !todo.isCompleted,
       completedAt: !todo.isCompleted ? DateTime.now() : null,

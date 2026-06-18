@@ -143,7 +143,9 @@ class CalendarContainerNotifier extends StateNotifier<CalendarContainerState> {
   }
 
   Future<void> toggleVisibility(String calendarId) async {
-    final calendar = state.calendars.firstWhere((c) => c.id == calendarId);
+    final idx = state.calendars.indexWhere((c) => c.id == calendarId);
+    if (idx == -1) return;
+    final calendar = state.calendars[idx];
     await updateCalendar(calendar.copyWith(isVisible: !calendar.isVisible));
   }
 

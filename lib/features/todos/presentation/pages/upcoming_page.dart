@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../settings/providers/settings_provider.dart';
@@ -99,14 +99,14 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         leading: widget.onMenu != null
-            ? IconButton(icon: const Icon(SolarIconsOutline.hamburgerMenu), onPressed: widget.onMenu, tooltip: 'Menu')
+            ? IconButton(icon: Icon(MdiIcons.menu), onPressed: widget.onMenu, tooltip: 'Menu')
             : null,
         title: const Text('Upcoming'),
         actions: [
           if (hasAnyCompleted)
             IconButton(
               icon: Icon(
-                showCompleted ? SolarIconsBold.checkCircle : SolarIconsOutline.checkCircle,
+                showCompleted ? MdiIcons.checkCircle : MdiIcons.checkCircleOutline,
                 color: showCompleted ? AppColors.primary : null,
               ),
               onPressed: () {
@@ -124,7 +124,7 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(SolarIconsOutline.altArrowLeft),
+                  icon: Icon(MdiIcons.chevronLeft),
                   onPressed: _goToPreviousWeek,
                   tooltip: 'Previous week',
                 ),
@@ -142,7 +142,7 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(SolarIconsOutline.altArrowRight),
+                  icon: Icon(MdiIcons.chevronRight),
                   onPressed: _goToNextWeek,
                   tooltip: 'Next week',
                 ),
@@ -254,20 +254,16 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
     final tomorrow = today.add(const Duration(days: 1));
     final targetDate = DateTime(date.year, date.month, date.day);
 
-    String dateLabel;
-    String? subLabel;
-
     final weekdayFormat = DateFormat('EEEE', 'en_US');
     final dateFormat = DateFormat('d MMM', 'en_US');
 
+    final dateLabel = weekdayFormat.format(date);
+    final String subLabel;
     if (targetDate == today) {
-      dateLabel = weekdayFormat.format(date);
       subLabel = '${dateFormat.format(date)} • Today';
     } else if (targetDate == tomorrow) {
-      dateLabel = weekdayFormat.format(date);
       subLabel = '${dateFormat.format(date)} • Tomorrow';
     } else {
-      dateLabel = weekdayFormat.format(date);
       subLabel = dateFormat.format(date);
     }
 
@@ -298,19 +294,18 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
                               : AppColors.textPrimary,
                         ),
                       ),
-                      if (subLabel != null)
-                        Text(
-                          subLabel,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
+                      Text(
+                        subLabel,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
                         ),
+                      ),
                     ],
                   ),
                 ),
                 Icon(
-                  SolarIconsOutline.addCircle,
+                  MdiIcons.plusCircleOutline,
                   size: 20,
                   color: AppColors.textSecondary,
                 ),

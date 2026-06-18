@@ -103,9 +103,14 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
       _reminderMinutes = List.from(event.reminderMinutes);
     } else {
       _startDate = widget.initialDate ?? now;
-      _startTime = widget.initialTime ?? TimeOfDay(hour: now.hour + 1, minute: 0);
-      _endDate = _startDate;
-      _endTime = TimeOfDay(hour: _startTime.hour + 1, minute: _startTime.minute);
+      _startTime =
+          widget.initialTime ?? TimeOfDay(hour: (now.hour + 1) % 24, minute: 0);
+      // Default end is one hour after start; roll over to the next day if that
+      // crosses midnight (avoids invalid hour 24 and end-before-start).
+      final endHour = _startTime.hour + 1;
+      _endDate =
+          endHour > 23 ? _startDate.add(const Duration(days: 1)) : _startDate;
+      _endTime = TimeOfDay(hour: endHour % 24, minute: _startTime.minute);
     }
   }
 
@@ -120,7 +125,7 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
   @override
   Widget build(BuildContext context) {
     final calendarState = ref.watch(calendarContainerProvider);
-    final dateFormat = DateFormat('EEE, d. MMM yyyy', 'de_DE');
+    final dateFormat = DateFormat('EEE, d. MMM yyyy', 'en_US');
     final media = MediaQuery.of(context);
     final maxHeight = media.size.height * 0.86;
 
@@ -155,7 +160,7 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
                       ),
                       Expanded(
                         child: Text(
-                          _isEditing ? 'Event bearbeiten' : 'Neues Event',
+                          _isEditing ? 'Edit event' : 'New event',
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -167,7 +172,7 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
                           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
-                        child: const Text('Speichern', style: TextStyle(fontWeight: FontWeight.w600)),
+                        child: const Text('Save', style: TextStyle(fontWeight: FontWeight.w600)),
                       ),
                     ],
                   ),
@@ -186,7 +191,7 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
                 autofocus: !_isEditing,
                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                 cursorColor: _accent,
-                decoration: _inputDecoration('Titel hinzufügen'),
+                decoration: _inputDecoration('Add title'),
               ),
               const SizedBox(height: 16),
 
@@ -195,14 +200,14 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
                 children: [
                   _SwitchRow(
                     icon: Icons.schedule,
-                    label: 'Ganztägig',
+                    label: 'All day',
                     value: _isAllDay,
                     onChanged: (v) => setState(() => _isAllDay = v),
                   ),
                   const _RowDivider(),
                   _TapRow(
                     icon: Icons.play_arrow_rounded,
-                    title: 'Beginn',
+                    title: 'Start',
                     value: _isAllDay
                         ? dateFormat.format(_startDate)
                         : '${dateFormat.format(_startDate)} · ${_startTime.format(context)}',
@@ -211,7 +216,7 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
                   const _RowDivider(),
                   _TapRow(
                     icon: Icons.stop_rounded,
-                    title: 'Ende',
+                    title: 'End',
                     value: _isAllDay
                         ? dateFormat.format(_endDate)
                         : '${dateFormat.format(_endDate)} · ${_endTime.format(context)}',
@@ -227,13 +232,13 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
                   _FieldRow(
                     icon: Icons.location_on_outlined,
                     controller: _locationController,
-                    hint: 'Ort hinzufügen',
+                    hint: 'Add location',
                   ),
                   const _RowDivider(),
                   _FieldRow(
                     icon: Icons.notes_rounded,
                     controller: _descriptionController,
-                    hint: 'Beschreibung hinzufügen',
+                    hint: 'Add description',
                     maxLines: 3,
                   ),
                 ],
@@ -253,7 +258,7 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
                           shape: BoxShape.circle,
                         ),
                       ),
-                      title: 'Kalender',
+                      title: 'Calendar',
                       value: _getSelectedCalendarName(calendarState),
                       onTap: () => _pickCalendar(calendarState.calendars),
                     ),
@@ -261,16 +266,16 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
                   ],
                   _TapRow(
                     icon: Icons.repeat_rounded,
-                    title: 'Wiederholung',
+                    title: 'Repeat',
                     value: _recurrenceRule != null
                         ? _describeRecurrence(_recurrenceRule!)
-                        : 'Keine',
+                        : 'None',
                     onTap: _pickRecurrence,
                   ),
                   const _RowDivider(),
                   _TapRow(
                     icon: Icons.notifications_outlined,
-                    title: 'Erinnerung',
+                    title: 'Reminder',
                     value: _describeReminders(),
                     onTap: _pickReminder,
                   ),
@@ -283,7 +288,7 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
                 TextButton.icon(
                   onPressed: _delete,
                   icon: Icon(Icons.delete_outline, color: AppColors.error),
-                  label: Text('Event löschen', style: TextStyle(color: AppColors.error)),
+                  label: Text('Delete event', style: TextStyle(color: AppColors.error)),
                 ),
               ],
                     ],
@@ -322,7 +327,7 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
     final title = _titleController.text.trim();
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bitte einen Titel eingeben')),
+        const SnackBar(content: Text('Please enter a title')),
       );
       return;
     }
@@ -373,12 +378,12 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Event löschen?'),
-        content: const Text('Dieses Event wird unwiderruflich gelöscht.'),
+        title: const Text('Delete event?'),
+        content: const Text('This event will be permanently deleted.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Abbrechen'),
+            child: const Text('Cancel'),
           ),
           FilledButton(
             onPressed: () {
@@ -387,7 +392,7 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
               Navigator.pop(context);
             },
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Löschen'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -464,7 +469,7 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
 
   void _pickCalendar(List<Calendar> calendars) {
     _showSheet(
-      title: 'Kalender',
+      title: 'Calendar',
       children: calendars.map((cal) {
         return _SheetTile(
           leading: Container(
@@ -485,16 +490,16 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
 
   void _pickRecurrence() {
     final options = <(String, String?)>[
-      ('Keine', null),
-      ('Täglich', 'FREQ=DAILY'),
-      ('Wöchentlich', 'FREQ=WEEKLY'),
-      ('Monatlich', 'FREQ=MONTHLY'),
-      ('Jährlich', 'FREQ=YEARLY'),
-      ('Werktage (Mo-Fr)', 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR'),
+      ('None', null),
+      ('Daily', 'FREQ=DAILY'),
+      ('Weekly', 'FREQ=WEEKLY'),
+      ('Monthly', 'FREQ=MONTHLY'),
+      ('Yearly', 'FREQ=YEARLY'),
+      ('Weekdays (Mon-Fri)', 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR'),
     ];
 
     _showSheet(
-      title: 'Wiederholung',
+      title: 'Repeat',
       children: options.map((opt) {
         return _SheetTile(
           label: opt.$1,
@@ -510,12 +515,12 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
 
   void _pickReminder() {
     final options = <(String, int)>[
-      ('Zur Eventzeit', 0),
-      ('5 Minuten vorher', 5),
-      ('15 Minuten vorher', 15),
-      ('30 Minuten vorher', 30),
-      ('1 Stunde vorher', 60),
-      ('1 Tag vorher', 1440),
+      ('At time of event', 0),
+      ('5 minutes before', 5),
+      ('15 minutes before', 15),
+      ('30 minutes before', 30),
+      ('1 hour before', 60),
+      ('1 day before', 1440),
     ];
 
     showModalBottomSheet(
@@ -534,7 +539,7 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
                 padding: EdgeInsets.fromLTRB(20, 4, 20, 8),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Text('Erinnerung', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  child: Text('Reminder', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 ),
               ),
               ...options.map((opt) {
@@ -569,7 +574,7 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('Fertig'),
+                    child: const Text('Done'),
                   ),
                 ),
               ),
@@ -616,30 +621,30 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
   }
 
   String _getSelectedCalendarName(CalendarContainerState state) {
-    if (_selectedCalendarId == null) return 'Standard';
+    if (_selectedCalendarId == null) return 'Default';
     final cal = state.calendars.where((c) => c.id == _selectedCalendarId).firstOrNull;
-    return cal?.name ?? 'Standard';
+    return cal?.name ?? 'Default';
   }
 
   String _describeRecurrence(String rule) {
     final config = RRuleHelper.parseRRule(rule);
     if (config == null) return rule;
     return switch (config.frequency) {
-      RecurrenceFrequency.daily => config.interval == 1 ? 'Täglich' : 'Alle ${config.interval} Tage',
-      RecurrenceFrequency.weekly => config.interval == 1 ? 'Wöchentlich' : 'Alle ${config.interval} Wochen',
-      RecurrenceFrequency.monthly => config.interval == 1 ? 'Monatlich' : 'Alle ${config.interval} Monate',
-      RecurrenceFrequency.yearly => config.interval == 1 ? 'Jährlich' : 'Alle ${config.interval} Jahre',
+      RecurrenceFrequency.daily => config.interval == 1 ? 'Daily' : 'Alle ${config.interval} Tage',
+      RecurrenceFrequency.weekly => config.interval == 1 ? 'Weekly' : 'Alle ${config.interval} Wochen',
+      RecurrenceFrequency.monthly => config.interval == 1 ? 'Monthly' : 'Alle ${config.interval} Monate',
+      RecurrenceFrequency.yearly => config.interval == 1 ? 'Yearly' : 'Alle ${config.interval} Jahre',
     };
   }
 
   String _describeReminders() {
-    if (_reminderMinutes.isEmpty) return 'Keine';
+    if (_reminderMinutes.isEmpty) return 'None';
     return _reminderMinutes.map((m) {
-      if (m == 0) return 'Zur Eventzeit';
-      if (m < 60) return '$m Min. vorher';
-      if (m == 60) return '1 Std. vorher';
-      if (m == 1440) return '1 Tag vorher';
-      return '${m ~/ 60} Std. vorher';
+      if (m == 0) return 'At time of event';
+      if (m < 60) return '$m min before';
+      if (m == 60) return '1 hour before';
+      if (m == 1440) return '1 day before';
+      return '${m ~/ 60} hours before';
     }).join(', ');
   }
 }

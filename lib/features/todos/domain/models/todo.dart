@@ -246,6 +246,7 @@ class Todo {
     bool clearDescription = false,
     bool clearProjectId = false,
     bool clearReminder = false,
+    bool clearCompletedAt = false,
   }) {
     // Keep status and isCompleted consistent
     final resolvedIsCompleted = isCompleted ?? this.isCompleted;
@@ -273,7 +274,9 @@ class Todo {
       dueDate: clearDueDate ? null : (dueDate ?? this.dueDate),
       dueTime: clearDueTime ? null : (dueTime ?? this.dueTime),
       isCompleted: effectiveIsCompleted,
-      completedAt: completedAt ?? this.completedAt,
+      completedAt: (clearCompletedAt || !effectiveIsCompleted)
+          ? null
+          : (completedAt ?? this.completedAt),
       recurrenceRule: recurrenceRule ?? this.recurrenceRule,
       sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,

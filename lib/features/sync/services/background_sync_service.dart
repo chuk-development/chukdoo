@@ -46,6 +46,7 @@ void callbackDispatcher() {
       debugPrint('BackgroundSync: Processing $pendingCount pending operations');
 
       // Process each pending item
+      var hadFailure = false;
       for (final key in queueBox.keys.toList()) {
         try {
           final rawData = queueBox.get(key);
@@ -59,7 +60,20 @@ void callbackDispatcher() {
               ? Map<String, dynamic>.from(item['data'] as Map)
               : null;
 
-          final tableName = entityType == 'todo' ? 'todos' : 'projects';
+          // Must match SyncService._processItem table mapping, else ops
+          // get written to the wrong table (data corruption).
+          final tableName = switch (entityType) {
+            'todo' => 'todos',
+            'project' => 'projects',
+            'calendar' => 'calendars',
+            'calendarEvent' => 'calendar_events',
+            'habit' => 'habits',
+            _ => null,
+          };
+          if (tableName == null) {
+            debugPrint('BackgroundSync: Unknown entityType "$entityType", leaving queued');
+            continue;
+          }
 
           if (operation == 'delete') {
             await SupabaseService.client
@@ -82,12 +96,14 @@ void callbackDispatcher() {
           await queueBox.delete(key);
           debugPrint('BackgroundSync: Synced $entityType $entityId');
         } catch (e) {
+          hadFailure = true;
           debugPrint('BackgroundSync: Error syncing item: $e');
         }
       }
 
-      debugPrint('BackgroundSync: Completed');
-      return true;
+      debugPrint('BackgroundSync: Completed (hadFailure=$hadFailure)');
+      // Return false on any failure so WorkManager reschedules a retry.
+      return !hadFailure;
     } catch (e) {
       debugPrint('BackgroundSync: Error: $e');
       return false;

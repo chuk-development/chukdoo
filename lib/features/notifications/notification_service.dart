@@ -1,8 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+import '../../core/utils/platform_utils.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 
@@ -42,7 +43,9 @@ class NotificationService {
     // Initialize timezone
     tz.initializeTimeZones();
 
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -60,18 +63,21 @@ class NotificationService {
     );
 
     await _notifications.initialize(
-      settings,
+      settings: settings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
     // Check if app was launched from notification (not supported on Linux)
-    if (!Platform.isLinux) {
-      final launchDetails = await _notifications.getNotificationAppLaunchDetails();
+    if (!PlatformUtils.isLinux) {
+      final launchDetails = await _notifications
+          .getNotificationAppLaunchDetails();
       if (launchDetails?.didNotificationLaunchApp == true) {
         final payload = launchDetails!.notificationResponse?.payload;
         if (payload != null) {
           _pendingTodoId = payload;
-          debugPrint('NotificationService: App launched from notification for todo: $payload');
+          debugPrint(
+            'NotificationService: App launched from notification for todo: $payload',
+          );
         }
       }
     }
@@ -88,8 +94,10 @@ class NotificationService {
   }
 
   Future<bool> requestPermissions() async {
-    final android = _notifications.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = _notifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
 
     if (android != null) {
       final granted = await android.requestNotificationsPermission();
@@ -99,6 +107,11 @@ class NotificationService {
     return true;
   }
 
+  /// Stable, positive 31-bit notification id derived from a todo id.
+  /// Android notification ids must fit in a 32-bit int; a raw [String.hashCode]
+  /// can be negative or exceed that range.
+  static int _notificationId(String todoId) => todoId.hashCode & 0x7fffffff;
+
   Future<void> scheduleReminder({
     required String todoId,
     required String title,
@@ -106,23 +119,25 @@ class NotificationService {
     String? body,
   }) async {
     // Linux doesn't support scheduled notifications
-    if (Platform.isLinux) {
-      debugPrint('NotificationService: Scheduled notifications not supported on Linux');
+    if (PlatformUtils.isLinux) {
+      debugPrint(
+        'NotificationService: Scheduled notifications not supported on Linux',
+      );
       return;
     }
 
-    final id = todoId.hashCode;
+    final id = _notificationId(todoId);
 
     await _notifications.zonedSchedule(
-      id,
-      title,
-      body ?? 'Erinnerung',
-      tz.TZDateTime.from(remindAt, tz.local),
-      const NotificationDetails(
+      id: id,
+      title: title,
+      body: body ?? 'Reminder',
+      scheduledDate: tz.TZDateTime.from(remindAt, tz.local),
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'reminders',
-          'Erinnerungen',
-          channelDescription: 'Erinnerungen für Aufgaben',
+          'Reminders',
+          channelDescription: 'Task reminders',
           importance: Importance.high,
           priority: Priority.high,
         ),
@@ -138,8 +153,7 @@ class NotificationService {
   }
 
   Future<void> cancelReminder(String todoId) async {
-    final id = todoId.hashCode;
-    await _notifications.cancel(id);
+    await _notifications.cancel(id: _notificationId(todoId));
   }
 
   Future<void> cancelAllReminders() async {
@@ -152,14 +166,14 @@ class NotificationService {
     String? payload,
   }) async {
     await _notifications.show(
-      DateTime.now().millisecondsSinceEpoch.remainder(100000),
-      title,
-      body,
-      const NotificationDetails(
+      id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
+      title: title,
+      body: body,
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'general',
-          'Allgemein',
-          channelDescription: 'Allgemeine Benachrichtigungen',
+          'General',
+          channelDescription: 'General notifications',
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
         ),
@@ -176,19 +190,19 @@ class NotificationService {
     String? firstTodoTitle,
   }) async {
     final title = count == 1
-        ? 'Neue Aufgabe synchronisiert'
-        : '$count neue Aufgaben synchronisiert';
-    final body = firstTodoTitle ?? 'Von einem anderen Gerät hinzugefügt';
+        ? 'New task synced'
+        : '$count new tasks synced';
+    final body = firstTodoTitle ?? 'Added from another device';
 
     await _notifications.show(
-      'new_todos'.hashCode,
-      title,
-      body,
-      const NotificationDetails(
+      id: 'new_todos'.hashCode,
+      title: title,
+      body: body,
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'sync',
-          'Synchronisierung',
-          channelDescription: 'Benachrichtigungen für synchronisierte Aufgaben',
+          'Sync',
+          channelDescription: 'Notifications for synced tasks',
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
         ),
@@ -204,14 +218,14 @@ class NotificationService {
     bool isError = false,
   }) async {
     await _notifications.show(
-      'sync_status'.hashCode,
-      isError ? 'Sync-Fehler' : 'Synchronisierung',
-      message,
-      NotificationDetails(
+      id: 'sync_status'.hashCode,
+      title: isError ? 'Sync error' : 'Sync',
+      body: message,
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           'sync',
-          'Synchronisierung',
-          channelDescription: 'Sync-Status Benachrichtigungen',
+          'Sync',
+          channelDescription: 'Sync status notifications',
           importance: isError ? Importance.high : Importance.low,
           priority: isError ? Priority.high : Priority.low,
         ),
