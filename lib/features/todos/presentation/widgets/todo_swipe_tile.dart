@@ -42,6 +42,17 @@ class TodoSwipeTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(todoProvider.notifier);
+    final isDesktop = MediaQuery.of(context).size.width >= 768;
+
+    // Desktop: no swipe panes — flutter_slidable's horizontal drag fights the
+    // Draggable and dragging-to-the-sidebar never starts. Use a plain Draggable
+    // so a task can be grabbed and dropped on a project/All. Edits live in the
+    // right detail panel; completing is the checkbox.
+    if (isDesktop) {
+      return isCompleted
+          ? _row(context, ref, notifier)
+          : _draggable(context, ref, notifier, isDesktop: true);
+    }
 
     return Slidable(
       key: ValueKey(todo.id),
@@ -60,7 +71,7 @@ class TodoSwipeTile extends ConsumerWidget {
             backgroundColor: AppColors.green,
             foregroundColor: Colors.white,
             icon: isCompleted ? SolarIconsBold.refreshCircle : SolarIconsBold.checkCircle,
-            label: isCompleted ? 'Offen' : 'Erledigt',
+            label: isCompleted ? 'Reopen' : 'Completed',
           ),
         ],
       ),
@@ -80,21 +91,21 @@ class TodoSwipeTile extends ConsumerWidget {
               backgroundColor: AppColors.blue,
               foregroundColor: Colors.white,
               icon: SolarIconsBold.calendar,
-              label: 'Datum',
+              label: 'Date',
             ),
             SlidableAction(
               onPressed: (ctx) => _showMoveSheet(ctx, ref),
               backgroundColor: AppColors.purple,
               foregroundColor: Colors.white,
               icon: SolarIconsBold.folder,
-              label: 'Verschieben',
+              label: 'Move',
             ),
             SlidableAction(
               onPressed: (_) => notifier.togglePin(todo.id),
               backgroundColor: AppColors.orange,
               foregroundColor: Colors.white,
               icon: todo.isPinned ? SolarIconsBold.bookmark : SolarIconsOutline.bookmark,
-              label: todo.isPinned ? 'Lösen' : 'Anheften',
+              label: todo.isPinned ? 'Unpin' : 'Pin',
             ),
           ],
           SlidableAction(
@@ -102,24 +113,42 @@ class TodoSwipeTile extends ConsumerWidget {
             backgroundColor: AppColors.error,
             foregroundColor: Colors.white,
             icon: SolarIconsBold.trashBinTrash,
-            label: 'Löschen',
+            label: 'Delete',
           ),
         ],
       ),
 
       child: isCompleted
           ? _row(context, ref, notifier)
-          : LongPressDraggable<Todo>(
-              data: todo,
-              delay: const Duration(milliseconds: 220),
-              hapticFeedbackOnStart: true,
-              feedback: _TodoDragFeedback(todo: todo),
-              childWhenDragging: Opacity(
-                opacity: 0.35,
-                child: _row(context, ref, notifier),
-              ),
-              child: _row(context, ref, notifier),
-            ),
+          : _draggable(context, ref, notifier, isDesktop: false),
+    );
+  }
+
+  /// Wrap the row so it can be dragged onto a project/All in the sidebar.
+  ///
+  /// Desktop → plain [Draggable] (grab immediately with the mouse).
+  /// Mobile  → [LongPressDraggable] so a normal vertical scroll isn't hijacked.
+  Widget _draggable(BuildContext context, WidgetRef ref, dynamic notifier,
+      {required bool isDesktop}) {
+    final feedback = _TodoDragFeedback(todo: todo);
+    final whenDragging = Opacity(opacity: 0.35, child: _row(context, ref, notifier));
+
+    if (isDesktop) {
+      return Draggable<Todo>(
+        data: todo,
+        feedback: feedback,
+        childWhenDragging: whenDragging,
+        child: _row(context, ref, notifier),
+      );
+    }
+
+    return LongPressDraggable<Todo>(
+      data: todo,
+      delay: const Duration(milliseconds: 220),
+      hapticFeedbackOnStart: true,
+      feedback: feedback,
+      childWhenDragging: whenDragging,
+      child: _row(context, ref, notifier),
     );
   }
 
@@ -166,7 +195,7 @@ class TodoSwipeTile extends ConsumerWidget {
         final cells = <Widget>[
           _DateCell(
             icon: SolarIconsBold.calendar,
-            label: 'Heute',
+            label: 'Today',
             color: AppColors.blue,
             onTap: () {
               notifier.setDueDate(todo.id, today);
@@ -175,7 +204,7 @@ class TodoSwipeTile extends ConsumerWidget {
           ),
           _DateCell(
             icon: SolarIconsBold.sunrise,
-            label: 'Morgen',
+            label: 'Tomorrow',
             color: AppColors.blue,
             onTap: () {
               notifier.setDueDate(todo.id, today.add(const Duration(days: 1)));
@@ -184,7 +213,7 @@ class TodoSwipeTile extends ConsumerWidget {
           ),
           _DateCell(
             icon: SolarIconsBold.calendarMark,
-            label: 'Übermorgen',
+            label: 'In 2 days',
             color: AppColors.blue,
             onTap: () {
               notifier.setDueDate(todo.id, today.add(const Duration(days: 2)));
@@ -193,7 +222,7 @@ class TodoSwipeTile extends ConsumerWidget {
           ),
           _DateCell(
             icon: SolarIconsBold.calendarMark,
-            label: 'Nächster\nMontag',
+            label: 'Next\nMonday',
             color: AppColors.blue,
             onTap: () {
               notifier.setDueDate(todo.id, nextMonday());
@@ -202,7 +231,7 @@ class TodoSwipeTile extends ConsumerWidget {
           ),
           _DateCell(
             icon: SolarIconsOutline.calendarMinimalistic,
-            label: 'Datum\nauswählen',
+            label: 'Pick\ndate',
             color: AppColors.blue,
             onTap: () async {
               Navigator.pop(ctx);
@@ -217,7 +246,7 @@ class TodoSwipeTile extends ConsumerWidget {
           ),
           _DateCell(
             icon: SolarIconsOutline.closeSquare,
-            label: 'Zurücksetzen',
+            label: 'Clear',
             color: AppColors.textSecondary,
             onTap: () {
               notifier.setDueDate(todo.id, null);
@@ -264,11 +293,11 @@ class TodoSwipeTile extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 12),
-            const Text('Verschieben nach', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            const Text('Move to', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             ListTile(
               leading: const Icon(SolarIconsOutline.inbox, color: AppColors.textSecondary),
-              title: const Text('Eingang'),
+              title: const Text('Inbox'),
               trailing: todo.projectId == null
                   ? const Icon(SolarIconsBold.checkCircle, color: AppColors.primary)
                   : null,
@@ -308,11 +337,11 @@ class TodoSwipeTile extends ConsumerWidget {
     messenger.clearSnackBars();
     messenger.showSnackBar(
       SnackBar(
-        content: const Text('Aufgabe gelöscht'),
+        content: const Text('Task deleted'),
         duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
         action: SnackBarAction(
-          label: 'Rückgängig',
+          label: 'Undo',
           onPressed: () => notifier.restoreTodo(snapshot),
         ),
       ),

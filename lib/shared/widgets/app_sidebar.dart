@@ -22,7 +22,6 @@ class AppSidebar extends ConsumerStatefulWidget {
   final String currentView;
   final ValueChanged<String> onViewSelected;
   final VoidCallback onAddTodo;
-  final VoidCallback onSearch;
   final void Function(dynamic project) onProjectTap;
 
   const AppSidebar({
@@ -30,7 +29,6 @@ class AppSidebar extends ConsumerStatefulWidget {
     required this.currentView,
     required this.onViewSelected,
     required this.onAddTodo,
-    required this.onSearch,
     required this.onProjectTap,
   });
 
@@ -70,7 +68,7 @@ class _AppSidebarState extends ConsumerState<AppSidebar> {
     // Navigate to the default view for this section
     switch (section) {
       case SidebarSection.tasks:
-        widget.onViewSelected('inbox');
+        widget.onViewSelected('all');
       case SidebarSection.calendar:
         widget.onViewSelected('calendar');
       case SidebarSection.habits:
@@ -90,7 +88,6 @@ class _AppSidebarState extends ConsumerState<AppSidebar> {
         _IconRail(
           activeSection: section,
           onSectionSelected: _selectSection,
-          onSearch: widget.onSearch,
         ),
         Container(width: 1, color: AppColors.divider),
 
@@ -116,12 +113,10 @@ class _AppSidebarState extends ConsumerState<AppSidebar> {
 class _IconRail extends StatelessWidget {
   final SidebarSection activeSection;
   final ValueChanged<SidebarSection> onSectionSelected;
-  final VoidCallback onSearch;
 
   const _IconRail({
     required this.activeSection,
     required this.onSectionSelected,
-    required this.onSearch,
   });
 
   @override
@@ -179,14 +174,6 @@ class _IconRail extends StatelessWidget {
           ),
 
           const Spacer(),
-
-          // Search
-          _RailIcon(
-            icon: SolarIconsOutline.magnifier,
-            activeIcon: SolarIconsBold.magnifier,
-            isActive: false,
-            onTap: onSearch,
-          ),
 
           // Sync
           const _SyncRailIcon(),
@@ -375,6 +362,11 @@ class _TasksSubPanel extends ConsumerWidget {
           count: allCount,
           isSelected: currentView == 'all',
           onTap: () => onViewSelected('all'),
+          // Drop a task here to pull it out of its project (back to no-project).
+          onAcceptTodo: (todo) {
+            if (todo.projectId == null) return;
+            ref.read(todoProvider.notifier).moveToProject(todo.id, null);
+          },
         ),
         _SubNavItem(
           icon: SolarIconsOutline.calendar,
@@ -390,18 +382,6 @@ class _TasksSubPanel extends ConsumerWidget {
           isSelected: currentView == 'upcoming',
           onTap: () => onViewSelected('upcoming'),
           iconColor: AppColors.blue,
-        ),
-        _SubNavItem(
-          icon: SolarIconsOutline.inbox,
-          label: 'Inbox',
-          count: todoState.inboxTodos.length,
-          isSelected: currentView == 'inbox',
-          onTap: () => onViewSelected('inbox'),
-          // Drop here to remove a task from its project.
-          onAcceptTodo: (todo) {
-            if (todo.projectId == null) return;
-            ref.read(todoProvider.notifier).moveToProject(todo.id, null);
-          },
         ),
 
         const SizedBox(height: 4),
