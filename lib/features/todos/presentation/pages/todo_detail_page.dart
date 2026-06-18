@@ -158,24 +158,25 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Title
             TextField(
               controller: _titleController,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600, height: 1.25),
               decoration: const InputDecoration(
                 hintText: 'Aufgabe',
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
                 filled: false,
+                contentPadding: EdgeInsets.symmetric(vertical: 8),
               ),
               maxLines: null,
             ),
-            const Divider(),
+            const Divider(height: 8),
 
             // Description
             TextField(
@@ -192,12 +193,13 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
               maxLines: null,
               minLines: 3,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
-            // Compact meta chips — icons only, value shown when set.
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            // Metadata card — icon chips, value shown when set.
+            _sectionCard(
+              child: Wrap(
+              spacing: 10,
+              runSpacing: 10,
               children: [
                 // Date + time combined
                 _Chip(
@@ -306,13 +308,27 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
                   onClear: _reminderTime != null ? () => setState(() => _reminderTime = null) : null,
                 ),
               ],
+              ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             _buildTags(settings.knownTags),
           ],
         ),
       ),
+    );
+  }
+
+  /// Rounded surface card used to group the metadata / tags sections.
+  Widget _sectionCard({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: child,
     );
   }
 
@@ -325,17 +341,18 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
         .take(8)
         .toList();
 
-    return Column(
+    return _sectionCard(
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          children: [
-            const Icon(SolarIconsOutline.hashtagCircle, size: 18, color: AppColors.textSecondary),
-            const SizedBox(width: 8),
+          children: const [
+            Icon(SolarIconsOutline.hashtagCircle, size: 18, color: AppColors.textSecondary),
+            SizedBox(width: 8),
             Text('Tags', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -345,6 +362,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
               Container(
                 padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
                 decoration: BoxDecoration(
+                  color: AppColors.background,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppColors.divider),
                 ),
@@ -400,15 +418,16 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      color: AppColors.surface,
+                      color: AppColors.background,
                     ),
-                    child: Text('#$s', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                    child: Text('#$s', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                   ),
                 ),
             ],
           ),
         ],
       ],
+      ),
     );
   }
 
@@ -567,26 +586,27 @@ class _Chip extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
+            color: AppColors.background,
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.divider),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 18, color: iconColor ?? AppColors.textSecondary),
+              Icon(icon, size: 20, color: iconColor ?? AppColors.textSecondary),
               if (value != null) ...[
-                const SizedBox(width: 6),
-                Text(value!, style: const TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                const SizedBox(width: 8),
+                Text(value!, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary)),
               ],
               if (onClear != null) ...[
-                const SizedBox(width: 4),
+                const SizedBox(width: 6),
                 GestureDetector(
                   onTap: onClear,
-                  child: const Icon(SolarIconsOutline.closeCircle, size: 15, color: AppColors.textTertiary),
+                  child: const Icon(SolarIconsOutline.closeCircle, size: 16, color: AppColors.textTertiary),
                 ),
               ],
             ],
