@@ -18,7 +18,12 @@ enum _SortMode { manual, priority, dueDate, name }
 class ProjectPage extends ConsumerStatefulWidget {
   final Project project;
 
-  const ProjectPage({super.key, required this.project});
+  /// Called when the project is deleted from its edit dialog. Desktop (embedded
+  /// panel) uses this to switch back to the main list; on a pushed route it is
+  /// null and the page pops itself instead.
+  final VoidCallback? onDeleted;
+
+  const ProjectPage({super.key, required this.project, this.onDeleted});
 
   @override
   ConsumerState<ProjectPage> createState() => _ProjectPageState();
@@ -53,8 +58,15 @@ class _ProjectPageState extends ConsumerState<ProjectPage> {
 
   Future<void> _openEditDialog(BuildContext context) async {
     final currentProject = ref.read(projectProvider).getById(widget.project.id) ?? widget.project;
-    final result = await ProjectEditDialog.show(context, project: currentProject);
-    if (result == null && context.mounted) {
+    await ProjectEditDialog.show(context, project: currentProject);
+    if (!context.mounted) return;
+    // Detect deletion via provider state — the dialog returns null for BOTH
+    // cancel and delete, so we must not pop on null alone.
+    final stillExists = ref.read(projectProvider).getById(widget.project.id) != null;
+    if (stillExists) return;
+    if (widget.onDeleted != null) {
+      widget.onDeleted!();
+    } else if (Navigator.of(context).canPop()) {
       Navigator.pop(context);
     }
   }
