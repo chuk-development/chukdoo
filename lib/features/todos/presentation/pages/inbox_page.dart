@@ -9,9 +9,8 @@ import '../../providers/todo_provider.dart';
 import '../widgets/todo_input_sheet.dart';
 import '../widgets/todo_sectioned_list.dart';
 import '../widgets/quick_add_fab.dart';
-import 'search_page.dart';
 
-class InboxPage extends ConsumerWidget {
+class InboxPage extends ConsumerStatefulWidget {
   /// When true, shows ALL uncompleted todos (not just project-less inbox).
   final bool showAll;
 
@@ -20,7 +19,28 @@ class InboxPage extends ConsumerWidget {
 
   const InboxPage({super.key, this.showAll = false, this.onMenu});
 
-  void _showAddTodoSheet(BuildContext context, WidgetRef ref) {
+  @override
+  ConsumerState<InboxPage> createState() => _InboxPageState();
+}
+
+class _InboxPageState extends ConsumerState<InboxPage> {
+  bool _searching = false;
+  String _query = '';
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _stopSearch() => setState(() {
+        _searching = false;
+        _query = '';
+        _searchController.clear();
+      });
+
+  void _showAddTodoSheet() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -44,43 +64,105 @@ class InboxPage extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final showAll = widget.showAll;
     final todoState = ref.watch(todoProvider);
     final settings = ref.watch(settingsProvider);
-    final todos = showAll
+    var todos = showAll
         ? todoState.todos.where((t) => !t.isCompleted).toList()
         : todoState.inboxTodos;
-    final completedTodos = showAll
+    var completedTodos = showAll
         ? todoState.todos.where((t) => t.isCompleted).toList()
         : todoState.completedInboxTodos;
     final large = settings.checkboxSize == CheckboxSize.large;
 
+    final q = _query.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      bool match(Todo t) =>
+          t.title.toLowerCase().contains(q) ||
+          (t.description ?? '').toLowerCase().contains(q);
+      todos = todos.where(match).toList();
+      completedTodos = completedTodos.where(match).toList();
+    }
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        leading: onMenu != null
+        leading: _searching
             ? IconButton(
-                icon: const Icon(SolarIconsOutline.hamburgerMenu),
-                onPressed: onMenu,
-                tooltip: 'Menü',
+                icon: const Icon(SolarIconsOutline.altArrowLeft),
+                onPressed: _stopSearch,
+                tooltip: 'Zurück',
               )
-            : null,
-        title: Text(showAll ? 'Alle Aufgaben' : settings.mainListName),
-        actions: [
-          IconButton(
-            icon: const Icon(SolarIconsOutline.magnifier),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchPage())),
-            tooltip: 'Suchen',
-          ),
-        ],
+            : (widget.onMenu != null
+                ? IconButton(
+                    icon: const Icon(SolarIconsOutline.hamburgerMenu),
+                    onPressed: widget.onMenu,
+                    tooltip: 'Menü',
+                  )
+                : null),
+        titleSpacing: _searching ? 0 : null,
+        title: _searching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                style: const TextStyle(fontSize: 18),
+                decoration: InputDecoration(
+                  hintText: 'Aufgaben durchsuchen…',
+                  hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 18),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
+                ),
+                onChanged: (v) => setState(() => _query = v),
+              )
+            : Text(showAll ? 'Alle Aufgaben' : settings.mainListName),
+        actions: _searching
+            ? [
+                if (_query.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(SolarIconsOutline.closeCircle),
+                    onPressed: () => setState(() {
+                      _query = '';
+                      _searchController.clear();
+                    }),
+                    tooltip: 'Löschen',
+                  ),
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(SolarIconsOutline.magnifier),
+                  onPressed: () => setState(() => _searching = true),
+                  tooltip: 'Suchen',
+                ),
+              ],
       ),
       body: todoState.isLoading
           ? const Center(child: CircularProgressIndicator())
           : (todos.isEmpty && completedTodos.isEmpty)
-              ? _buildEmptyState()
+              ? (q.isNotEmpty ? _buildNoResults() : _buildEmptyState())
               : TodoSectionedList(active: todos, completed: completedTodos, large: large),
-      floatingActionButton: QuickAddFab(
-        onPressed: () => _showAddTodoSheet(context, ref),
+      floatingActionButton: _searching
+          ? null
+          : QuickAddFab(onPressed: _showAddTodoSheet),
+    );
+  }
+
+  Widget _buildNoResults() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(SolarIconsOutline.magnifier, size: 64, color: AppColors.textTertiary),
+            const SizedBox(height: 16),
+            Text('Keine Treffer für „$_query"',
+                style: const TextStyle(fontSize: 16, color: AppColors.textSecondary),
+                textAlign: TextAlign.center),
+          ],
+        ),
       ),
     );
   }
@@ -99,7 +181,7 @@ class InboxPage extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              showAll ? 'Keine offenen Aufgaben' : 'Dein Eingang ist leer',
+              widget.showAll ? 'Keine offenen Aufgaben' : 'Dein Eingang ist leer',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
