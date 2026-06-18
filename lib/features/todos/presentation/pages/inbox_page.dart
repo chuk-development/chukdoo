@@ -92,13 +92,13 @@ class _InboxPageState extends ConsumerState<InboxPage> {
             ? IconButton(
                 icon: const Icon(SolarIconsOutline.altArrowLeft),
                 onPressed: _stopSearch,
-                tooltip: 'Zurück',
+                tooltip: 'Back',
               )
             : (widget.onMenu != null
                 ? IconButton(
                     icon: const Icon(SolarIconsOutline.hamburgerMenu),
                     onPressed: widget.onMenu,
-                    tooltip: 'Menü',
+                    tooltip: 'Menu',
                   )
                 : null),
         titleSpacing: _searching ? 0 : null,
@@ -108,7 +108,7 @@ class _InboxPageState extends ConsumerState<InboxPage> {
                 autofocus: true,
                 style: const TextStyle(fontSize: 18),
                 decoration: InputDecoration(
-                  hintText: 'Aufgaben durchsuchen…',
+                  hintText: 'Search tasks…',
                   hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 18),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
@@ -117,24 +117,24 @@ class _InboxPageState extends ConsumerState<InboxPage> {
                 ),
                 onChanged: (v) => setState(() => _query = v),
               )
-            : Text(showAll ? 'Alle Aufgaben' : settings.mainListName),
+            : Text(showAll ? 'All Tasks' : settings.mainListName),
         actions: _searching
             ? [
                 if (_query.isNotEmpty)
                   IconButton(
-                    icon: const Icon(SolarIconsOutline.closeCircle),
+                    icon: const Icon(SolarIconsBold.closeCircle),
                     onPressed: () => setState(() {
                       _query = '';
                       _searchController.clear();
                     }),
-                    tooltip: 'Löschen',
+                    tooltip: 'Clear',
                   ),
               ]
             : [
                 IconButton(
-                  icon: const Icon(SolarIconsOutline.magnifier),
+                  icon: const Icon(SolarIconsBold.magnifier),
                   onPressed: () => setState(() => _searching = true),
-                  tooltip: 'Suchen',
+                  tooltip: 'Search',
                 ),
               ],
       ),
@@ -158,7 +158,7 @@ class _InboxPageState extends ConsumerState<InboxPage> {
           children: [
             const Icon(SolarIconsOutline.magnifier, size: 64, color: AppColors.textTertiary),
             const SizedBox(height: 16),
-            Text('Keine Treffer für „$_query"',
+            Text('No matches for "$_query"',
                 style: const TextStyle(fontSize: 16, color: AppColors.textSecondary),
                 textAlign: TextAlign.center),
           ],
@@ -181,7 +181,7 @@ class _InboxPageState extends ConsumerState<InboxPage> {
             ),
             const SizedBox(height: 24),
             Text(
-              widget.showAll ? 'Keine offenen Aufgaben' : 'Dein Eingang ist leer',
+              widget.showAll ? 'No open tasks' : 'Your inbox is empty',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -189,7 +189,7 @@ class _InboxPageState extends ConsumerState<InboxPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Tippe auf + um eine Aufgabe hinzuzufügen',
+              'Tap + to add a task',
               style: TextStyle(
                 fontSize: 16,
                 color: AppColors.textSecondary,

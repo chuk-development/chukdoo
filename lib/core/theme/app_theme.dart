@@ -33,10 +33,12 @@ class AppTheme {
         elevation: 0,
         centerTitle: false,
         titleTextStyle: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.w600,
+          fontSize: 25,
+          fontWeight: FontWeight.w700,
           color: AppColors.textPrimary,
         ),
+        iconTheme: IconThemeData(color: AppColors.textPrimary, size: 26),
+        actionsIconTheme: IconThemeData(color: AppColors.textPrimary, size: 26),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: AppColors.surface,
