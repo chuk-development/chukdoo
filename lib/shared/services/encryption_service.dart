@@ -182,6 +182,34 @@ class EncryptionService {
           throw StateError('Incorrect password provided.');
         }
       } else {
+        // No local key on this device (e.g. first sign-in here). For the
+        // Master Key architecture, the actual encryption key is the random
+        // Master Key — not the password-derived key. We must unwrap and cache
+        // the Master Key so data encrypted on another device decrypts here;
+        // caching the derived key instead leaves the account unable to read
+        // its own cloud data cross-device.
+        final masterKey = await BackupCodeService.getMasterKeyWithPassword(
+          userId,
+          password,
+          saltBytes,
+        );
+        if (masterKey != null) {
+          await _storage.write(key: keyKey, value: base64Encode(masterKey));
+          await _storage.write(
+            key: versionKey,
+            value: AppConstants.payloadVersion,
+          );
+          _cachedKey = SecretKey(masterKey);
+          _cachedUserId = user.id;
+          return;
+        }
+
+        // No Master Key returned. Either the account predates the Master Key
+        // architecture (legacy: data encrypted with the derived key) or the
+        // password is wrong. Distinguish so we never silently cache a bad key.
+        if (await BackupCodeService.hasMasterKeySetup(userId)) {
+          throw StateError('Incorrect password provided.');
+        }
         await _storage.write(key: keyKey, value: base64Encode(derivedKeyBytes));
       }
 
