@@ -87,7 +87,7 @@ class EventBlock extends StatelessWidget {
                     const SizedBox(height: 1),
                     Text(
                       _isTodo
-                          ? 'Aufgabe · ${_formatTime(item.startTime)}'
+                          ? 'Task · ${_formatTime(item.startTime)}'
                           : '${_formatTime(item.startTime)} – ${_formatTime(item.endTime)}',
                       style: TextStyle(
                         fontSize: 9.5,

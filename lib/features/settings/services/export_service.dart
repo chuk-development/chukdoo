@@ -1,10 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+
+import '../../../core/utils/native_io.dart' as native_io;
 
 import '../../../core/constants/app_constants.dart';
 import '../../projects/domain/models/project.dart';
@@ -87,15 +88,20 @@ class ExportService {
 
       // Get documents directory
       final directory = await getApplicationDocumentsDirectory();
-      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+      final timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
       final fileName = 'chukdoo_export_$timestamp.json';
       final filePath = '${directory.path}/$fileName';
 
       // Write file
-      final file = File(filePath);
-      await file.writeAsString(jsonString);
+      await native_io.writeFileAsString(filePath, jsonString);
 
-      debugPrint('ExportService: Exported ${todos.length} todos and ${projects.length} projects to $filePath');
+      debugPrint(
+        'ExportService: Exported ${todos.length} todos and ${projects.length} projects to $filePath',
+      );
 
       return ExportResult(
         success: true,
@@ -105,20 +111,16 @@ class ExportService {
       );
     } catch (e) {
       debugPrint('ExportService: Export failed: $e');
-      return ExportResult(
-        success: false,
-        error: e.toString(),
-      );
+      return ExportResult(success: false, error: e.toString());
     }
   }
 
   /// Share exported file
   static Future<void> shareExport(String filePath) async {
     try {
-      await Share.shareXFiles(
-        [XFile(filePath)],
-        subject: 'Chukdoo Daten Export',
-      );
+      await Share.shareXFiles([
+        XFile(filePath),
+      ], subject: 'Chukdoo Data Export');
     } catch (e) {
       debugPrint('ExportService: Share failed: $e');
     }
@@ -135,7 +137,7 @@ class ExportService {
           !data.containsKey('projects')) {
         return const ImportPreview(
           isValid: false,
-          error: 'Ungültiges Dateiformat',
+          error: 'Invalid file format',
         );
       }
 
@@ -177,13 +179,16 @@ class ExportService {
       debugPrint('ExportService: Preview failed: $e');
       return ImportPreview(
         isValid: false,
-        error: 'Fehler beim Lesen der Datei: ${e.toString()}',
+        error: 'Failed to read file: ${e.toString()}',
       );
     }
   }
 
   /// Import data from preview (replaces or merges existing data)
-  static Future<bool> importData(ImportPreview preview, {bool replace = false}) async {
+  static Future<bool> importData(
+    ImportPreview preview, {
+    bool replace = false,
+  }) async {
     if (!preview.isValid) return false;
 
     try {
@@ -212,7 +217,9 @@ class ExportService {
         }
       }
 
-      debugPrint('ExportService: Imported ${preview.todoCount} todos and ${preview.projectCount} projects');
+      debugPrint(
+        'ExportService: Imported ${preview.todoCount} todos and ${preview.projectCount} projects',
+      );
       return true;
     } catch (e) {
       debugPrint('ExportService: Import failed: $e');

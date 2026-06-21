@@ -330,7 +330,7 @@ class _TimeGridState extends State<TimeGrid> {
               child: Padding(
                 padding: const EdgeInsets.only(top: 4, right: 8),
                 child: Text(
-                  'Ganzt.',
+                  'All day',
                   style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
                   textAlign: TextAlign.right,
                 ),

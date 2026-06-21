@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/bottom_nav_bar.dart';
@@ -24,7 +24,6 @@ import 'todo_detail_page.dart';
 import 'today_page.dart';
 import 'upcoming_page.dart';
 import 'completed_tasks_page.dart';
-import 'search_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -34,7 +33,7 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
-  String _currentView = 'inbox';
+  String _currentView = 'all';
   Project? _selectedProject;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -62,7 +61,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     setState(() {
       switch (tab) {
         case NavTab.inbox:
-          _currentView = 'inbox';
+          _currentView = 'all';
         case NavTab.calendar:
           _currentView = 'calendar';
         case NavTab.habits:
@@ -96,13 +95,22 @@ class _HomePageState extends ConsumerState<HomePage> {
         return const KanbanPage(embedded: true);
       case 'project':
         if (_selectedProject != null) {
-          return ProjectPage(project: _selectedProject!);
+          return ProjectPage(
+            project: _selectedProject!,
+            // Mobile shows a hamburger (drawer); desktop embeds without one.
+            onMenu: menu,
+            // Embedded panel can't pop a route — switch back to the main list.
+            onDeleted: () => setState(() {
+              _selectedProject = null;
+              _currentView = 'all';
+            }),
+          );
         }
-        return const InboxPage();
+        return const InboxPage(showAll: true);
       case 'settings':
         return const SettingsPage();
       default:
-        return const InboxPage();
+        return const InboxPage(showAll: true);
     }
   }
 
@@ -118,33 +126,21 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _handleAddTodo() {
-    // Navigate to inbox and let the FAB handle adding
+    // Navigate to the main list and let the FAB handle adding
     setState(() {
-      _currentView = 'inbox';
+      _currentView = 'all';
     });
   }
 
-  void _handleSearch() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const SearchPage()),
-    );
-  }
-
   void _handleProjectTap(dynamic project) {
-    final isDesktop = MediaQuery.of(context).size.width >= 768;
-    if (isDesktop) {
-      ref.read(selectedTodoProvider.notifier).state = null;
-      setState(() {
-        _selectedProject = project as Project;
-        _currentView = 'project';
-      });
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => ProjectPage(project: project as Project)),
-      );
-    }
+    // Both mobile and desktop render the project inline in the content area so
+    // it looks like the main task screen (bottom nav / drawer stay in place)
+    // instead of pushing a separate full-screen route.
+    ref.read(selectedTodoProvider.notifier).state = null;
+    setState(() {
+      _selectedProject = project as Project;
+      _currentView = 'project';
+    });
   }
 
   @override
@@ -163,7 +159,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                     currentView: _currentView,
                     onViewSelected: _handleSidebarViewSelected,
                     onAddTodo: _handleAddTodo,
-                    onSearch: _handleSearch,
                     onProjectTap: _handleProjectTap,
                   ),
                   Container(width: 1, color: AppColors.divider),
@@ -240,24 +235,24 @@ class _MobileDrawer extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Liste umbenennen'),
+        title: const Text('Rename list'),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(hintText: 'Name der Liste'),
+          decoration: const InputDecoration(hintText: 'List name'),
           onSubmitted: (_) {
             ref.read(settingsProvider.notifier).setMainListName(controller.text);
             Navigator.pop(ctx);
           },
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Abbrechen')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           TextButton(
             onPressed: () {
               ref.read(settingsProvider.notifier).setMainListName(controller.text);
               Navigator.pop(ctx);
             },
-            child: const Text('Speichern'),
+            child: const Text('Save'),
           ),
         ],
       ),
@@ -273,6 +268,8 @@ class _MobileDrawer extends ConsumerWidget {
 
     return Drawer(
       backgroundColor: AppColors.background,
+      // Square edges — no rounded right corners.
+      shape: const RoundedRectangleBorder(),
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -285,45 +282,36 @@ class _MobileDrawer extends ConsumerWidget {
               ),
             ),
 
-            // Main list (renameable)
+            // Main list (renameable) — shows all open tasks
             _DrawerItem(
-              icon: SolarIconsBold.bookmark,
+              icon: MdiIcons.bookmark,
               iconColor: AppColors.primary,
               label: settings.mainListName,
-              count: todoState.inboxTodos.length,
-              isSelected: currentView == 'inbox',
-              onTap: () => onViewSelected('inbox'),
-              trailing: IconButton(
-                icon: const Icon(SolarIconsOutline.pen, size: 16, color: AppColors.textTertiary),
-                tooltip: 'Umbenennen',
-                onPressed: () => _renameMainList(context, ref, settings.mainListName),
-              ),
+              count: todoState.todos.where((t) => !t.isCompleted).length,
+              isSelected: currentView == 'all',
+              onTap: () => onViewSelected('all'),
+              // Long-press to rename (no edit icon cluttering the row).
+              onLongPress: () => _renameMainList(context, ref, settings.mainListName),
             ),
             _DrawerItem(
-              icon: SolarIconsOutline.sun,
+              icon: MdiIcons.calendarTodayOutline,
               iconColor: AppColors.green,
-              label: 'Heute',
+              label: 'Today',
               count: todoState.todayTodos.length,
               isSelected: currentView == 'today',
               onTap: () => onViewSelected('today'),
             ),
             _DrawerItem(
-              icon: SolarIconsOutline.calendarMark,
+              // Same calendar icon as the bottom nav's Calendar tab.
+              icon: MdiIcons.calendarOutline,
               iconColor: AppColors.blue,
-              label: 'Demnächst',
+              label: 'Upcoming',
               isSelected: currentView == 'upcoming',
               onTap: () => onViewSelected('upcoming'),
             ),
             _DrawerItem(
-              icon: SolarIconsOutline.inbox,
-              label: 'Alle',
-              count: todoState.todos.where((t) => !t.isCompleted).length,
-              isSelected: currentView == 'all',
-              onTap: () => onViewSelected('all'),
-            ),
-            _DrawerItem(
-              icon: SolarIconsOutline.checkCircle,
-              label: 'Erledigt',
+              icon: MdiIcons.checkCircleOutline,
+              label: 'Completed',
               isSelected: currentView == 'completed',
               onTap: () => onViewSelected('completed'),
             ),
@@ -332,7 +320,7 @@ class _MobileDrawer extends ConsumerWidget {
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, 4),
               child: Text(
-                'PROJEKTE',
+                'PROJECTS',
                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.8, color: AppColors.textTertiary),
               ),
             ),
@@ -355,8 +343,8 @@ class _MobileDrawer extends ConsumerWidget {
 
             const Divider(height: 1),
             ListTile(
-              leading: const Icon(SolarIconsOutline.addCircle, color: AppColors.primary),
-              title: const Text('Neues Projekt', style: TextStyle(color: AppColors.primary)),
+              leading: Icon(MdiIcons.plusCircleOutline, color: AppColors.primary),
+              title: const Text('New Project', style: TextStyle(color: AppColors.primary)),
               onTap: () {
                 Navigator.pop(context);
                 ProjectEditDialog.show(context);
@@ -377,16 +365,16 @@ class _DrawerItem extends StatelessWidget {
   final int? count;
   final bool isSelected;
   final VoidCallback onTap;
-  final Widget? trailing;
+  final VoidCallback? onLongPress;
 
   const _DrawerItem({
     required this.icon,
     required this.label,
     required this.isSelected,
     required this.onTap,
+    this.onLongPress,
     this.iconColor,
     this.count,
-    this.trailing,
   });
 
   @override
@@ -397,8 +385,11 @@ class _DrawerItem extends StatelessWidget {
         color: isSelected ? AppColors.primary.withValues(alpha: 0.12) : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
       ),
+      // Clip the ListTile ink to the rounded pill so the tap highlight isn't square.
+      clipBehavior: Clip.antiAlias,
       child: ListTile(
         dense: true,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         leading: Icon(icon, size: 20, color: isSelected ? AppColors.primary : (iconColor ?? AppColors.textSecondary)),
         title: Text(
           label,
@@ -409,11 +400,11 @@ class _DrawerItem extends StatelessWidget {
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
-        trailing: trailing ??
-            (count != null && count! > 0
-                ? Text('$count', style: const TextStyle(fontSize: 13, color: AppColors.textTertiary))
-                : null),
+        trailing: count != null && count! > 0
+            ? Text('$count', style: const TextStyle(fontSize: 13, color: AppColors.textTertiary))
+            : null,
         onTap: onTap,
+        onLongPress: onLongPress,
       ),
     );
   }
@@ -430,14 +421,19 @@ class _DrawerProjectTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final projectColor = Color(project.color);
 
-    return ListTile(
-      dense: true,
-      leading: Icon(projectIconFor(project.icon), size: 20, color: projectColor),
-      title: Text(project.name, style: const TextStyle(fontSize: 15), overflow: TextOverflow.ellipsis),
-      trailing: count > 0
-          ? Text('$count', style: const TextStyle(fontSize: 13, color: AppColors.textTertiary))
-          : null,
-      onTap: onTap,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      child: ListTile(
+        dense: true,
+        // Rounded ink highlight, matching _DrawerItem.
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        leading: Icon(projectIconFor(project.icon), size: 20, color: projectColor),
+        title: Text(project.name, style: const TextStyle(fontSize: 15), overflow: TextOverflow.ellipsis),
+        trailing: count > 0
+            ? Text('$count', style: const TextStyle(fontSize: 13, color: AppColors.textTertiary))
+            : null,
+        onTap: onTap,
+      ),
     );
   }
 }

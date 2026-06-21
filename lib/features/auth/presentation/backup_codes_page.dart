@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../providers/auth_provider.dart';
@@ -21,7 +21,7 @@ class _BackupCodesPageState extends ConsumerState<BackupCodesPage> {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Codes in Zwischenablage kopiert'),
+        content: Text('Codes copied to clipboard'),
         duration: Duration(seconds: 2),
       ),
     );
@@ -31,7 +31,7 @@ class _BackupCodesPageState extends ConsumerState<BackupCodesPage> {
     Clipboard.setData(ClipboardData(text: code));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$code kopiert'),
+        content: Text('$code copied'),
         duration: const Duration(seconds: 1),
       ),
     );
@@ -48,7 +48,7 @@ class _BackupCodesPageState extends ConsumerState<BackupCodesPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Backup-Codes'),
+        title: const Text('Backup codes'),
         automaticallyImplyLeading: false,
       ),
       body: SafeArea(
@@ -72,15 +72,15 @@ class _BackupCodesPageState extends ConsumerState<BackupCodesPage> {
                         color: AppColors.primary.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
-                        SolarIconsOutline.key,
+                      child: Icon(
+                        MdiIcons.keyOutline,
                         size: 40,
                         color: AppColors.primary,
                       ),
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'Sichere deine Backup-Codes',
+                      'Save your backup codes',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -90,7 +90,7 @@ class _BackupCodesPageState extends ConsumerState<BackupCodesPage> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Diese Codes ermöglichen den Zugriff auf deine Daten, falls du dein Passwort vergisst. Jeder Code kann nur einmal verwendet werden.',
+                      'These codes let you access your data if you forget your password. Each code can only be used once.',
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.textSecondary,
@@ -127,8 +127,8 @@ class _BackupCodesPageState extends ConsumerState<BackupCodesPage> {
               // Copy all button
               OutlinedButton.icon(
                 onPressed: codes.isEmpty ? null : () => _copyAllCodes(codes),
-                icon: const Icon(SolarIconsOutline.copy),
-                label: const Text('Alle kopieren'),
+                icon: Icon(MdiIcons.contentCopy),
+                label: const Text('Copy all'),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
@@ -141,7 +141,7 @@ class _BackupCodesPageState extends ConsumerState<BackupCodesPage> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: AppColors.warning.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: AppColors.warning.withValues(alpha: 0.3),
                   ),
@@ -150,14 +150,14 @@ class _BackupCodesPageState extends ConsumerState<BackupCodesPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(
-                      SolarIconsOutline.dangerTriangle,
+                      MdiIcons.alertOutline,
                       size: 20,
                       color: AppColors.warning,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Speichere diese Codes an einem sicheren Ort. Du siehst sie nur dieses eine Mal!',
+                        'Store these codes somewhere safe. This is the only time you will see them!',
                         style: TextStyle(
                           fontSize: 13,
                           color: AppColors.warning,
@@ -179,7 +179,7 @@ class _BackupCodesPageState extends ConsumerState<BackupCodesPage> {
                   });
                 },
                 title: const Text(
-                  'Ich habe die Codes sicher aufbewahrt',
+                  'I have saved the codes somewhere safe',
                   style: TextStyle(fontSize: 14),
                 ),
                 controlAffinity: ListTileControlAffinity.leading,
@@ -193,7 +193,7 @@ class _BackupCodesPageState extends ConsumerState<BackupCodesPage> {
                 height: 48,
                 child: ElevatedButton(
                   onPressed: _hasSavedCodes ? _handleContinue : null,
-                  child: const Text('Weiter'),
+                  child: const Text('Continue'),
                 ),
               ),
             ],
@@ -233,13 +233,13 @@ class _BackupCodesPageState extends ConsumerState<BackupCodesPage> {
           ),
           IconButton(
             onPressed: () => _copySingleCode(code),
-            icon: const Icon(
-              SolarIconsOutline.copy,
+            icon: Icon(
+              MdiIcons.contentCopy,
               size: 18,
               color: AppColors.textSecondary,
             ),
             visualDensity: VisualDensity.compact,
-            tooltip: 'Kopieren',
+            tooltip: 'Copy',
           ),
         ],
       ),

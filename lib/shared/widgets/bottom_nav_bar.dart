@@ -1,20 +1,34 @@
 import 'package:flutter/material.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../core/theme/app_colors.dart';
 
 enum NavTab {
-  inbox(0, 'Inbox', SolarIconsOutline.inbox, SolarIconsBold.inbox),
-  calendar(1, 'Calendar', SolarIconsOutline.calendar, SolarIconsBold.calendar),
-  habits(3, 'Habits', SolarIconsOutline.target, SolarIconsBold.target),
-  more(4, 'More', SolarIconsOutline.settings, SolarIconsBold.settings);
+  inbox(0, 'Inbox'),
+  calendar(1, 'Calendar'),
+  habits(3, 'Habits'),
+  more(4, 'More');
 
-  const NavTab(this.tabIndex, this.label, this.icon, this.activeIcon);
+  const NavTab(this.tabIndex, this.label);
 
   final int tabIndex;
   final String label;
-  final IconData icon;
-  final IconData activeIcon;
+
+  // MDI getters are non-const, so resolve icons at runtime.
+  // Outline = unselected, filled = selected.
+  IconData get icon => switch (this) {
+        NavTab.inbox => MdiIcons.inboxOutline,
+        NavTab.calendar => MdiIcons.calendarOutline,
+        NavTab.habits => MdiIcons.trophyOutline,
+        NavTab.more => MdiIcons.cogOutline,
+      };
+
+  IconData get activeIcon => switch (this) {
+        NavTab.inbox => MdiIcons.inboxFull,
+        NavTab.calendar => MdiIcons.calendar,
+        NavTab.habits => MdiIcons.trophy,
+        NavTab.more => MdiIcons.cog,
+      };
 }
 
 class ChukdooBottomNavBar extends StatelessWidget {
@@ -85,9 +99,8 @@ class _NavItem extends StatelessWidget {
               height: 28,
               child: Center(
                 child: Icon(
-                  // Always the filled (Bold) glyph — fatter, easier to read.
-                  // Color carries the selected/unselected distinction.
-                  tab.activeIcon,
+                  // Outline when inactive, filled when selected. No animation.
+                  isSelected ? tab.activeIcon : tab.icon,
                   color: isSelected ? AppColors.primary : AppColors.textSecondary,
                   size: 26,
                 ),

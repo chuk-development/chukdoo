@@ -1,10 +1,11 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/config/env_config.dart';
+import '../../../core/utils/platform_utils.dart';
 import '../../../shared/services/supabase_service.dart';
 import '../domain/models/subscription_status.dart';
 import '../services/revenuecat_service.dart';
@@ -22,8 +23,10 @@ class SubscriptionState {
     this.error,
   });
 
-  bool get canSync => status.canSync;
-  bool get isPro => status.tier == SubscriptionTier.pro && status.isActive;
+  bool get canSync => EnvConfig.forcePro || status.canSync;
+  bool get isPro =>
+      EnvConfig.forcePro ||
+      (status.tier == SubscriptionTier.pro && status.isActive);
   bool get isLocalOnlyMode => EnvConfig.isLocalOnlyMode;
 
   SubscriptionState copyWith({
@@ -54,8 +57,9 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState>
     WidgetsBinding.instance.addObserver(this);
 
     // Listen to customer info updates from RevenueCat
-    _customerInfoSubscription =
-        RevenueCatService.customerInfoStream.listen((_) {
+    _customerInfoSubscription = RevenueCatService.customerInfoStream.listen((
+      _,
+    ) {
       refresh();
     });
 
@@ -75,7 +79,7 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState>
   /// - On desktop (Linux/Windows/macOS): Loads from Supabase
   Future<void> refresh() async {
     // Check if we're on a desktop platform (no RevenueCat)
-    final isDesktop = Platform.isLinux || Platform.isWindows || Platform.isMacOS;
+    final isDesktop = PlatformUtils.isDesktop;
 
     if (isDesktop) {
       // Desktop: Load subscription from Supabase
@@ -133,7 +137,9 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState>
     try {
       final status = await SubscriptionSyncService.loadFromSupabase();
       state = state.copyWith(status: status, isLoading: false);
-      debugPrint('SubscriptionProvider: Loaded from Supabase - canSync=${status.canSync}');
+      debugPrint(
+        'SubscriptionProvider: Loaded from Supabase - canSync=${status.canSync}',
+      );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -172,8 +178,8 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState>
 /// Provider for subscription state
 final subscriptionProvider =
     StateNotifierProvider<SubscriptionNotifier, SubscriptionState>((ref) {
-  return SubscriptionNotifier();
-});
+      return SubscriptionNotifier();
+    });
 
 /// Convenience provider for checking if user can sync
 final canSyncProvider = Provider<bool>((ref) {

@@ -17,8 +17,8 @@ class EventDetailSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dateFormat = DateFormat('EEE, d. MMM yyyy', 'de_DE');
-    final timeFormat = DateFormat('HH:mm', 'de_DE');
+    final dateFormat = DateFormat('EEE, d. MMM yyyy', 'en_US');
+    final timeFormat = DateFormat('HH:mm', 'en_US');
     final calendarState = ref.watch(calendarContainerProvider);
 
     final isTodo = item is TodoItem;
@@ -78,7 +78,7 @@ class EventDetailSheet extends ConsumerWidget {
                 children: [
                   Icon(Icons.check_circle_outline, size: 18, color: AppColors.textSecondary),
                   const SizedBox(width: 8),
-                  Text('Aufgabe', style: TextStyle(color: AppColors.textSecondary, fontStyle: FontStyle.italic)),
+                  Text('Task', style: TextStyle(color: AppColors.textSecondary, fontStyle: FontStyle.italic)),
                 ],
               ),
             ),
@@ -109,7 +109,7 @@ class EventDetailSheet extends ConsumerWidget {
                     Navigator.pop(context);
                     EventCreateDialog.show(context, editEvent: (item as EventItem).event);
                   },
-                  child: const Text('Bearbeiten'),
+                  child: const Text('Edit'),
                 ),
                 const SizedBox(width: 8),
                 TextButton(
@@ -118,7 +118,7 @@ class EventDetailSheet extends ConsumerWidget {
                     ref.read(calendarEventProvider.notifier).deleteEvent(event.id);
                     Navigator.pop(context);
                   },
-                  child: const Text('Löschen', style: TextStyle(color: Colors.red)),
+                  child: const Text('Delete', style: TextStyle(color: Colors.red)),
                 ),
               ],
             ],
@@ -159,10 +159,10 @@ class EventDetailSheet extends ConsumerWidget {
       final config = RRuleHelper.parseRRule(event.recurrenceRule!);
       final label = config != null
           ? switch (config.frequency) {
-              RecurrenceFrequency.daily => 'Täglich',
-              RecurrenceFrequency.weekly => 'Wöchentlich',
-              RecurrenceFrequency.monthly => 'Monatlich',
-              RecurrenceFrequency.yearly => 'Jährlich',
+              RecurrenceFrequency.daily => 'Daily',
+              RecurrenceFrequency.weekly => 'Weekly',
+              RecurrenceFrequency.monthly => 'Monthly',
+              RecurrenceFrequency.yearly => 'Yearly',
             }
           : event.recurrenceRule!;
 

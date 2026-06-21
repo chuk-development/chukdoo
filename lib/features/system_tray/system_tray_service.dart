@@ -1,10 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../core/utils/native_io.dart' as native_io;
+import '../../core/utils/platform_utils.dart';
 import '../sync/services/sync_service.dart';
 
 /// Service for managing system tray on Linux/Windows/macOS desktop.
@@ -26,33 +26,55 @@ class SystemTrayService with TrayListener {
   /// Get the absolute path to the tray icon
   String _getIconPath() {
     // Get the directory where the executable is located
-    final exePath = Platform.resolvedExecutable;
+    final exePath = native_io.getResolvedExecutable();
     final exeDir = path.dirname(exePath);
 
-    if (Platform.isLinux) {
+    if (PlatformUtils.isLinux) {
       // For installed app: /opt/chukdoo/data/flutter_assets/assets/images/app_icon.png
       // For dev build: build/linux/x64/release/bundle/data/flutter_assets/assets/images/app_icon.png
-      final iconPath = path.join(exeDir, 'data', 'flutter_assets', 'assets', 'images', 'app_icon.png');
+      final iconPath = path.join(
+        exeDir,
+        'data',
+        'flutter_assets',
+        'assets',
+        'images',
+        'app_icon.png',
+      );
       debugPrint('SystemTrayService: Icon path: $iconPath');
 
       // Check if file exists, fallback to system icon
-      if (File(iconPath).existsSync()) {
+      if (native_io.fileExists(iconPath)) {
         return iconPath;
       }
 
       // Try installed path
-      const installedPath = '/opt/chukdoo/data/flutter_assets/assets/images/app_icon.png';
-      if (File(installedPath).existsSync()) {
+      const installedPath =
+          '/opt/chukdoo/data/flutter_assets/assets/images/app_icon.png';
+      if (native_io.fileExists(installedPath)) {
         return installedPath;
       }
 
       // Fallback to a system icon
       debugPrint('SystemTrayService: Icon not found, using fallback');
       return '/usr/share/icons/hicolor/256x256/apps/chukdoo.png';
-    } else if (Platform.isWindows) {
-      return path.join(exeDir, 'data', 'flutter_assets', 'assets', 'images', 'app_icon.ico');
+    } else if (PlatformUtils.isWindows) {
+      return path.join(
+        exeDir,
+        'data',
+        'flutter_assets',
+        'assets',
+        'images',
+        'app_icon.ico',
+      );
     } else {
-      return path.join(exeDir, 'data', 'flutter_assets', 'assets', 'images', 'app_icon.png');
+      return path.join(
+        exeDir,
+        'data',
+        'flutter_assets',
+        'assets',
+        'images',
+        'app_icon.png',
+      );
     }
   }
 
@@ -77,7 +99,7 @@ class SystemTrayService with TrayListener {
 
       // Note: setToolTip is not implemented for Linux in tray_manager 0.2.x
       // Skip it on Linux to avoid MissingPluginException
-      if (!Platform.isLinux) {
+      if (!PlatformUtils.isLinux) {
         await trayManager.setToolTip('Chukdoo - Todo App');
       }
 
@@ -97,8 +119,7 @@ class SystemTrayService with TrayListener {
     }
   }
 
-  bool get _isDesktop =>
-      Platform.isLinux || Platform.isWindows || Platform.isMacOS;
+  bool get _isDesktop => PlatformUtils.isDesktop;
 
   @override
   void onTrayIconMouseDown() {
@@ -118,7 +139,7 @@ class SystemTrayService with TrayListener {
       // Right click - show context menu
       // Note: On Linux with AppIndicator, the menu is shown automatically
       // popUpContextMenu is not implemented for Linux in tray_manager 0.2.x
-      if (!Platform.isLinux) {
+      if (!PlatformUtils.isLinux) {
         trayManager.popUpContextMenu();
       }
     } catch (e) {
@@ -198,18 +219,12 @@ class SystemTrayService with TrayListener {
         items: [
           MenuItem(
             key: 'show_hide',
-            label: _isWindowVisible ? 'Fenster verstecken' : 'Fenster zeigen',
+            label: _isWindowVisible ? 'Hide Window' : 'Show Window',
           ),
           MenuItem.separator(),
-          MenuItem(
-            key: 'sync_now',
-            label: 'Jetzt synchronisieren',
-          ),
+          MenuItem(key: 'sync_now', label: 'Sync Now'),
           MenuItem.separator(),
-          MenuItem(
-            key: 'quit',
-            label: 'Beenden',
-          ),
+          MenuItem(key: 'quit', label: 'Quit'),
         ],
       );
       await trayManager.setContextMenu(menu);
@@ -242,7 +257,7 @@ class SystemTrayService with TrayListener {
     }
 
     // Use exit(0) for clean shutdown - windowManager.destroy() can crash
-    exit(0);
+    native_io.exitApp(0);
   }
 
   /// Handle window close request (minimize to tray instead of closing)
@@ -261,7 +276,7 @@ class SystemTrayService with TrayListener {
   Future<void> updateTooltip(String message) async {
     if (!_isInitialized) return;
     // setToolTip is not implemented for Linux in tray_manager 0.2.x
-    if (!Platform.isLinux) {
+    if (!PlatformUtils.isLinux) {
       try {
         await trayManager.setToolTip('Chukdoo - $message');
       } catch (e) {

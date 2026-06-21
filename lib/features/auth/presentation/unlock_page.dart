@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../providers/auth_provider.dart';
@@ -65,8 +65,8 @@ class _UnlockPageState extends ConsumerState<UnlockPage> {
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword
-                              ? SolarIconsOutline.eyeClosed
-                              : SolarIconsOutline.eye,
+                              ? MdiIcons.eyeOffOutline
+                              : MdiIcons.eyeOutline,
                         ),
                         onPressed: () {
                           setState(() {
@@ -127,7 +127,7 @@ class _UnlockPageState extends ConsumerState<UnlockPage> {
                     onPressed: () {
                       Navigator.pushNamed(context, '/recovery');
                     },
-                    child: const Text('Passwort vergessen?'),
+                    child: const Text('Forgot password?'),
                   ),
 
                   const SizedBox(height: 8),
@@ -137,7 +137,7 @@ class _UnlockPageState extends ConsumerState<UnlockPage> {
                     onPressed: () {
                       ref.read(authProvider.notifier).signOut();
                     },
-                    child: const Text('Anderes Konto verwenden'),
+                    child: const Text('Use a different account'),
                   ),
                 ],
               ),

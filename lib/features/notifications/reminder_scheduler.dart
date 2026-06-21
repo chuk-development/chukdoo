@@ -107,20 +107,20 @@ class ReminderScheduler {
       if (dueDate.year == now.year &&
           dueDate.month == now.month &&
           dueDate.day == now.day) {
-        parts.add('Fällig heute');
+        parts.add('Due today');
       } else if (dueDate.isBefore(now)) {
-        parts.add('Überfällig');
+        parts.add('Overdue');
       } else {
-        parts.add('Fällig: ${_formatDate(dueDate)}');
+        parts.add('Due: ${_formatDate(dueDate)}');
       }
 
       if (todo.dueTime != null) {
-        parts.add('um ${_formatTime(todo.dueTime!)}');
+        parts.add('at ${_formatTime(todo.dueTime!)}');
       }
     }
 
     if (parts.isEmpty) {
-      return 'Erinnerung an deine Aufgabe';
+      return 'Reminder for your task';
     }
 
     return parts.join(' ');

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../features/projects/domain/models/project.dart';
@@ -149,26 +149,26 @@ class _IconRail extends StatelessWidget {
 
           // Section icons
           _RailIcon(
-            icon: SolarIconsOutline.checkSquare,
-            activeIcon: SolarIconsBold.checkSquare,
+            icon: MdiIcons.checkboxMarkedOutline,
+            activeIcon: MdiIcons.checkboxMarked,
             isActive: activeSection == SidebarSection.tasks,
             onTap: () => onSectionSelected(SidebarSection.tasks),
           ),
           _RailIcon(
-            icon: SolarIconsOutline.calendar,
-            activeIcon: SolarIconsBold.calendar,
+            icon: MdiIcons.calendarOutline,
+            activeIcon: MdiIcons.calendar,
             isActive: activeSection == SidebarSection.calendar,
             onTap: () => onSectionSelected(SidebarSection.calendar),
           ),
           _RailIcon(
-            icon: SolarIconsOutline.target,
-            activeIcon: SolarIconsBold.target,
+            icon: MdiIcons.target,
+            activeIcon: MdiIcons.target,
             isActive: activeSection == SidebarSection.habits,
             onTap: () => onSectionSelected(SidebarSection.habits),
           ),
           _RailIcon(
-            icon: SolarIconsOutline.widgetAdd,
-            activeIcon: SolarIconsBold.widgetAdd,
+            icon: MdiIcons.viewGridPlusOutline,
+            activeIcon: MdiIcons.viewGridPlus,
             isActive: activeSection == SidebarSection.kanban,
             onTap: () => onSectionSelected(SidebarSection.kanban),
           ),
@@ -211,7 +211,7 @@ class _RailIcon extends StatelessWidget {
         onPressed: onTap,
         style: IconButton.styleFrom(
           backgroundColor: isActive ? AppColors.primary.withValues(alpha: 0.12) : Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           fixedSize: const Size(46, 46),
         ),
       ),
@@ -234,16 +234,16 @@ class _SyncRailIcon extends StatelessWidget {
 
         switch (status) {
           case SyncStatus.syncing:
-            icon = SolarIconsOutline.refresh;
+            icon = MdiIcons.refresh;
             color = AppColors.primary;
           case SyncStatus.error:
-            icon = SolarIconsOutline.dangerCircle;
+            icon = MdiIcons.alertCircleOutline;
             color = AppColors.error;
           case SyncStatus.offline:
-            icon = SolarIconsOutline.cloudCross;
+            icon = MdiIcons.cloudOffOutline;
             color = AppColors.textTertiary;
           case SyncStatus.idle:
-            icon = SolarIconsOutline.refresh;
+            icon = MdiIcons.refresh;
             color = AppColors.textSecondary;
         }
 
@@ -293,21 +293,21 @@ class _SubPanel extends ConsumerWidget {
           ),
         SidebarSection.calendar => _SimpleSubPanel(
             title: 'Calendar',
-            icon: SolarIconsOutline.calendar,
+            icon: MdiIcons.calendarOutline,
             currentView: currentView,
             onViewSelected: onViewSelected,
             section: SidebarSection.calendar,
           ),
         SidebarSection.habits => _SimpleSubPanel(
             title: 'Habits',
-            icon: SolarIconsOutline.target,
+            icon: MdiIcons.target,
             currentView: currentView,
             onViewSelected: onViewSelected,
             section: SidebarSection.habits,
           ),
         SidebarSection.kanban => _SimpleSubPanel(
             title: 'Kanban Board',
-            icon: SolarIconsOutline.widgetAdd,
+            icon: MdiIcons.viewGridPlusOutline,
             currentView: currentView,
             onViewSelected: onViewSelected,
             section: SidebarSection.kanban,
@@ -357,7 +357,7 @@ class _TasksSubPanel extends ConsumerWidget {
 
         // Smart views
         _SubNavItem(
-          icon: SolarIconsOutline.inbox,
+          icon: MdiIcons.inboxOutline,
           label: 'All',
           count: allCount,
           isSelected: currentView == 'all',
@@ -369,7 +369,7 @@ class _TasksSubPanel extends ConsumerWidget {
           },
         ),
         _SubNavItem(
-          icon: SolarIconsOutline.calendar,
+          icon: MdiIcons.calendarOutline,
           label: 'Today',
           count: todoState.todayTodos.length,
           isSelected: currentView == 'today',
@@ -377,7 +377,7 @@ class _TasksSubPanel extends ConsumerWidget {
           iconColor: AppColors.green,
         ),
         _SubNavItem(
-          icon: SolarIconsOutline.calendarMark,
+          icon: MdiIcons.calendarCheckOutline,
           label: 'Next 7 Days',
           isSelected: currentView == 'upcoming',
           onTap: () => onViewSelected('upcoming'),
@@ -441,13 +441,13 @@ class _TasksSubPanel extends ConsumerWidget {
 
         // Bottom items
         _SubNavItem(
-          icon: SolarIconsOutline.checkCircle,
+          icon: MdiIcons.checkCircleOutline,
           label: 'Completed',
           isSelected: currentView == 'completed',
           onTap: () => onViewSelected('completed'),
         ),
         _SubNavItem(
-          icon: SolarIconsOutline.settings,
+          icon: MdiIcons.cogOutline,
           label: 'Settings',
           isSelected: currentView == 'settings',
           onTap: () => onViewSelected('settings'),
@@ -480,7 +480,7 @@ class _SimpleSubPanel extends StatelessWidget {
       case SidebarSection.calendar:
         return [
           _SubNavItem(
-            icon: SolarIconsOutline.calendarMinimalistic,
+            icon: MdiIcons.calendarBlankOutline,
             label: 'Day View',
             isSelected: currentView == 'calendar',
             onTap: () => onViewSelected('calendar'),
@@ -500,7 +500,7 @@ class _SimpleSubPanel extends StatelessWidget {
       case SidebarSection.habits:
         return [
           _SubNavItem(
-            icon: SolarIconsOutline.target,
+            icon: MdiIcons.target,
             label: 'Habits',
             isSelected: currentView == 'habits',
             onTap: () => onViewSelected('habits'),
@@ -520,7 +520,7 @@ class _SimpleSubPanel extends StatelessWidget {
       case SidebarSection.kanban:
         return [
           _SubNavItem(
-            icon: SolarIconsOutline.widgetAdd,
+            icon: MdiIcons.viewGridPlusOutline,
             label: 'Board',
             isSelected: currentView == 'kanban',
             onTap: () => onViewSelected('kanban'),
@@ -574,7 +574,7 @@ class _SimpleSubPanel extends StatelessWidget {
         const Spacer(),
         const Divider(color: AppColors.divider, height: 1),
         _SubNavItem(
-          icon: SolarIconsOutline.settings,
+          icon: MdiIcons.cogOutline,
           label: 'Settings',
           isSelected: currentView == 'settings',
           onTap: () => onViewSelected('settings'),

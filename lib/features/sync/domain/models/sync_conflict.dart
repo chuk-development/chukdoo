@@ -30,16 +30,16 @@ class SyncConflict {
   /// Get a list of changed fields
   List<String> get changedFields {
     final changes = <String>[];
-    if (localVersion.title != serverVersion.title) changes.add('Titel');
-    if (localVersion.description != serverVersion.description) changes.add('Beschreibung');
-    if (localVersion.dueDate != serverVersion.dueDate) changes.add('Fälligkeitsdatum');
+    if (localVersion.title != serverVersion.title) changes.add('Title');
+    if (localVersion.description != serverVersion.description) changes.add('Description');
+    if (localVersion.dueDate != serverVersion.dueDate) changes.add('Due date');
     if (localVersion.dueTime?.hour != serverVersion.dueTime?.hour ||
         localVersion.dueTime?.minute != serverVersion.dueTime?.minute) {
-      changes.add('Uhrzeit');
+      changes.add('Time');
     }
-    if (localVersion.priority != serverVersion.priority) changes.add('Priorität');
+    if (localVersion.priority != serverVersion.priority) changes.add('Priority');
     if (localVersion.isCompleted != serverVersion.isCompleted) changes.add('Status');
-    if (localVersion.projectId != serverVersion.projectId) changes.add('Projekt');
+    if (localVersion.projectId != serverVersion.projectId) changes.add('Project');
     return changes;
   }
 }

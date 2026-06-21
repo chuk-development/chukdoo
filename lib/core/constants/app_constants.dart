@@ -48,4 +48,7 @@ class AppConstants {
   static const String hivePendingBox = 'pending_sync';
   static const String hiveMetaBox = 'meta';
   static const String hiveSettingsBox = 'settings';
+  static const String hiveCalendarsBox = 'calendars';
+  static const String hiveCalendarEventsBox = 'calendar_events';
+  static const String hiveHabitsBox = 'habits';
 }

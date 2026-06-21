@@ -1,17 +1,13 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../core/utils/platform_utils.dart';
 import 'system_tray_service.dart';
 
 /// Widget that wraps the app to handle window close events.
 /// On desktop, closing the window minimizes to tray instead.
 class TrayAwareApp extends StatefulWidget {
-  const TrayAwareApp({
-    super.key,
-    required this.child,
-  });
+  const TrayAwareApp({super.key, required this.child});
 
   final Widget child;
 
@@ -36,8 +32,7 @@ class _TrayAwareAppState extends State<TrayAwareApp> with WindowListener {
     super.dispose();
   }
 
-  bool get _isDesktop =>
-      Platform.isLinux || Platform.isWindows || Platform.isMacOS;
+  bool get _isDesktop => PlatformUtils.isDesktop;
 
   @override
   void onWindowClose() async {

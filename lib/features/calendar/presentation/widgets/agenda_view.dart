@@ -17,7 +17,7 @@ class AgendaView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final calendarItems = ref.watch(calendarItemsProvider);
-    final timeFormat = DateFormat('HH:mm', 'de_DE');
+    final timeFormat = DateFormat('HH:mm', 'en_US');
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
@@ -36,7 +36,7 @@ class AgendaView extends ConsumerWidget {
             Icon(Icons.event_available_outlined, size: 56, color: AppColors.textTertiary),
             const SizedBox(height: 12),
             Text(
-              'Keine Termine',
+              'No events',
               style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
             ),
           ],
@@ -63,7 +63,7 @@ class AgendaView extends ConsumerWidget {
                 child: Column(
                   children: [
                     Text(
-                      DateFormat('E', 'de_DE').format(day).toUpperCase(),
+                      DateFormat('E', 'en_US').format(day).toUpperCase(),
                       style: TextStyle(
                         fontSize: 10,
                         letterSpacing: 0.4,
@@ -138,9 +138,9 @@ class AgendaView extends ConsumerWidget {
                                   const SizedBox(height: 2),
                                   Text(
                                     item.isAllDay
-                                        ? (isTodo ? 'Aufgabe · Ganztägig' : 'Ganztägig')
+                                        ? (isTodo ? 'Task · All day' : 'All day')
                                         : '${timeFormat.format(item.startTime)} – ${timeFormat.format(item.endTime)}'
-                                            '${isTodo ? ' · Aufgabe' : ''}',
+                                            '${isTodo ? ' · Task' : ''}',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: AppColors.textSecondary,

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
-import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 import '../../../core/config/env_config.dart';
 import '../../../core/constants/app_constants.dart';
@@ -29,7 +28,14 @@ class RevenueCatService {
   /// Initialize RevenueCat SDK
   static Future<bool> initialize() async {
     if (!EnvConfig.hasValidRevenueCatConfig) {
-      debugPrint('RevenueCat: No API key configured, skipping initialization');
+      if (kReleaseMode && EnvConfig.isRevenueCatTestKey) {
+        debugPrint(
+          'RevenueCat: test_ key in release build — skipping init to avoid '
+          'the SDK force-closing the app. Use a production key for release.',
+        );
+      } else {
+        debugPrint('RevenueCat: disabled or no API key, skipping init');
+      }
       return false;
     }
 
@@ -115,51 +121,6 @@ class RevenueCatService {
       tier: SubscriptionTier.free,
       isActive: false,
     );
-  }
-
-  /// Present the RevenueCat paywall
-  static Future<PaywallResult> presentPaywall() async {
-    if (!isAvailable) {
-      return PaywallResult.cancelled;
-    }
-
-    try {
-      final result = await RevenueCatUI.presentPaywall();
-      debugPrint('RevenueCat: Paywall result: $result');
-      return result;
-    } catch (e) {
-      debugPrint('RevenueCat: Failed to present paywall: $e');
-      return PaywallResult.error;
-    }
-  }
-
-  /// Present the RevenueCat paywall if the user doesn't have pro access
-  static Future<PaywallResult> presentPaywallIfNeeded() async {
-    if (!isAvailable) {
-      return PaywallResult.cancelled;
-    }
-
-    try {
-      final result = await RevenueCatUI.presentPaywallIfNeeded(
-        AppConstants.proEntitlementId,
-      );
-      debugPrint('RevenueCat: Paywall if needed result: $result');
-      return result;
-    } catch (e) {
-      debugPrint('RevenueCat: Failed to present paywall if needed: $e');
-      return PaywallResult.error;
-    }
-  }
-
-  /// Present the customer center for subscription management
-  static Future<void> presentCustomerCenter() async {
-    if (!isAvailable) return;
-
-    try {
-      await RevenueCatUI.presentCustomerCenter();
-    } catch (e) {
-      debugPrint('RevenueCat: Failed to present customer center: $e');
-    }
   }
 
   /// Restore purchases

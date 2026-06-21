@@ -2,7 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/native_io.dart' as native_io;
@@ -39,7 +39,39 @@ class CalendarPage extends ConsumerWidget {
               onImport: () => _importIcs(context, ref),
               onExport: () => _exportIcs(context),
             ),
-            Expanded(child: _buildView(context, ref, eventState.viewMode)),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 280),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) {
+                  final fade = CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOut,
+                  );
+                  final scale = Tween<double>(begin: 0.96, end: 1.0)
+                      .animate(CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ));
+                  return FadeTransition(
+                    opacity: fade,
+                    child: ScaleTransition(scale: scale, child: child),
+                  );
+                },
+                layoutBuilder: (currentChild, previousChildren) => Stack(
+                  alignment: Alignment.topCenter,
+                  children: [
+                    ...previousChildren,
+                    ?currentChild,
+                  ],
+                ),
+                child: KeyedSubtree(
+                  key: ValueKey(eventState.viewMode),
+                  child: _buildView(context, ref, eventState.viewMode),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -129,11 +161,11 @@ class CalendarPage extends ConsumerWidget {
     if (importResult.success) {
       ref.read(calendarEventProvider.notifier).refresh();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${importResult.added} Events importiert, ${importResult.updated} aktualisiert')),
+        SnackBar(content: Text('${importResult.added} events imported, ${importResult.updated} updated')),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Import fehlgeschlagen: ${importResult.error}')),
+        SnackBar(content: Text('Import failed: ${importResult.error}')),
       );
     }
   }
@@ -145,11 +177,11 @@ class CalendarPage extends ConsumerWidget {
 
     if (result.success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${result.eventCount} Events exportiert')),
+        SnackBar(content: Text('${result.eventCount} events exported')),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export fehlgeschlagen: ${result.error}')),
+        SnackBar(content: Text('Export failed: ${result.error}')),
       );
     }
   }
@@ -188,7 +220,7 @@ class _CalendarHeader extends ConsumerWidget {
             children: [
               if (!embedded)
                 IconButton(
-                  icon: const Icon(SolarIconsOutline.altArrowLeft),
+                  icon: Icon(MdiIcons.chevronLeft),
                   color: AppColors.textPrimary,
                   onPressed: () => Navigator.pop(context),
                 )
@@ -272,18 +304,18 @@ class _CalendarHeader extends ConsumerWidget {
     final f = state.focusedDate;
     switch (state.viewMode) {
       case CalendarViewMode.day:
-        return DateFormat('EEEE, d. MMM', 'de_DE').format(f);
+        return DateFormat('EEEE, d. MMM', 'en_US').format(f);
       case CalendarViewMode.week:
         final start = DateTime(f.year, f.month, f.day)
             .subtract(Duration(days: f.weekday - 1));
         final end = start.add(const Duration(days: 6));
         if (start.month == end.month) {
-          return DateFormat('MMMM yyyy', 'de_DE').format(start);
+          return DateFormat('MMMM yyyy', 'en_US').format(start);
         }
-        return '${DateFormat('MMM', 'de_DE').format(start)} – '
-            '${DateFormat('MMM yyyy', 'de_DE').format(end)}';
+        return '${DateFormat('MMM', 'en_US').format(start)} – '
+            '${DateFormat('MMM yyyy', 'en_US').format(end)}';
       case CalendarViewMode.month:
-        return DateFormat('MMMM yyyy', 'de_DE').format(f);
+        return DateFormat('MMMM yyyy', 'en_US').format(f);
       case CalendarViewMode.agenda:
         return 'Agenda';
     }
@@ -325,7 +357,7 @@ class _TodayButton extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         visualDensity: VisualDensity.compact,
       ),
-      child: const Text('Heute', style: TextStyle(fontWeight: FontWeight.w600)),
+      child: const Text('Today', style: TextStyle(fontWeight: FontWeight.w600)),
     );
   }
 }

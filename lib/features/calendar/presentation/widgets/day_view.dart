@@ -51,7 +51,7 @@ class DayView extends ConsumerWidget {
                 child: Column(
                   children: [
                     Text(
-                      DateFormat('E', 'de_DE').format(date).toUpperCase(),
+                      DateFormat('E', 'en_US').format(date).toUpperCase(),
                       style: TextStyle(
                         fontSize: 10,
                         letterSpacing: 0.4,
@@ -83,7 +83,7 @@ class DayView extends ConsumerWidget {
               ),
               Expanded(
                 child: Text(
-                  DateFormat('MMMM yyyy', 'de_DE').format(date),
+                  DateFormat('MMMM yyyy', 'en_US').format(date),
                   style: TextStyle(
                     fontSize: 13,
                     color: AppColors.textSecondary,
@@ -98,7 +98,7 @@ class DayView extends ConsumerWidget {
         Expanded(
           child: TimeGrid(
             columnCount: 1,
-            columnHeaders: [DateFormat('EEEE', 'de_DE').format(date)],
+            columnHeaders: [DateFormat('EEEE', 'en_US').format(date)],
             columnDates: [date],
             itemsByColumn: [timedItems],
             allDayItemsByColumn: [allDayItems],

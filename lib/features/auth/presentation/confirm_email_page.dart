@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../providers/auth_provider.dart';
 
@@ -22,8 +22,8 @@ class ConfirmEmailPage extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(
-                  SolarIconsOutline.letter,
+                Icon(
+                  MdiIcons.emailOutline,
                   size: 64,
                   color: Colors.white70,
                 ),

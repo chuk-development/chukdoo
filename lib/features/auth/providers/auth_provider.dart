@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
@@ -316,7 +316,7 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
           } else {
             state = state.copyWith(
               isLoading: false,
-              error: 'Fehler bei der Verschlüsselung: ${encryptionResult.error}',
+              error: 'Encryption failed: ${encryptionResult.error}',
             );
           }
         }
@@ -447,7 +447,7 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
       if (user == null) {
         state = state.copyWith(
           isLoading: false,
-          error: 'Kein Benutzer angemeldet.',
+          error: 'No user signed in.',
         );
         return;
       }
@@ -456,7 +456,7 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
       if (salt == null) {
         state = state.copyWith(
           isLoading: false,
-          error: 'Salt nicht gefunden.',
+          error: 'Salt not found.',
         );
         return;
       }
@@ -484,7 +484,7 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
       } else {
         state = state.copyWith(
           isLoading: false,
-          error: result.error ?? 'Recovery fehlgeschlagen.',
+          error: result.error ?? 'Recovery failed.',
         );
       }
     } catch (e) {

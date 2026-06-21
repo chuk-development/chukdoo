@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/services/supabase_service.dart';
 import '../../../projects/providers/project_provider.dart';
 import '../../../todos/providers/todo_provider.dart';
+import '../../../integrations/sunrise_export_service.dart';
 import '../../services/adaptive_sync_manager.dart';
 
 /// Widget that manages automatic sync and refreshes providers.
@@ -28,6 +29,8 @@ class AutoSyncManager extends ConsumerStatefulWidget {
 class _AutoSyncManagerState extends ConsumerState<AutoSyncManager>
     with WidgetsBindingObserver {
   StreamSubscription<void>? _dataChangedSubscription;
+  StreamSubscription<void>? _sunriseObserverSubscription;
+  bool _applyingSunrise = false;
 
   @override
   void initState() {
@@ -37,13 +40,35 @@ class _AutoSyncManagerState extends ConsumerState<AutoSyncManager>
     // Start sync manager after a short delay to let providers initialize
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startSyncManager();
+      // Apply todos completed by Sunrise while Chukdoo was closed
+      _applySunrisePending();
     });
+
+    // Live updates whenever any companion app mutates the shared URI.
+    _sunriseObserverSubscription = SunriseExportService.changes().listen((_) {
+      debugPrint('AutoSyncManager: sunrise URI changed, applying pending');
+      _applySunrisePending();
+    });
+  }
+
+  Future<void> _applySunrisePending() async {
+    if (_applyingSunrise) return;
+    _applyingSunrise = true;
+    try {
+      await SunriseExportService.processPending();
+      if (!mounted) return;
+      await ref.read(todoProvider.notifier).refresh();
+      debugPrint('AutoSyncManager: applied pending + refreshed');
+    } finally {
+      _applyingSunrise = false;
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _dataChangedSubscription?.cancel();
+    _sunriseObserverSubscription?.cancel();
     AdaptiveSyncManager.instance.stop();
     super.dispose();
   }
@@ -59,6 +84,10 @@ class _AutoSyncManagerState extends ConsumerState<AutoSyncManager>
         _startSyncManager();
         // Do an immediate sync when coming back
         AdaptiveSyncManager.instance.syncNow();
+        // Process any todos that Sunrise marked complete while we were away
+        SunriseExportService.processPending().then((_) {
+          if (mounted) ref.read(todoProvider.notifier).refresh();
+        });
         break;
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:

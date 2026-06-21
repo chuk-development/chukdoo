@@ -1,120 +1,92 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:solar_icons/solar_icons.dart';
+
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../settings/presentation/settings_page.dart';
 import '../../../todos/presentation/pages/all_tasks_page.dart';
 import '../../../todos/presentation/pages/completed_tasks_page.dart';
 import '../../../todos/presentation/pages/search_page.dart';
+import '../../../todos/providers/todo_provider.dart';
+import '../../domain/models/project.dart';
 import '../../providers/project_provider.dart';
+import '../widgets/project_edit_dialog.dart';
 import 'project_page.dart';
 
 class BrowsePage extends ConsumerWidget {
   const BrowsePage({super.key});
 
-  void _showCreateProjectDialog(BuildContext context, WidgetRef ref) {
-    final projectController = TextEditingController();
-
-    void createProject() async {
-      final name = projectController.text.trim();
-      if (name.isNotEmpty) {
-        await ref.read(projectProvider.notifier).addProject(name: name);
-        Navigator.pop(context);
-      }
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Neues Projekt'),
-        content: TextField(
-          controller: projectController,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Projektname',
-          ),
-          onSubmitted: (_) => createProject(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Abbrechen'),
-          ),
-          TextButton(
-            onPressed: createProject,
-            child: const Text('Erstellen'),
-          ),
-        ],
-      ),
-    );
+  int _incompleteCount(TodoState todoState, String projectId) {
+    return todoState.todos
+        .where((t) => !t.isCompleted && t.projectId == projectId)
+        .length;
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final projectState = ref.watch(projectProvider);
+    final todoState = ref.watch(todoProvider);
     final projects = projectState.sortedProjects;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Browsen'),
+        title: const Text('Browse'),
         actions: [
-          IconButton(
-            icon: const Icon(SolarIconsOutline.magnifier),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SearchPage()),
-              );
-            },
-            tooltip: 'Suchen',
+          Tooltip(
+            message: 'Search',
+            child: IconButton(
+              icon: Icon(MdiIcons.magnify),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SearchPage()),
+                );
+              },
+            ),
           ),
         ],
       ),
       body: ListView(
         children: [
           // Projects section
-          _buildSectionHeader('Projekte'),
+          _buildSectionHeader('Projects'),
           _buildMenuItem(
-            icon: SolarIconsOutline.inboxLine,
-            label: 'Eingang',
+            icon: MdiIcons.inboxOutline,
+            label: 'Inbox',
             color: AppColors.blue,
             onTap: () {
               // Navigate to inbox (already accessible from bottom nav)
             },
           ),
           // User-created projects
-          ...projects.map((project) => _buildMenuItem(
-            icon: SolarIconsOutline.folder,
-            label: project.name,
-            color: Color(project.color),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ProjectPage(project: project),
-                ),
-              );
-            },
-          )),
+          ...projects.map((project) {
+            final count = _incompleteCount(todoState, project.id);
+            return _buildProjectItem(
+              context: context,
+              ref: ref,
+              project: project,
+              taskCount: count,
+            );
+          }),
           // Add project button
           ListTile(
-            leading: Icon(SolarIconsOutline.addCircle, color: AppColors.textSecondary),
+            leading: Icon(MdiIcons.plusCircleOutline,
+                color: AppColors.textSecondary),
             title: Text(
-              'Projekt hinzufügen',
+              'Add project',
               style: TextStyle(color: AppColors.textSecondary),
             ),
-            onTap: () => _showCreateProjectDialog(context, ref),
+            onTap: () => ProjectEditDialog.show(context),
           ),
 
           const Divider(height: 32),
 
           // Quick access section
-          _buildSectionHeader('Schnellzugriff'),
+          _buildSectionHeader('Quick access'),
           _buildMenuItem(
-            icon: SolarIconsOutline.clipboardList,
-            label: 'Alle Aufgaben',
+            icon: MdiIcons.clipboardListOutline,
+            label: 'All tasks',
             onTap: () {
               Navigator.push(
                 context,
@@ -123,8 +95,8 @@ class BrowsePage extends ConsumerWidget {
             },
           ),
           _buildMenuItem(
-            icon: SolarIconsOutline.checkCircle,
-            label: 'Erledigt',
+            icon: MdiIcons.checkCircleOutline,
+            label: 'Completed',
             onTap: () {
               Navigator.push(
                 context,
@@ -136,10 +108,10 @@ class BrowsePage extends ConsumerWidget {
           const Divider(height: 32),
 
           // Settings section
-          _buildSectionHeader('Einstellungen'),
+          _buildSectionHeader('Settings'),
           _buildMenuItem(
-            icon: SolarIconsOutline.settings,
-            label: 'Einstellungen',
+            icon: MdiIcons.cogOutline,
+            label: 'Settings',
             onTap: () {
               Navigator.push(
                 context,
@@ -182,10 +154,95 @@ class BrowsePage extends ConsumerWidget {
         style: TextStyle(color: displayColor),
       ),
       trailing: Icon(
-        SolarIconsOutline.altArrowRight,
+        MdiIcons.chevronRight,
         color: AppColors.textSecondary,
       ),
       onTap: onTap,
+    );
+  }
+
+  Widget _buildProjectItem({
+    required BuildContext context,
+    required WidgetRef ref,
+    required Project project,
+    required int taskCount,
+  }) {
+    final projectColor = Color(project.color);
+
+    return ListTile(
+      leading: Container(
+        width: 14,
+        height: 14,
+        decoration: BoxDecoration(
+          color: projectColor,
+          borderRadius: BorderRadius.circular(4),
+        ),
+      ),
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(
+              project.name,
+              style: TextStyle(color: projectColor),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (taskCount > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLight,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$taskCount',
+                style: const TextStyle(fontSize: 11),
+              ),
+            ),
+        ],
+      ),
+      subtitle: project.description != null && project.description!.isNotEmpty
+          ? Text(
+              project.description!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            )
+          : null,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Tooltip(
+            message: 'Edit',
+            child: IconButton(
+              icon: Icon(MdiIcons.pencilOutline, size: 18,
+                  color: AppColors.textSecondary),
+              onPressed: () async {
+                final result =
+                    await ProjectEditDialog.show(context, project: project);
+                // If deleted (result is null and project no longer exists), no navigation needed
+                if (result == null) return;
+              },
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+          Icon(
+            MdiIcons.chevronRight,
+            color: AppColors.textSecondary,
+          ),
+        ],
+      ),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProjectPage(project: project),
+          ),
+        );
+      },
     );
   }
 }

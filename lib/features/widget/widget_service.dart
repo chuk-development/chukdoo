@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +6,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/platform_utils.dart';
 import '../todos/domain/models/todo.dart';
 
 /// Service for updating the Android home screen widget
@@ -16,7 +16,7 @@ class WidgetService {
 
   /// Update the widget with today's todos
   static Future<void> updateWidget() async {
-    if (!Platform.isAndroid) return;
+    if (!PlatformUtils.isAndroid) return;
 
     try {
       // Get all todos
@@ -96,7 +96,7 @@ class WidgetService {
 
   /// Clear widget data
   static Future<void> clearWidget() async {
-    if (!Platform.isAndroid) return;
+    if (!PlatformUtils.isAndroid) return;
 
     try {
       final prefs = await SharedPreferences.getInstance();

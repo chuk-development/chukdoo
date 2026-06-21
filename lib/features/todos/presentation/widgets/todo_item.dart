@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../nlp/parser/natural_language_parser.dart';
@@ -104,7 +104,7 @@ class _TodoItemState extends State<TodoItem> {
                     Row(
                       children: [
                         if (widget.isPinned && !showAsCompleted) ...[
-                          Icon(SolarIconsBold.bookmark, size: 13, color: AppColors.orange),
+                          Icon(MdiIcons.bookmark, size: 13, color: AppColors.orange),
                           const SizedBox(width: 4),
                         ],
                         // Single-line title with ellipsis
@@ -151,7 +151,7 @@ class _TodoItemState extends State<TodoItem> {
                       Row(
                         children: [
                           if (widget.dueDate != null) ...[
-                            Icon(SolarIconsOutline.calendar, size: 12, color: _getDueDateColor()),
+                            Icon(MdiIcons.calendarOutline, size: 12, color: _getDueDateColor()),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
@@ -164,7 +164,7 @@ class _TodoItemState extends State<TodoItem> {
                             const SizedBox(width: 12),
                           ],
                           if (widget.projectName != null) ...[
-                            Icon(SolarIconsOutline.folder, size: 12, color: AppColors.textSecondary),
+                            Icon(MdiIcons.folderOutline, size: 12, color: AppColors.textSecondary),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(

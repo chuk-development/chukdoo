@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../settings/providers/settings_provider.dart';
@@ -23,7 +23,12 @@ class ProjectPage extends ConsumerStatefulWidget {
   /// null and the page pops itself instead.
   final VoidCallback? onDeleted;
 
-  const ProjectPage({super.key, required this.project, this.onDeleted});
+  /// Called to open the navigation drawer. When provided (embedded view), the
+  /// app bar shows a hamburger instead of a back arrow, so the project list
+  /// looks like the main task screen and keeps the bottom nav.
+  final VoidCallback? onMenu;
+
+  const ProjectPage({super.key, required this.project, this.onDeleted, this.onMenu});
 
   @override
   ConsumerState<ProjectPage> createState() => _ProjectPageState();
@@ -111,12 +116,18 @@ class _ProjectPageState extends ConsumerState<ProjectPage> {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
+        leading: widget.onMenu != null
+            ? IconButton(
+                icon: Icon(MdiIcons.menu),
+                onPressed: widget.onMenu,
+              )
+            : null,
         title: Text(currentProject.name),
         actions: [
           // Sort menu
           PopupMenuButton<String>(
-            icon: const Icon(SolarIconsOutline.sortVertical),
-            tooltip: 'Sortieren',
+            icon: Icon(MdiIcons.sort),
+            tooltip: 'Sort',
             onSelected: (value) {
               setState(() {
                 switch (value) {
@@ -132,16 +143,16 @@ class _ProjectPageState extends ConsumerState<ProjectPage> {
               });
             },
             itemBuilder: (_) => [
-              _sortMenuItem('manual', 'Manuell', _sortMode == _SortMode.manual),
-              _sortMenuItem('priority', 'Priorität', _sortMode == _SortMode.priority),
-              _sortMenuItem('dueDate', 'Fälligkeitsdatum', _sortMode == _SortMode.dueDate),
+              _sortMenuItem('manual', 'Manual', _sortMode == _SortMode.manual),
+              _sortMenuItem('priority', 'Priority', _sortMode == _SortMode.priority),
+              _sortMenuItem('dueDate', 'Due date', _sortMode == _SortMode.dueDate),
               _sortMenuItem('name', 'Name', _sortMode == _SortMode.name),
             ],
           ),
           IconButton(
-            icon: const Icon(SolarIconsOutline.pen),
+            icon: Icon(MdiIcons.pencilOutline),
             onPressed: () => _openEditDialog(context),
-            tooltip: 'Bearbeiten',
+            tooltip: 'Edit',
           ),
         ],
       ),
@@ -166,12 +177,12 @@ class _ProjectPageState extends ConsumerState<ProjectPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(SolarIconsOutline.folder, size: 64, color: Color(currentProject.color).withValues(alpha: 0.5)),
+            Icon(MdiIcons.folderOutline, size: 64, color: Color(currentProject.color).withValues(alpha: 0.5)),
             const SizedBox(height: 16),
-            const Text('Keine Aufgaben', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            const Text('No tasks', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             Text(
-              'Tippe auf + um eine Aufgabe hinzuzufügen',
+              'Tap + to add a task',
               style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),

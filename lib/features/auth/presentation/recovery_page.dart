@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../providers/auth_provider.dart';
@@ -62,7 +62,7 @@ class _RecoveryPageState extends ConsumerState<RecoveryPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Konto wiederherstellen'),
+        title: const Text('Recover account'),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -84,14 +84,14 @@ class _RecoveryPageState extends ConsumerState<RecoveryPage> {
                     ),
                     child: Column(
                       children: [
-                        const Icon(
-                          SolarIconsOutline.key,
+                        Icon(
+                          MdiIcons.keyOutline,
                           size: 48,
                           color: AppColors.primary,
                         ),
                         const SizedBox(height: 12),
                         const Text(
-                          'Gib einen deiner Backup-Codes ein, um dein Passwort zurückzusetzen.',
+                          'Enter one of your backup codes to reset your password.',
                           style: TextStyle(
                             fontSize: 14,
                             color: AppColors.textSecondary,
@@ -106,7 +106,7 @@ class _RecoveryPageState extends ConsumerState<RecoveryPage> {
 
                   // Backup code input
                   const Text(
-                    'Backup-Code',
+                    'Backup code',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -169,12 +169,12 @@ class _RecoveryPageState extends ConsumerState<RecoveryPage> {
                     controller: _passwordController,
                     focusNode: _passwordFocus,
                     decoration: InputDecoration(
-                      labelText: 'Neues Passwort',
+                      labelText: 'New password',
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword
-                              ? SolarIconsOutline.eyeClosed
-                              : SolarIconsOutline.eye,
+                              ? MdiIcons.eyeOffOutline
+                              : MdiIcons.eyeOutline,
                         ),
                         onPressed: () {
                           setState(() {
@@ -186,10 +186,10 @@ class _RecoveryPageState extends ConsumerState<RecoveryPage> {
                     obscureText: _obscurePassword,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Bitte Passwort eingeben';
+                        return 'Enter a password';
                       }
                       if (value.length < 8) {
-                        return 'Mindestens 8 Zeichen';
+                        return 'At least 8 characters';
                       }
                       return null;
                     },
@@ -201,12 +201,12 @@ class _RecoveryPageState extends ConsumerState<RecoveryPage> {
                   TextFormField(
                     controller: _confirmPasswordController,
                     decoration: InputDecoration(
-                      labelText: 'Passwort bestätigen',
+                      labelText: 'Confirm password',
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscureConfirmPassword
-                              ? SolarIconsOutline.eyeClosed
-                              : SolarIconsOutline.eye,
+                              ? MdiIcons.eyeOffOutline
+                              : MdiIcons.eyeOutline,
                         ),
                         onPressed: () {
                           setState(() {
@@ -218,7 +218,7 @@ class _RecoveryPageState extends ConsumerState<RecoveryPage> {
                     obscureText: _obscureConfirmPassword,
                     validator: (value) {
                       if (value != _passwordController.text) {
-                        return 'Passwörter stimmen nicht überein';
+                        return 'Passwords do not match';
                       }
                       return null;
                     },
@@ -232,15 +232,15 @@ class _RecoveryPageState extends ConsumerState<RecoveryPage> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: AppColors.error.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: AppColors.error.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            SolarIconsOutline.dangerTriangle,
+                          Icon(
+                            MdiIcons.alertOutline,
                             size: 20,
                             color: AppColors.error,
                           ),
@@ -275,7 +275,7 @@ class _RecoveryPageState extends ConsumerState<RecoveryPage> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Passwort zurücksetzen'),
+                          : const Text('Reset password'),
                     ),
                   ),
 
@@ -284,7 +284,7 @@ class _RecoveryPageState extends ConsumerState<RecoveryPage> {
                   // Cancel button
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Abbrechen'),
+                    child: const Text('Cancel'),
                   ),
                 ],
               ),

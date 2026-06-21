@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 /// Types of errors that can occur in the app
 enum ErrorType {
@@ -49,16 +49,16 @@ class AppErrorState {
   String get title {
     switch (errorType) {
       case ErrorType.sync:
-        return 'Sync-Fehler';
+        return 'Sync Error';
       case ErrorType.encryption:
-        return 'Verschlüsselungs-Fehler';
+        return 'Encryption Error';
       case ErrorType.network:
-        return 'Netzwerk-Fehler';
+        return 'Network Error';
       case ErrorType.storage:
-        return 'Speicher-Fehler';
+        return 'Storage Error';
       case ErrorType.general:
       case null:
-        return 'Fehler';
+        return 'Error';
     }
   }
 
@@ -67,16 +67,16 @@ class AppErrorState {
     if (message != null) return message!;
     switch (errorType) {
       case ErrorType.sync:
-        return 'Die Synchronisierung ist fehlgeschlagen.';
+        return 'Synchronization failed.';
       case ErrorType.encryption:
-        return 'Es gab ein Problem mit der Verschlüsselung.';
+        return 'There was a problem with encryption.';
       case ErrorType.network:
-        return 'Keine Internetverbindung.';
+        return 'No internet connection.';
       case ErrorType.storage:
-        return 'Daten konnten nicht gespeichert werden.';
+        return 'Data could not be saved.';
       case ErrorType.general:
       case null:
-        return 'Ein unerwarteter Fehler ist aufgetreten.';
+        return 'An unexpected error occurred.';
     }
   }
 }
@@ -113,7 +113,7 @@ class ErrorNotifier extends StateNotifier<AppErrorState> {
   void showNetworkError([String? message]) {
     showError(
       type: ErrorType.network,
-      message: message ?? 'Keine Internetverbindung.',
+      message: message ?? 'No internet connection.',
       canRetry: true,
     );
   }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/models/todo.dart';
@@ -93,7 +93,7 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
                 AnimatedRotation(
                   turns: _expanded ? 0 : -0.25,
                   duration: const Duration(milliseconds: 150),
-                  child: const Icon(SolarIconsOutline.altArrowDown, size: 16, color: AppColors.textSecondary),
+                  child: Icon(MdiIcons.chevronDown, size: 16, color: AppColors.textSecondary),
                 ),
                 const SizedBox(width: 8),
                 Text(

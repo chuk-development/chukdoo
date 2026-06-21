@@ -202,7 +202,7 @@ class BackupCodeService {
       if (!canAttempt) {
         return const RecoveryResult(
           success: false,
-          error: 'Zu viele Versuche. Bitte 15 Minuten warten.',
+          error: 'Too many attempts. Please wait 15 minutes.',
           remainingAttempts: 0,
         );
       }
@@ -221,7 +221,7 @@ class BackupCodeService {
         await _logRecoveryAttempt(userId, false);
         return const RecoveryResult(
           success: false,
-          error: 'Ungültiger oder bereits verwendeter Code.',
+          error: 'Invalid or already used code.',
         );
       }
 
@@ -274,7 +274,7 @@ class BackupCodeService {
         return const BackupCodesResult(
           codes: [],
           success: false,
-          error: 'Falsches Passwort.',
+          error: 'Wrong password.',
         );
       }
 

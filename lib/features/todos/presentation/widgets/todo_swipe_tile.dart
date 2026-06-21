@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:solar_icons/solar_icons.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../projects/providers/project_provider.dart';
@@ -59,7 +59,7 @@ class TodoSwipeTile extends ConsumerWidget {
             onPressed: (_) => notifier.toggleComplete(todo.id),
             backgroundColor: AppColors.green,
             foregroundColor: Colors.white,
-            icon: isCompleted ? SolarIconsBold.refreshCircle : SolarIconsBold.checkCircle,
+            icon: isCompleted ? MdiIcons.refresh : MdiIcons.checkCircle,
             label: isCompleted ? 'Reopen' : 'Completed',
           ),
         ],
@@ -79,21 +79,21 @@ class TodoSwipeTile extends ConsumerWidget {
               onPressed: (ctx) => _showDateDialog(ctx, ref),
               backgroundColor: AppColors.blue,
               foregroundColor: Colors.white,
-              icon: SolarIconsBold.calendar,
+              icon: MdiIcons.calendar,
               label: 'Date',
             ),
             SlidableAction(
               onPressed: (ctx) => _showMoveSheet(ctx, ref),
               backgroundColor: AppColors.purple,
               foregroundColor: Colors.white,
-              icon: SolarIconsBold.folder,
+              icon: MdiIcons.folder,
               label: 'Move',
             ),
             SlidableAction(
               onPressed: (_) => notifier.togglePin(todo.id),
               backgroundColor: AppColors.orange,
               foregroundColor: Colors.white,
-              icon: todo.isPinned ? SolarIconsBold.bookmark : SolarIconsOutline.bookmark,
+              icon: todo.isPinned ? MdiIcons.bookmark : MdiIcons.bookmarkOutline,
               label: todo.isPinned ? 'Unpin' : 'Pin',
             ),
           ],
@@ -101,7 +101,7 @@ class TodoSwipeTile extends ConsumerWidget {
             onPressed: (ctx) => _deleteWithUndo(ctx, ref),
             backgroundColor: AppColors.error,
             foregroundColor: Colors.white,
-            icon: SolarIconsBold.trashBinTrash,
+            icon: MdiIcons.trashCan,
             label: 'Delete',
           ),
         ],
@@ -172,7 +172,7 @@ class TodoSwipeTile extends ConsumerWidget {
       builder: (ctx) {
         final cells = <Widget>[
           _DateCell(
-            icon: SolarIconsBold.calendar,
+            icon: MdiIcons.calendar,
             label: 'Today',
             color: AppColors.blue,
             onTap: () {
@@ -181,7 +181,7 @@ class TodoSwipeTile extends ConsumerWidget {
             },
           ),
           _DateCell(
-            icon: SolarIconsBold.sunrise,
+            icon: MdiIcons.weatherSunsetUp,
             label: 'Tomorrow',
             color: AppColors.blue,
             onTap: () {
@@ -190,7 +190,7 @@ class TodoSwipeTile extends ConsumerWidget {
             },
           ),
           _DateCell(
-            icon: SolarIconsBold.calendarMark,
+            icon: MdiIcons.calendarCheck,
             label: 'In 2 days',
             color: AppColors.blue,
             onTap: () {
@@ -199,7 +199,7 @@ class TodoSwipeTile extends ConsumerWidget {
             },
           ),
           _DateCell(
-            icon: SolarIconsBold.calendarMark,
+            icon: MdiIcons.calendarCheck,
             label: 'Next\nMonday',
             color: AppColors.blue,
             onTap: () {
@@ -208,7 +208,7 @@ class TodoSwipeTile extends ConsumerWidget {
             },
           ),
           _DateCell(
-            icon: SolarIconsOutline.calendarMinimalistic,
+            icon: MdiIcons.calendarBlankOutline,
             label: 'Pick\ndate',
             color: AppColors.blue,
             onTap: () async {
@@ -223,7 +223,7 @@ class TodoSwipeTile extends ConsumerWidget {
             },
           ),
           _DateCell(
-            icon: SolarIconsOutline.closeSquare,
+            icon: MdiIcons.closeBoxOutline,
             label: 'Clear',
             color: AppColors.textSecondary,
             onTap: () {
@@ -274,10 +274,10 @@ class TodoSwipeTile extends ConsumerWidget {
             const Text('Move to', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             ListTile(
-              leading: const Icon(SolarIconsOutline.inbox, color: AppColors.textSecondary),
+              leading: Icon(MdiIcons.inboxOutline, color: AppColors.textSecondary),
               title: const Text('Inbox'),
               trailing: todo.projectId == null
-                  ? const Icon(SolarIconsBold.checkCircle, color: AppColors.primary)
+                  ? Icon(MdiIcons.checkCircle, color: AppColors.primary)
                   : null,
               onTap: () {
                 notifier.moveToProject(todo.id, null);
@@ -292,7 +292,7 @@ class TodoSwipeTile extends ConsumerWidget {
                   ),
                   title: Text(p.name, overflow: TextOverflow.ellipsis),
                   trailing: todo.projectId == p.id
-                      ? const Icon(SolarIconsBold.checkCircle, color: AppColors.primary)
+                      ? Icon(MdiIcons.checkCircle, color: AppColors.primary)
                       : null,
                   onTap: () {
                     notifier.moveToProject(todo.id, p.id);
@@ -409,7 +409,7 @@ class _TodoDragFeedback extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(SolarIconsBold.checkCircle, size: 18, color: color),
+            Icon(MdiIcons.checkCircle, size: 18, color: color),
             const SizedBox(width: 10),
             Flexible(
               child: Text(

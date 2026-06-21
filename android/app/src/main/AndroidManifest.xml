@@ -51,6 +51,13 @@
             android:name=".ChukdooWidgetService"
             android:exported="false"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+        <!-- Sunrise export ContentProvider (read-only, user-gated) -->
+        <provider
+            android:name=".SunriseExportProvider"
+            android:authorities="doo.chuk.dev.sunrise"
+            android:exported="true"
+            android:grantUriPermissions="true" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

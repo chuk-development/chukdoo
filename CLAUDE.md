@@ -11,16 +11,23 @@ source .env.local
 
 flutter build apk \
   --target-platform android-arm64 \
+  --no-tree-shake-icons \
   --dart-define=SUPABASE_URL=$SUPABASE_URL \
   --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
   --dart-define=REVENUECAT_API_KEY=$REVENUECAT_API_KEY
 ```
+
+> **`--no-tree-shake-icons` is required.** Material Design Icons
+> (`material_design_icons_flutter`) expose icons as non-const `MdiIcons.*`
+> getters the tree-shaker can't track, so without this flag the nav/search
+> icons render blank.
 
 ### Linux build with Supabase
 ```bash
 source .env.local
 
 flutter build linux \
+  --no-tree-shake-icons \
   --dart-define=SUPABASE_URL=$SUPABASE_URL \
   --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
 ```
@@ -29,6 +36,7 @@ flutter build linux \
 ```bash
 flutter build apk \
   --target-platform android-arm64 \
+  --no-tree-shake-icons \
   --dart-define=SUPABASE_ENABLED=false
 ```
 
