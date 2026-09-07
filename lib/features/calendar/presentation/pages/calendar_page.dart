@@ -9,7 +9,9 @@ import '../../../../core/theme/app_shapes.dart';
 import '../../../../core/utils/native_io.dart' as native_io;
 import '../../../../shared/services/supabase_service.dart';
 import '../../../../shared/widgets/picker_sheet.dart';
+import '../../../settings/providers/settings_provider.dart';
 import '../../domain/models/calendar_item.dart';
+import '../../domain/week_dates.dart';
 import '../../domain/models/ics_service.dart';
 import '../../providers/calendar_event_provider.dart';
 import '../widgets/calendar_style.dart';
@@ -41,9 +43,25 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   bool _monthStripOpen = false;
 
   @override
+  void initState() {
+    super.initState();
+    // The calendar opens in the view the user chose in the settings. The
+    // notifier only lets this through once per app run, so a later switch is
+    // never overruled.
+    ref
+        .read(calendarEventProvider.notifier)
+        .applyDefaultView(
+          CalendarViewMode.values.byName(
+            ref.read(settingsProvider).calendarDefaultView.name,
+          ),
+        );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final eventState = ref.watch(calendarEventProvider);
     final notifier = ref.read(calendarEventProvider.notifier);
+    final settings = ref.watch(settingsProvider);
 
     return PopScope(
       // Back from a day returns to the month or week it was opened from,
@@ -65,7 +83,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             children: [
               Flexible(
                 child: Text(
-                  _periodTitle(eventState),
+                  _periodTitle(eventState, settings.calendarWeekStart),
                   style: TextStyle(
                     fontSize: 25,
                     fontWeight: FontWeight.w700,
@@ -316,17 +334,15 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     }
   }
 
-  String _periodTitle(CalendarEventState state) {
+  String _periodTitle(CalendarEventState state, WeekStart weekStart) {
     final f = state.focusedDate;
     switch (state.viewMode) {
       case CalendarViewMode.day:
         return DateFormat('EEEE, d MMM', 'en_US').format(f);
       case CalendarViewMode.week:
-        final start = DateTime(
-          f.year,
-          f.month,
-          f.day,
-        ).subtract(Duration(days: f.weekday - 1));
+        // Same week the grid draws, so the title cannot name another month
+        // than the columns under it.
+        final start = startOfWeek(f, weekStart);
         final end = start.add(const Duration(days: 6));
         if (start.month == end.month) {
           return DateFormat('MMMM yyyy', 'en_US').format(start);

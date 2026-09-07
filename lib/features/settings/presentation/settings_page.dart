@@ -24,9 +24,20 @@ import '../services/export_service.dart';
 import '../../integrations/sunrise_export_service.dart';
 import 'import_preview_page.dart';
 import 'licenses_page.dart';
+import 'sections/calendar_settings_page.dart';
+import 'sections/habits_settings_page.dart';
+import 'sections/notes_settings_page.dart';
+import 'sections/tasks_settings_page.dart';
+import 'widgets/settings_sheets.dart';
+import 'widgets/settings_tiles.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../core/theme/app_shapes.dart';
 
+/// The settings hub.
+///
+/// Everything that belongs to one feature lives on that feature's own
+/// sub-page, so this page stays a short map of the app instead of one endless
+/// list of switches.
 class SettingsPage extends ConsumerWidget {
   /// Opens the app drawer. Set by the shell, like every other tab.
   final VoidCallback? onMenu;
@@ -46,7 +57,7 @@ class SettingsPage extends ConsumerWidget {
         padding: EdgeInsets.only(bottom: AppShapes.contentBottom(context)),
         children: [
           // Account section
-          _buildSectionHeader('Account'),
+          const SettingsSectionHeader('Account'),
           RoundedGroup(
             children: [
               if (isInLocalMode) ...[
@@ -55,19 +66,10 @@ class SettingsPage extends ConsumerWidget {
                   label: 'Mode',
                   value: 'Local only',
                 ),
-                ListTile(
-                  leading: Icon(
-                    MdiIcons.cloudUploadOutline,
-                    color: AppColors.primary,
-                  ),
-                  title: const Text('Connect to cloud'),
-                  subtitle: const Text(
-                    'Sign in to sync your data across devices',
-                  ),
-                  trailing: Icon(
-                    MdiIcons.chevronRight,
-                    color: AppColors.textSecondary,
-                  ),
+                SettingsNavTile(
+                  icon: MdiIcons.cloudUploadOutline,
+                  title: 'Connect to cloud',
+                  subtitle: 'Sign in to sync your data across devices',
                   onTap: () => _connectToCloud(context, ref),
                 ),
               ] else if (!isLocalOnlyMode && authState.user != null)
@@ -87,63 +89,55 @@ class SettingsPage extends ConsumerWidget {
 
           // Support section — the app is free, donations are optional.
           if (ref.watch(canDonateProvider)) ...[
-            _buildSectionHeader('Support'),
+            const SettingsSectionHeader('Support'),
             RoundedGroup(children: [_buildDonationTile(context, ref)]),
           ],
 
           // Sync section
           if (!isLocalOnlyMode) ...[
-            _buildSectionHeader('Sync'),
+            const SettingsSectionHeader('Sync'),
             RoundedGroup(children: _buildSyncTiles(context, ref)),
 
             // Security section (only for cloud users)
             if (!isInLocalMode) ...[
-              _buildSectionHeader('Security'),
+              const SettingsSectionHeader('Security'),
               RoundedGroup(children: [_buildBackupCodesTile(context, ref)]),
             ],
           ],
 
+          // One entry per feature. Their own settings live behind these rows.
+          const SettingsSectionHeader('Sections'),
+          RoundedGroup(children: _buildSectionTiles(context, ref)),
+
           // Appearance section
-          _buildSectionHeader('Appearance'),
+          const SettingsSectionHeader('Appearance'),
           RoundedGroup(children: [_buildMaterialYouTile(ref)]),
 
-          // Behavior section
-          _buildSectionHeader('Behavior'),
-          RoundedGroup(children: [_buildCheckboxSizeTile(ref)]),
-
           // Integrations section
-          _buildSectionHeader('Integrations'),
+          const SettingsSectionHeader('Integrations'),
           const RoundedGroup(children: [_SunriseToggleTile()]),
 
           // Data section - Export/Import
-          _buildSectionHeader('Data'),
+          const SettingsSectionHeader('Data'),
           RoundedGroup(
             children: [
-              ListTile(
-                leading: Icon(MdiIcons.export, color: AppColors.textPrimary),
-                title: const Text('Export data'),
-                subtitle: const Text('Save all tasks and projects as JSON'),
-                trailing: Icon(
-                  MdiIcons.chevronRight,
-                  color: AppColors.textSecondary,
-                ),
+              SettingsNavTile(
+                icon: MdiIcons.export,
+                title: 'Export data',
+                subtitle: 'Save all tasks and projects as JSON',
                 onTap: () => _exportData(context),
               ),
-              ListTile(
-                leading: Icon(MdiIcons.import, color: AppColors.textPrimary),
-                title: const Text('Import data'),
-                subtitle: const Text('Import data from a JSON file'),
-                trailing: Icon(
-                  MdiIcons.chevronRight,
-                  color: AppColors.textSecondary,
-                ),
+              SettingsNavTile(
+                icon: MdiIcons.import,
+                title: 'Import data',
+                subtitle: 'Import data from a JSON file',
                 onTap: () => _importData(context),
               ),
             ],
           ),
 
           // About section
-          _buildSectionHeader('About'),
+          const SettingsSectionHeader('About'),
           RoundedGroup(
             children: [
               _buildInfoTile(
@@ -151,16 +145,9 @@ class SettingsPage extends ConsumerWidget {
                 label: 'Version',
                 value: AppConstants.appVersion,
               ),
-              ListTile(
-                leading: Icon(
-                  MdiIcons.fileDocumentOutline,
-                  color: AppColors.textPrimary,
-                ),
-                title: const Text('Licenses'),
-                trailing: Icon(
-                  MdiIcons.chevronRight,
-                  color: AppColors.textSecondary,
-                ),
+              SettingsNavTile(
+                icon: MdiIcons.fileDocumentOutline,
+                title: 'Licenses',
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const LicensesPage()),
@@ -190,19 +177,43 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textSecondary,
-          letterSpacing: 0.5,
-        ),
+  /// The four feature sub-pages, each showing its most telling value so the
+  /// hub already answers "what is this set to".
+  List<Widget> _buildSectionTiles(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+
+    void open(Widget page) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    }
+
+    return [
+      SettingsNavTile(
+        icon: MdiIcons.formatListChecks,
+        title: 'Tasks',
+        value: settings.checkboxSize.label,
+        onTap: () => open(const TasksSettingsPage()),
       ),
-    );
+      SettingsNavTile(
+        icon: MdiIcons.calendarMonthOutline,
+        title: 'Calendar',
+        value: settings.calendarDefaultView.label,
+        onTap: () => open(const CalendarSettingsPage()),
+      ),
+      SettingsNavTile(
+        icon: MdiIcons.noteMultipleOutline,
+        title: 'Notes',
+        value: settings.noteSort.label,
+        onTap: () => open(const NotesSettingsPage()),
+      ),
+      SettingsNavTile(
+        icon: MdiIcons.checkAll,
+        title: 'Habits',
+        value: settings.habitReminderMinutes == null
+            ? 'No reminder'
+            : formatTimeOfDay(settings.habitReminderMinutes!),
+        onTap: () => open(const HabitsSettingsPage()),
+      ),
+    ];
   }
 
   Widget _buildInfoTile({
@@ -220,61 +231,16 @@ class SettingsPage extends ConsumerWidget {
   Widget _buildMaterialYouTile(WidgetRef ref) {
     final enabled = ref.watch(settingsProvider.select((s) => s.materialYou));
 
-    return SwitchListTile(
-      secondary: Icon(MdiIcons.palette, color: AppColors.primary),
-      title: const Text('Material You colors'),
-      subtitle: Text(
-        enabled
-            ? 'Accent & surfaces follow your system wallpaper'
-            : 'Use the default platinum theme',
-        style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-      ),
+    return SettingsSwitchTile(
+      icon: MdiIcons.palette,
+      title: 'Material You colors',
+      subtitle: enabled
+          ? 'Accent & surfaces follow your system wallpaper'
+          : 'Use the default platinum theme',
       value: enabled,
       onChanged: (value) {
         ref.read(settingsProvider.notifier).setMaterialYou(value);
       },
-    );
-  }
-
-  Widget _buildCheckboxSizeTile(WidgetRef ref) {
-    final settings = ref.watch(settingsProvider);
-    final size = settings.checkboxSize;
-
-    // A three-step slider instead of a yes/no switch: small fits more tasks on
-    // screen, large gives a bigger tap target, medium is the default look.
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(MdiIcons.checkCircleOutline, color: AppColors.textPrimary),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  'Task row size',
-                  style: TextStyle(fontSize: 16, color: AppColors.textPrimary),
-                ),
-              ),
-              Text(
-                size.label,
-                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-              ),
-            ],
-          ),
-          Slider(
-            value: size.index.toDouble(),
-            min: 0,
-            max: 2,
-            divisions: 2,
-            label: size.label,
-            onChanged: (value) => ref
-                .read(settingsProvider.notifier)
-                .setCheckboxSize(CheckboxSize.values[value.round()]),
-          ),
-        ],
-      ),
     );
   }
 
@@ -313,15 +279,12 @@ class SettingsPage extends ConsumerWidget {
         subtitle: Text(hasSession ? 'Enabled' : 'Waiting for session'),
         trailing: const SyncStatusIndicator(),
       ),
-      ListTile(
-        leading: Icon(MdiIcons.refresh, color: AppColors.textPrimary),
-        title: const Text('Sync now'),
-        subtitle: Text(
-          SyncService.lastSyncTime != null
-              ? 'Last: ${_formatDateTime(SyncService.lastSyncTime!)}'
-              : 'Never synced',
-        ),
-        trailing: Icon(MdiIcons.chevronRight, color: AppColors.textSecondary),
+      SettingsNavTile(
+        icon: MdiIcons.refresh,
+        title: 'Sync now',
+        subtitle: SyncService.lastSyncTime != null
+            ? 'Last: ${_formatDateTime(SyncService.lastSyncTime!)}'
+            : 'Never synced',
         onTap: () => _manualSync(context, ref),
       ),
     ];
@@ -340,7 +303,7 @@ class SettingsPage extends ConsumerWidget {
             title: const Text('Backup codes'),
             subtitle: const Text('Not set up yet'),
             trailing: TextButton(
-              onPressed: () => _showMigrationDialog(context, ref),
+              onPressed: () => _setUpBackupCodes(context, ref),
               child: const Text('Set up'),
             ),
           );
@@ -383,7 +346,7 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Future<void> _showMigrationDialog(BuildContext context, WidgetRef ref) async {
+  Future<void> _setUpBackupCodes(BuildContext context, WidgetRef ref) async {
     final user = SupabaseService.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(
@@ -392,73 +355,32 @@ class SettingsPage extends ConsumerWidget {
       return;
     }
 
-    final passwordController = TextEditingController();
-
-    final confirmed = await showDialog<bool>(
+    final password = await showPasswordSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Set up backup codes'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Backup codes let you access your account if you forget your password.\n\n'
-              'Enter your current password to generate backup codes.',
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Password'),
-              autofocus: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Set up'),
-          ),
-        ],
-      ),
+      title: 'Set up backup codes',
+      message:
+          'Backup codes let you access your account if you forget your '
+          'password. Enter your current password to generate them.',
+      confirmLabel: 'Set up',
     );
 
-    if (confirmed != true || !context.mounted) return;
+    if (password == null || !context.mounted) return;
 
-    // Show loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('Setting up backup codes...'),
-          ],
-        ),
-      ),
-    );
+    showProgressSheet(context, 'Setting up backup codes...');
 
     final result = await EncryptionService.migrateToMasterKeyArchitecture(
       userId: user.id,
-      password: passwordController.text,
+      password: password,
     );
 
     if (!context.mounted) return;
-    Navigator.pop(context); // Close loading dialog
+    Navigator.pop(context); // Close the progress sheet
 
     if (result.success && result.codes.isNotEmpty) {
       // Refresh the providers
       ref.invalidate(hasMasterKeySetupProvider);
       ref.invalidate(availableBackupCodesProvider);
 
-      // Show the new codes
       await Navigator.push(
         context,
         MaterialPageRoute(
@@ -479,70 +401,30 @@ class SettingsPage extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final passwordController = TextEditingController();
-
-    final confirmed = await showDialog<bool>(
+    final password = await showPasswordSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Generate new backup codes'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'All existing codes will become invalid. Enter your password to continue.',
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Password'),
-              autofocus: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Generate'),
-          ),
-        ],
-      ),
+      title: 'Generate new backup codes',
+      message:
+          'All existing codes will become invalid. Enter your password to '
+          'continue.',
+      confirmLabel: 'Generate',
     );
 
-    if (confirmed != true || !context.mounted) return;
+    if (password == null || !context.mounted) return;
 
-    // Show loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('Generating codes...'),
-          ],
-        ),
-      ),
-    );
+    showProgressSheet(context, 'Generating codes...');
 
     final newCodes = await ref
         .read(authProvider.notifier)
-        .regenerateBackupCodes(passwordController.text);
+        .regenerateBackupCodes(password);
 
     if (!context.mounted) return;
-    Navigator.pop(context); // Close loading dialog
+    Navigator.pop(context); // Close the progress sheet
 
     if (newCodes != null && newCodes.isNotEmpty) {
       // Refresh the providers
       ref.invalidate(availableBackupCodesProvider);
 
-      // Show the new codes
       await Navigator.push(
         context,
         MaterialPageRoute(
@@ -613,114 +495,54 @@ class SettingsPage extends ConsumerWidget {
     }
   }
 
-  void _signOut(BuildContext context, WidgetRef ref) {
-    showDialog(
+  Future<void> _signOut(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showConfirmSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sign out'),
-        content: const Text('Are you sure you want to sign out?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context); // Pop settings page
-              ref.read(authProvider.notifier).signOut();
-            },
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Sign out'),
-          ),
-        ],
-      ),
+      title: 'Sign out',
+      message: 'Are you sure you want to sign out?',
+      confirmLabel: 'Sign out',
+      destructive: true,
     );
+    if (!confirmed || !context.mounted) return;
+
+    Navigator.pop(context); // Pop settings page
+    ref.read(authProvider.notifier).signOut();
   }
 
-  void _connectToCloud(BuildContext context, WidgetRef ref) {
-    showDialog(
+  Future<void> _connectToCloud(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showConfirmSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Connect to cloud'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Connect your account to the cloud to sync your data across all devices.\n\n'
-              'Your local data stays intact and is synced after you sign in.',
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context); // Pop settings page
-              ref.read(authProvider.notifier).goToLogin();
-            },
-            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('Sign in'),
-          ),
-        ],
-      ),
+      title: 'Connect to cloud',
+      message:
+          'Connect your account to the cloud to sync your data across all '
+          'devices. Your local data stays intact and is synced after you '
+          'sign in.',
+      confirmLabel: 'Sign in',
     );
+    if (!confirmed || !context.mounted) return;
+
+    Navigator.pop(context); // Pop settings page
+    ref.read(authProvider.notifier).goToLogin();
   }
 
   Future<void> _exportData(BuildContext context) async {
-    // Show loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('Exporting data...'),
-          ],
-        ),
-      ),
-    );
+    showProgressSheet(context, 'Exporting data...');
 
     final result = await ExportService.exportData();
 
     if (!context.mounted) return;
-    Navigator.pop(context); // Close loading dialog
+    Navigator.pop(context); // Close the progress sheet
 
     if (result.success && result.filePath != null) {
-      showDialog(
+      final share = await showNoticeSheet(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Export successful'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${result.todoCount} tasks and ${result.projectCount} projects were exported.',
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(context);
-                ExportService.shareExport(result.filePath!);
-              },
-              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-              child: const Text('Share'),
-            ),
-          ],
-        ),
+        title: 'Export successful',
+        message:
+            '${result.todoCount} tasks and ${result.projectCount} projects '
+            'were exported.',
+        actionLabel: 'Share',
       );
+      if (share) ExportService.shareExport(result.filePath!);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -816,47 +638,47 @@ class _ShowNewBackupCodesPageState extends State<_ShowNewBackupCodesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('New backup codes'),
-        automaticallyImplyLeading: false,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.warning.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(MdiIcons.alertOutline, color: AppColors.warning),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Your old backup codes are now invalid. Store the new codes somewhere safe!',
-                        style: TextStyle(color: AppColors.warning),
-                      ),
-                    ),
-                  ],
-                ),
+    // No back chevron on purpose: the codes are shown exactly once. The page
+    // owns its background — [AppScaffold] paints none, so a pushed route would
+    // otherwise show the shell behind it.
+    return ColoredBox(
+      color: AppColors.background,
+      child: AppScaffold(
+        title: 'New backup codes',
+        body: ListView(
+          padding: EdgeInsets.fromLTRB(
+            AppShapes.listInset,
+            4,
+            AppShapes.listInset,
+            AppShapes.contentBottom(context),
+          ),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(AppShapes.groupOuter),
               ),
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.divider),
-                ),
+              child: Row(
+                children: [
+                  Icon(MdiIcons.alertOutline, color: AppColors.warning),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Your old backup codes are now invalid. Store the new codes somewhere safe!',
+                      style: TextStyle(color: AppColors.warning),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Material(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppShapes.groupOuter),
+              clipBehavior: Clip.antiAlias,
+              child: Padding(
+                padding: const EdgeInsets.all(18),
                 child: Column(
                   children: widget.codes.asMap().entries.map((entry) {
                     return Padding(
@@ -892,37 +714,37 @@ class _ShowNewBackupCodesPageState extends State<_ShowNewBackupCodesPage> {
                   }).toList(),
                 ),
               ),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: _copyAllCodes,
-                icon: Icon(MdiIcons.contentCopy),
-                label: const Text('Copy all'),
-              ),
-              const SizedBox(height: 24),
-              CheckboxListTile(
-                value: _hasSaved,
-                onChanged: (value) {
-                  setState(() {
-                    _hasSaved = value ?? false;
-                  });
-                },
-                title: const Text(
-                  'I have stored the codes safely',
-                  style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            RoundedGroup(
+              inset: 0,
+              children: [
+                ListTile(
+                  leading: Icon(
+                    MdiIcons.contentCopy,
+                    color: AppColors.textPrimary,
+                  ),
+                  title: const Text('Copy all codes'),
+                  onTap: _copyAllCodes,
                 ),
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _hasSaved ? () => Navigator.pop(context) : null,
-                  child: const Text('Done'),
+                CheckboxListTile(
+                  value: _hasSaved,
+                  onChanged: (value) =>
+                      setState(() => _hasSaved = value ?? false),
+                  title: const Text('I have stored the codes safely'),
+                  controlAffinity: ListTileControlAffinity.leading,
                 ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: _hasSaved ? () => Navigator.pop(context) : null,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-            ],
-          ),
+              child: const Text('Done'),
+            ),
+          ],
         ),
       ),
     );
@@ -969,12 +791,12 @@ class _SunriseToggleTileState extends State<_SunriseToggleTile> {
 
   @override
   Widget build(BuildContext context) {
-    return SwitchListTile(
-      secondary: Icon(MdiIcons.weatherSunny, color: AppColors.textPrimary),
-      title: const Text('Connect Sunrise'),
-      subtitle: const Text(
-        'Show today\'s tasks in the Sunrise app (this device only, unencrypted).',
-      ),
+    return SettingsSwitchTile(
+      icon: MdiIcons.weatherSunny,
+      title: 'Connect Sunrise',
+      subtitle:
+          'Show today\'s tasks in the Sunrise app (this device only, '
+          'unencrypted).',
       value: _enabled,
       onChanged: _loading ? null : _toggle,
     );

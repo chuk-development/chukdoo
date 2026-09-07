@@ -34,14 +34,27 @@ class CalendarContainerState {
   Calendar? get defaultCalendar =>
       calendars.where((c) => c.isDefault).firstOrNull;
 
+  /// The seeded birthday calendar, if it still exists.
+  Calendar? get birthdayCalendar =>
+      calendars.where((c) => c.kind == CalendarKind.birthdays).firstOrNull;
+
+  /// Calendars the user made, without the seeded birthday one — used wherever
+  /// the two must be listed apart.
+  List<Calendar> get ownCalendars =>
+      calendars.where((c) => c.kind != CalendarKind.birthdays).toList();
+
   List<Calendar> get visibleCalendars =>
       calendars.where((c) => c.isVisible).toList();
 }
 
 class CalendarContainerNotifier extends StateNotifier<CalendarContainerState> {
   CalendarContainerNotifier() : super(const CalendarContainerState()) {
-    _loadCalendars();
+    _loadCalendars().then((_) => _seedOnce());
   }
+
+  /// Set once the app has created its starting calendars. Without it a user
+  /// who deletes the birthday calendar would get it back on every start.
+  static const _seedFlag = 'calendar_seeded_v1';
 
   Box<Map>? _box;
   final _uuid = const Uuid();
@@ -73,11 +86,32 @@ class CalendarContainerNotifier extends StateNotifier<CalendarContainerState> {
     await _loadCalendars();
   }
 
+  /// Creates the two calendars the app starts with — a general one and
+  /// "Birthdays" — the first time it runs, and never again.
+  Future<void> _seedOnce() async {
+    final settings = Hive.box(AppConstants.hiveSettingsBox);
+    if (settings.get(_seedFlag) == true) return;
+
+    if (state.defaultCalendar == null) {
+      await addCalendar(name: 'Calendar', isDefault: true, color: 0xFF64B5F6);
+    }
+    if (state.birthdayCalendar == null) {
+      await addCalendar(
+        name: 'Birthdays',
+        color: 0xFFFF80AB,
+        kind: CalendarKind.birthdays,
+      );
+    }
+
+    await settings.put(_seedFlag, true);
+  }
+
   Future<Calendar> addCalendar({
     required String name,
     String? description,
     int color = 0xFF4285F4,
     bool isDefault = false,
+    CalendarKind kind = CalendarKind.general,
   }) async {
     final userId = SupabaseService.currentUser?.id ?? 'local';
     final now = DateTime.now();
@@ -90,6 +124,7 @@ class CalendarContainerNotifier extends StateNotifier<CalendarContainerState> {
       color: color,
       isDefault: isDefault,
       sortOrder: state.calendars.length,
+      kind: kind,
       createdAt: now,
       updatedAt: now,
     );
@@ -155,9 +190,9 @@ class CalendarContainerNotifier extends StateNotifier<CalendarContainerState> {
     if (existing != null) return existing;
 
     return addCalendar(
-      name: 'Kalender',
+      name: 'Calendar',
       isDefault: true,
-      color: 0xFF4285F4,
+      color: 0xFF64B5F6,
     );
   }
 }

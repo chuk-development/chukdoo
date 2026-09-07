@@ -12,11 +12,7 @@ class NoteState {
   final bool isLoading;
   final String? error;
 
-  const NoteState({
-    this.notes = const [],
-    this.isLoading = false,
-    this.error,
-  });
+  const NoteState({this.notes = const [], this.isLoading = false, this.error});
 
   NoteState copyWith({
     List<Note>? notes,
@@ -75,6 +71,7 @@ class NoteNotifier extends StateNotifier<NoteState> {
     String title = '',
     String content = '',
     int? color,
+    String? folderId,
   }) async {
     final now = DateTime.now();
     // New notes go to the very top of the unpinned section.
@@ -88,6 +85,7 @@ class NoteNotifier extends StateNotifier<NoteState> {
       title: title,
       content: content,
       color: color,
+      folderId: folderId,
       sortOrder: minOrder - 1,
       createdAt: now,
       updatedAt: now,
@@ -113,8 +111,9 @@ class NoteNotifier extends StateNotifier<NoteState> {
       version: note.version + 1,
     );
     await _notesBox.put(updated.id, updated.toJson());
-    final notes =
-        state.notes.map((n) => n.id == updated.id ? updated : n).toList();
+    final notes = state.notes
+        .map((n) => n.id == updated.id ? updated : n)
+        .toList();
     _sort(notes);
     state = state.copyWith(notes: notes);
 
@@ -138,6 +137,26 @@ class NoteNotifier extends StateNotifier<NoteState> {
     if (idx == -1) return;
     final note = state.notes[idx];
     await updateNote(note.copyWith(color: color, clearColor: color == null));
+  }
+
+  /// Move a note into [folderId], or out of every folder when it is null.
+  Future<void> moveToFolder(String noteId, String? folderId) async {
+    final idx = state.notes.indexWhere((n) => n.id == noteId);
+    if (idx == -1) return;
+    final note = state.notes[idx];
+    if (note.folderId == folderId) return;
+    await updateNote(
+      note.copyWith(folderId: folderId, clearFolder: folderId == null),
+    );
+  }
+
+  /// Drop [folderId] from every note that carries it. Called when the folder
+  /// is deleted: the folder goes, the notes stay.
+  Future<void> clearFolder(String folderId) async {
+    final affected = state.notes.where((n) => n.folderId == folderId).toList();
+    for (final note in affected) {
+      await updateNote(note.copyWith(clearFolder: true));
+    }
   }
 
   Future<void> deleteNote(String noteId) async {
@@ -193,5 +212,6 @@ class NoteNotifier extends StateNotifier<NoteState> {
   }
 }
 
-final noteProvider =
-    StateNotifierProvider<NoteNotifier, NoteState>((ref) => NoteNotifier());
+final noteProvider = StateNotifierProvider<NoteNotifier, NoteState>(
+  (ref) => NoteNotifier(),
+);

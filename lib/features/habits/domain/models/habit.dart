@@ -31,10 +31,7 @@ class Habit {
 
   /// Sensitive data to encrypt before sync
   Map<String, dynamic> toEncryptedPayload() {
-    return {
-      'name': name,
-      'description': description,
-    };
+    return {'name': name, 'description': description};
   }
 
   /// Non-sensitive metadata for Supabase (with encrypted blob)
@@ -61,7 +58,8 @@ class Habit {
   ) {
     // Parse color from hex string back to int
     final colorStr = row['color'] as String? ?? '#FF00BFA5';
-    final colorInt = int.tryParse(colorStr.replaceFirst('#', ''), radix: 16) ?? 0xFF00BFA5;
+    final colorInt =
+        int.tryParse(colorStr.replaceFirst('#', ''), radix: 16) ?? 0xFF00BFA5;
 
     return Habit(
       id: row['id'] as String,
@@ -70,7 +68,8 @@ class Habit {
       description: decryptedPayload['description'] as String?,
       color: colorInt,
       frequency: row['frequency'] as String? ?? 'daily',
-      completions: (row['completions'] as List<dynamic>?)
+      completions:
+          (row['completions'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           const [],
@@ -109,7 +108,8 @@ class Habit {
       description: json['description'] as String?,
       color: json['color'] as int,
       frequency: json['frequency'] as String? ?? 'daily',
-      completions: (json['completions'] as List<dynamic>?)
+      completions:
+          (json['completions'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           const [],
@@ -158,10 +158,7 @@ class Habit {
   }
 
   Habit incrementVersion() {
-    return copyWith(
-      version: version + 1,
-      updatedAt: DateTime.now(),
-    );
+    return copyWith(version: version + 1, updatedAt: DateTime.now());
   }
 
   bool isCompletedOn(DateTime date) {
@@ -191,7 +188,9 @@ class Habit {
     int streak = 0;
     // Step by calendar day (DateTime(y, m, d - 1)) rather than subtracting a
     // fixed 24h Duration, which can skip/repeat a day across DST transitions.
-    var checkDate = completed.contains(_dateToString(today)) ? today : yesterday;
+    var checkDate = completed.contains(_dateToString(today))
+        ? today
+        : yesterday;
     while (completed.contains(_dateToString(checkDate))) {
       streak++;
       checkDate = DateTime(checkDate.year, checkDate.month, checkDate.day - 1);

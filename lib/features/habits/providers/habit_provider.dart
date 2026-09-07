@@ -12,15 +12,9 @@ class HabitState {
   final List<Habit> habits;
   final bool isLoading;
 
-  const HabitState({
-    this.habits = const [],
-    this.isLoading = false,
-  });
+  const HabitState({this.habits = const [], this.isLoading = false});
 
-  HabitState copyWith({
-    List<Habit>? habits,
-    bool? isLoading,
-  }) {
+  HabitState copyWith({List<Habit>? habits, bool? isLoading}) {
     return HabitState(
       habits: habits ?? this.habits,
       isLoading: isLoading ?? this.isLoading,
@@ -41,6 +35,9 @@ class HabitNotifier extends StateNotifier<HabitState> {
     _box = await Hive.openBox<Map>(_hiveHabitsBox);
     return _box!;
   }
+
+  /// Re-read the box — used after a sync pull dropped new rows into it.
+  Future<void> refresh() => _loadHabits();
 
   Future<void> _loadHabits() async {
     state = state.copyWith(isLoading: true);
@@ -106,8 +103,7 @@ class HabitNotifier extends StateNotifier<HabitState> {
 
       List<String> newCompletions;
       if (h.completions.contains(dateStr)) {
-        newCompletions =
-            h.completions.where((c) => c != dateStr).toList();
+        newCompletions = h.completions.where((c) => c != dateStr).toList();
       } else {
         newCompletions = [...h.completions, dateStr];
       }
@@ -159,7 +155,9 @@ class HabitNotifier extends StateNotifier<HabitState> {
     await box.put(updated.id, updated.toJson());
 
     state = state.copyWith(
-      habits: state.habits.map((h) => h.id == updated.id ? updated : h).toList(),
+      habits: state.habits
+          .map((h) => h.id == updated.id ? updated : h)
+          .toList(),
     );
 
     await SyncService.queueOperation(
@@ -171,7 +169,13 @@ class HabitNotifier extends StateNotifier<HabitState> {
   }
 }
 
-final habitProvider =
-    StateNotifierProvider<HabitNotifier, HabitState>((ref) {
+final habitProvider = StateNotifierProvider<HabitNotifier, HabitState>((ref) {
   return HabitNotifier();
 });
+
+/// Which habits the page shows. Driven by the habits side panel.
+enum HabitFilter { all, daily, weekly }
+
+final habitFilterProvider = StateProvider<HabitFilter>(
+  (ref) => HabitFilter.all,
+);

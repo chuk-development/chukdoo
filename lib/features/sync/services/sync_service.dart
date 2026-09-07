@@ -15,15 +15,25 @@ import '../repositories/calendar_sync_repository.dart';
 import '../repositories/calendar_event_sync_repository.dart';
 import '../repositories/habit_sync_repository.dart';
 import '../repositories/note_sync_repository.dart';
+import '../repositories/note_folder_sync_repository.dart';
 import '../../calendar/domain/models/calendar_event.dart';
 import '../../habits/domain/models/habit.dart';
 import '../../notes/domain/models/note.dart';
+import '../../notes/domain/models/note_folder.dart';
 
 /// Operation types for sync queue
 enum SyncOperation { create, update, delete }
 
 /// Entity types for sync
-enum SyncEntityType { todo, project, calendar, calendarEvent, habit, note }
+enum SyncEntityType {
+  todo,
+  project,
+  calendar,
+  calendarEvent,
+  habit,
+  note,
+  noteFolder,
+}
 
 /// A queued sync operation
 class SyncQueueItem {
@@ -44,13 +54,13 @@ class SyncQueueItem {
   }) : createdAt = createdAt ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'entityType': entityType.name,
-        'operation': operation.name,
-        'entityId': entityId,
-        'data': data,
-        'createdAt': createdAt.toIso8601String(),
-      };
+    'id': id,
+    'entityType': entityType.name,
+    'operation': operation.name,
+    'entityId': entityId,
+    'data': data,
+    'createdAt': createdAt.toIso8601String(),
+  };
 
   factory SyncQueueItem.fromJson(Map<String, dynamic> json) {
     final rawData = json['data'];
@@ -106,7 +116,8 @@ class SyncService {
   static Stream<SyncConflict> get conflictStream => _conflictController.stream;
 
   /// Get pending conflicts
-  static List<SyncConflict> get pendingConflicts => List.unmodifiable(_pendingConflicts);
+  static List<SyncConflict> get pendingConflicts =>
+      List.unmodifiable(_pendingConflicts);
 
   /// Check if there are pending conflicts
   static bool get hasConflicts => _pendingConflicts.isNotEmpty;
@@ -139,7 +150,9 @@ class SyncService {
     );
 
     await _queue.put(item.id, item.toJson());
-    debugPrint('SyncService: Queued ${operation.name} for ${entityType.name} $entityId');
+    debugPrint(
+      'SyncService: Queued ${operation.name} for ${entityType.name} $entityId',
+    );
 
     // Auto-process queue after adding new operation
     unawaited(processQueue());
@@ -150,8 +163,7 @@ class SyncService {
     return _queue.values.map((m) {
       final map = Map<String, dynamic>.from(m);
       return SyncQueueItem.fromJson(map);
-    }).toList()
-      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    }).toList()..sort((a, b) => a.createdAt.compareTo(b.createdAt));
   }
 
   /// Process the sync queue
@@ -211,11 +223,29 @@ class SyncService {
       SyncEntityType.calendarEvent => 'calendar_events',
       SyncEntityType.habit => 'habits',
       SyncEntityType.note => 'notes',
+      SyncEntityType.noteFolder => 'note_folders',
     };
 
     // Notes carry presentation columns (colour, order, pin) next to the
     // encrypted blob, so they go through their repository instead of the
     // generic payload-only upsert.
+    // Folders carry the same presentation columns as notes, so they take the
+    // same repository route instead of the payload-only upsert.
+    if (item.entityType == SyncEntityType.noteFolder) {
+      switch (item.operation) {
+        case SyncOperation.create:
+        case SyncOperation.update:
+          if (item.data != null) {
+            await NoteFolderSyncRepository.uploadFolder(
+              NoteFolder.fromJson(Map<String, dynamic>.from(item.data!)),
+            );
+          }
+        case SyncOperation.delete:
+          await NoteFolderSyncRepository.deleteFolder(item.entityId);
+      }
+      return;
+    }
+
     if (item.entityType == SyncEntityType.note) {
       switch (item.operation) {
         case SyncOperation.create:
@@ -236,7 +266,9 @@ class SyncService {
       case SyncOperation.update:
         if (item.data != null) {
           // Encrypt the data before sending
-          final encryptedPayload = await EncryptionService.encryptJson(item.data!);
+          final encryptedPayload = await EncryptionService.encryptJson(
+            item.data!,
+          );
           final userId = item.data!['user_id'] as String?;
 
           await SupabaseService.client.from(tableName).upsert({
@@ -245,7 +277,9 @@ class SyncService {
             'encrypted_payload': encryptedPayload,
             'updated_at': DateTime.now().toIso8601String(),
           });
-          debugPrint('SyncService: Uploaded ${item.entityType.name} ${item.entityId}');
+          debugPrint(
+            'SyncService: Uploaded ${item.entityType.name} ${item.entityId}',
+          );
         }
         break;
       case SyncOperation.delete:
@@ -253,7 +287,9 @@ class SyncService {
             .from(tableName)
             .delete()
             .eq('id', item.entityId);
-        debugPrint('SyncService: Deleted ${item.entityType.name} ${item.entityId}');
+        debugPrint(
+          'SyncService: Deleted ${item.entityType.name} ${item.entityId}',
+        );
         break;
     }
   }
@@ -311,7 +347,9 @@ class SyncService {
     // Download todos
     try {
       final serverTodos = await TodoSyncRepository.downloadTodos();
-      debugPrint('SyncService: Downloaded ${serverTodos.length} todos from server');
+      debugPrint(
+        'SyncService: Downloaded ${serverTodos.length} todos from server',
+      );
 
       for (final serverTodo in serverTodos) {
         final localData = todosBox.get(serverTodo.id);
@@ -321,7 +359,9 @@ class SyncService {
           newTodoCount++;
           firstNewTodoTitle ??= serverTodo.title;
           await todosBox.put(serverTodo.id, serverTodo.toJson());
-          debugPrint('SyncService: Added new todo from server: ${serverTodo.id}');
+          debugPrint(
+            'SyncService: Added new todo from server: ${serverTodo.id}',
+          );
         } else {
           // Existing todo - compare versions
           final localTodo = Todo.fromJson(Map<String, dynamic>.from(localData));
@@ -329,9 +369,11 @@ class SyncService {
           // Server wins if it has a newer version or later update time
           if (serverTodo.version > localTodo.version ||
               (serverTodo.version == localTodo.version &&
-               serverTodo.updatedAt.isAfter(localTodo.updatedAt))) {
+                  serverTodo.updatedAt.isAfter(localTodo.updatedAt))) {
             await todosBox.put(serverTodo.id, serverTodo.toJson());
-            debugPrint('SyncService: Updated todo from server: ${serverTodo.id}');
+            debugPrint(
+              'SyncService: Updated todo from server: ${serverTodo.id}',
+            );
           }
         }
       }
@@ -352,7 +394,9 @@ class SyncService {
     try {
       final calendarsBox = Hive.box<Map>(AppConstants.hiveCalendarsBox);
       final serverCalendars = await CalendarSyncRepository.downloadCalendars();
-      debugPrint('SyncService: Downloaded ${serverCalendars.length} calendars from server');
+      debugPrint(
+        'SyncService: Downloaded ${serverCalendars.length} calendars from server',
+      );
 
       for (final serverCalendar in serverCalendars) {
         final localData = calendarsBox.get(serverCalendar.id);
@@ -360,8 +404,11 @@ class SyncService {
         if (localData == null) {
           await calendarsBox.put(serverCalendar.id, serverCalendar.toJson());
         } else {
-          final localUpdatedAt = DateTime.tryParse(localData['updated_at'] as String? ?? '');
-          if (localUpdatedAt == null || serverCalendar.updatedAt.isAfter(localUpdatedAt)) {
+          final localUpdatedAt = DateTime.tryParse(
+            localData['updated_at'] as String? ?? '',
+          );
+          if (localUpdatedAt == null ||
+              serverCalendar.updatedAt.isAfter(localUpdatedAt)) {
             await calendarsBox.put(serverCalendar.id, serverCalendar.toJson());
           }
         }
@@ -372,9 +419,13 @@ class SyncService {
 
     // Download calendar events
     try {
-      final calendarEventsBox = Hive.box<Map>(AppConstants.hiveCalendarEventsBox);
+      final calendarEventsBox = Hive.box<Map>(
+        AppConstants.hiveCalendarEventsBox,
+      );
       final serverEvents = await CalendarEventSyncRepository.downloadEvents();
-      debugPrint('SyncService: Downloaded ${serverEvents.length} calendar events from server');
+      debugPrint(
+        'SyncService: Downloaded ${serverEvents.length} calendar events from server',
+      );
 
       for (final serverEvent in serverEvents) {
         final localData = calendarEventsBox.get(serverEvent.id);
@@ -382,10 +433,12 @@ class SyncService {
         if (localData == null) {
           await calendarEventsBox.put(serverEvent.id, serverEvent.toJson());
         } else {
-          final localEvent = CalendarEvent.fromJson(Map<String, dynamic>.from(localData));
+          final localEvent = CalendarEvent.fromJson(
+            Map<String, dynamic>.from(localData),
+          );
           if (serverEvent.version > localEvent.version ||
               (serverEvent.version == localEvent.version &&
-               serverEvent.updatedAt.isAfter(localEvent.updatedAt))) {
+                  serverEvent.updatedAt.isAfter(localEvent.updatedAt))) {
             await calendarEventsBox.put(serverEvent.id, serverEvent.toJson());
           }
         }
@@ -398,21 +451,29 @@ class SyncService {
     try {
       final habitsBox = Hive.box<Map>(AppConstants.hiveHabitsBox);
       final serverHabits = await HabitSyncRepository.downloadHabits();
-      debugPrint('SyncService: Downloaded ${serverHabits.length} habits from server');
+      debugPrint(
+        'SyncService: Downloaded ${serverHabits.length} habits from server',
+      );
 
       for (final serverHabit in serverHabits) {
         final localData = habitsBox.get(serverHabit.id);
 
         if (localData == null) {
           await habitsBox.put(serverHabit.id, serverHabit.toJson());
-          debugPrint('SyncService: Added new habit from server: ${serverHabit.id}');
+          debugPrint(
+            'SyncService: Added new habit from server: ${serverHabit.id}',
+          );
         } else {
-          final localHabit = Habit.fromJson(Map<String, dynamic>.from(localData));
+          final localHabit = Habit.fromJson(
+            Map<String, dynamic>.from(localData),
+          );
           if (serverHabit.version > localHabit.version ||
               (serverHabit.version == localHabit.version &&
-               serverHabit.updatedAt.isAfter(localHabit.updatedAt))) {
+                  serverHabit.updatedAt.isAfter(localHabit.updatedAt))) {
             await habitsBox.put(serverHabit.id, serverHabit.toJson());
-            debugPrint('SyncService: Updated habit from server: ${serverHabit.id}');
+            debugPrint(
+              'SyncService: Updated habit from server: ${serverHabit.id}',
+            );
           }
         }
       }
@@ -420,11 +481,44 @@ class SyncService {
       debugPrint('SyncService: Error downloading habits: $e');
     }
 
+    // Download note folders before the notes, so a note arriving from the
+    // server always finds the folder it points at.
+    try {
+      final folderBox = Hive.isBoxOpen(NoteFolder.hiveBox)
+          ? Hive.box<Map>(NoteFolder.hiveBox)
+          : await Hive.openBox<Map>(NoteFolder.hiveBox);
+      final serverFolders = await NoteFolderSyncRepository.downloadFolders();
+      debugPrint(
+        'SyncService: Downloaded ${serverFolders.length} note folders from server',
+      );
+
+      for (final serverFolder in serverFolders) {
+        final localData = folderBox.get(serverFolder.id);
+
+        if (localData == null) {
+          await folderBox.put(serverFolder.id, serverFolder.toJson());
+        } else {
+          final localFolder = NoteFolder.fromJson(
+            Map<String, dynamic>.from(localData),
+          );
+          if (serverFolder.version > localFolder.version ||
+              (serverFolder.version == localFolder.version &&
+                  serverFolder.updatedAt.isAfter(localFolder.updatedAt))) {
+            await folderBox.put(serverFolder.id, serverFolder.toJson());
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('SyncService: Error downloading note folders: $e');
+    }
+
     // Download notes
     try {
       final notesBox = Hive.box<Map>(AppConstants.hiveNotesBox);
       final serverNotes = await NoteSyncRepository.downloadNotes();
-      debugPrint('SyncService: Downloaded ${serverNotes.length} notes from server');
+      debugPrint(
+        'SyncService: Downloaded ${serverNotes.length} notes from server',
+      );
 
       for (final serverNote in serverNotes) {
         final localData = notesBox.get(serverNote.id);
@@ -447,7 +541,9 @@ class SyncService {
     // Download projects
     try {
       final serverProjects = await ProjectSyncRepository.downloadProjects();
-      debugPrint('SyncService: Downloaded ${serverProjects.length} projects from server');
+      debugPrint(
+        'SyncService: Downloaded ${serverProjects.length} projects from server',
+      );
 
       for (final serverProject in serverProjects) {
         final localData = projectsBox.get(serverProject.id);
@@ -455,14 +551,21 @@ class SyncService {
         if (localData == null) {
           // New project from server - add locally
           await projectsBox.put(serverProject.id, serverProject.toJson());
-          debugPrint('SyncService: Added new project from server: ${serverProject.id}');
+          debugPrint(
+            'SyncService: Added new project from server: ${serverProject.id}',
+          );
         } else {
           // For projects, use server version if newer
-          final localUpdatedAt = DateTime.tryParse(localData['updated_at'] as String? ?? '');
+          final localUpdatedAt = DateTime.tryParse(
+            localData['updated_at'] as String? ?? '',
+          );
 
-          if (localUpdatedAt == null || serverProject.updatedAt.isAfter(localUpdatedAt)) {
+          if (localUpdatedAt == null ||
+              serverProject.updatedAt.isAfter(localUpdatedAt)) {
             await projectsBox.put(serverProject.id, serverProject.toJson());
-            debugPrint('SyncService: Updated project from server: ${serverProject.id}');
+            debugPrint(
+              'SyncService: Updated project from server: ${serverProject.id}',
+            );
           }
         }
       }
@@ -501,7 +604,9 @@ class SyncService {
       if (serverVersion > localTodo.version) {
         // Decrypt server payload to get server todo
         final encryptedPayload = response['encrypted_payload'] as String;
-        final decryptedPayload = await EncryptionService.decryptJson(encryptedPayload);
+        final decryptedPayload = await EncryptionService.decryptJson(
+          encryptedPayload,
+        );
 
         // Create a minimal server todo for comparison
         final serverTodo = Todo(
@@ -559,15 +664,22 @@ class SyncService {
 
         case ConflictResolution.keepServer:
           // Use server version, discard local changes
-          await todosBox.put(conflict.serverVersion.id, conflict.serverVersion.toJson());
+          await todosBox.put(
+            conflict.serverVersion.id,
+            conflict.serverVersion.toJson(),
+          );
           break;
 
         case ConflictResolution.keepBoth:
           // Keep server version and create a copy of local version
-          await todosBox.put(conflict.serverVersion.id, conflict.serverVersion.toJson());
+          await todosBox.put(
+            conflict.serverVersion.id,
+            conflict.serverVersion.toJson(),
+          );
 
           // Create a copy with new ID
-          final copyId = '${conflict.localVersion.id}_copy_${DateTime.now().millisecondsSinceEpoch}';
+          final copyId =
+              '${conflict.localVersion.id}_copy_${DateTime.now().millisecondsSinceEpoch}';
           final copy = conflict.localVersion.copyWith(
             id: copyId,
             title: '${conflict.localVersion.title} (Kopie)',
@@ -586,7 +698,10 @@ class SyncService {
 
         case ConflictResolution.merge:
           // Use the newer value for each field
-          final merged = _mergeTodos(conflict.localVersion, conflict.serverVersion);
+          final merged = _mergeTodos(
+            conflict.localVersion,
+            conflict.serverVersion,
+          );
           await todosBox.put(merged.id, merged.toJson());
           await queueOperation(
             entityType: SyncEntityType.todo,
@@ -599,7 +714,9 @@ class SyncService {
 
       // Remove from pending conflicts
       _pendingConflicts.removeWhere((c) => c.todoId == conflict.todoId);
-      debugPrint('SyncService: Conflict resolved for todo ${conflict.todoId} with $resolution');
+      debugPrint(
+        'SyncService: Conflict resolved for todo ${conflict.todoId} with $resolution',
+      );
     } catch (e) {
       debugPrint('SyncService: Error resolving conflict: $e');
     }
@@ -628,7 +745,8 @@ class SyncService {
       encryptionContext: local.encryptionContext,
       labelIds: useLocal ? local.labelIds : server.labelIds,
       reminderAt: useLocal ? local.reminderAt : server.reminderAt,
-      version: (local.version > server.version ? local.version : server.version) + 1,
+      version:
+          (local.version > server.version ? local.version : server.version) + 1,
     );
   }
 

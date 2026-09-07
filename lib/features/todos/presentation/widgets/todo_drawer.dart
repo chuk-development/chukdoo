@@ -113,6 +113,14 @@ class TodoDrawer extends ConsumerWidget {
         ),
         const AppDrawerSection(label: 'Projects'),
       ],
+      footer: AppDrawerActionTile(
+        icon: MdiIcons.plusCircleOutline,
+        label: 'New project',
+        onTap: () {
+          Navigator.pop(context);
+          ProjectEditDialog.show(context);
+        },
+      ),
       children: [
         for (var i = 0; i < projects.length; i++)
           AppDrawerTile(
@@ -127,14 +135,6 @@ class TodoDrawer extends ConsumerWidget {
             onTap: () => onProjectTap(projects[i]),
           ),
       ],
-      footer: AppDrawerActionTile(
-        icon: MdiIcons.plusCircleOutline,
-        label: 'New project',
-        onTap: () {
-          Navigator.pop(context);
-          ProjectEditDialog.show(context);
-        },
-      ),
     );
   }
 }

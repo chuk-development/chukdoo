@@ -7,6 +7,7 @@ import '../../../../core/theme/app_shapes.dart';
 import '../../../../shared/widgets/app_field.dart';
 import '../../../../shared/widgets/picker_sheet.dart';
 import '../../providers/calendar_event_provider.dart';
+import '../../providers/ics_feeds_provider.dart';
 import '../../services/ics_feed_service.dart';
 
 /// Subscribed ICS calendars: add a feed URL, refresh it, remove it.
@@ -58,7 +59,7 @@ class _IcsFeedsSheetState extends ConsumerState<IcsFeedsSheet> {
       _error = null;
     });
 
-    final feed = await IcsFeedService.addFeed(
+    final feed = await ref.read(icsFeedsProvider.notifier).add(
       url: normalized,
       name: _nameController.text,
     );
@@ -77,16 +78,15 @@ class _IcsFeedsSheetState extends ConsumerState<IcsFeedsSheet> {
 
   Future<void> _refresh(IcsFeed feed) async {
     setState(() => _busy = true);
-    await IcsFeedService.refresh(feed);
+    await ref.read(icsFeedsProvider.notifier).refresh(feed);
     if (!mounted) return;
     setState(() => _busy = false);
     ref.read(calendarEventProvider.notifier).refresh();
   }
 
   Future<void> _remove(IcsFeed feed) async {
-    await IcsFeedService.removeFeed(feed.id);
+    await ref.read(icsFeedsProvider.notifier).remove(feed);
     if (!mounted) return;
-    setState(() {});
     ref.read(calendarEventProvider.notifier).refresh();
   }
 
@@ -101,7 +101,7 @@ class _IcsFeedsSheetState extends ConsumerState<IcsFeedsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final feeds = IcsFeedService.feeds;
+    final feeds = ref.watch(icsFeedsProvider);
 
     return PickerSheetScaffold(
       title: 'Subscribed calendars',

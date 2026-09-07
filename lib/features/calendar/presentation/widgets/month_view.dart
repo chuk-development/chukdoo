@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_shapes.dart';
+import '../../../settings/providers/settings_provider.dart';
 import '../../domain/models/calendar_item.dart';
+import '../../domain/week_dates.dart';
 import '../../providers/calendar_event_provider.dart';
 import '../../providers/calendar_items_provider.dart';
 import 'calendar_style.dart';
@@ -22,12 +24,15 @@ class MonthView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final eventState = ref.watch(calendarEventProvider);
     final calendarItems = ref.watch(calendarItemsProvider);
+    final settings = ref.watch(settingsProvider);
     final focused = eventState.focusedDate;
 
     final firstOfMonth = DateTime(focused.year, focused.month, 1);
-    final gridStart = firstOfMonth.subtract(
-      Duration(days: firstOfMonth.weekday - 1),
-    );
+    // The grid always begins on the user's first day of the week, so the
+    // month's first row can reach back into the previous month.
+    final gridStart = startOfWeek(firstOfMonth, settings.calendarWeekStart);
+    final labels = CalendarStyle.weekdays(settings.calendarWeekStart);
+    final showWeeks = settings.calendarShowWeekNumbers;
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -49,16 +54,22 @@ class MonthView extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(0, 2, 0, 8),
             child: Row(
               children: [
+                // Keeps the labels above their column when the week numbers
+                // take the leading edge.
+                if (showWeeks) const SizedBox(width: _weekNumberWidth),
                 for (var i = 0; i < 7; i++)
                   Expanded(
                     child: Center(
                       child: Text(
-                        CalendarStyle.weekdays[i].toUpperCase(),
+                        labels[i].toUpperCase(),
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.6,
-                          color: i >= 5
+                          color:
+                              CalendarStyle.isWeekend(
+                                gridStart.add(Duration(days: i)),
+                              )
                               ? AppColors.textTertiary
                               : AppColors.textSecondary,
                         ),
@@ -83,29 +94,38 @@ class MonthView extends ConsumerWidget {
                       return SizedBox(
                         height: rowHeight,
                         child: Row(
-                          children: List.generate(7, (dayOfWeek) {
-                            final date = gridStart.add(
-                              Duration(days: week * 7 + dayOfWeek),
-                            );
-                            final isCurrentMonth = date.month == focused.month;
-                            final isToday = date.isAtSameMomentAs(today);
-                            final dayItems = calendarItems.itemsForDay(date);
-
-                            return Expanded(
-                              child: _MonthCell(
-                                date: date,
-                                isCurrentMonth: isCurrentMonth,
-                                isToday: isToday,
-                                items: dayItems,
-                                onTap: () => onDayTap?.call(date),
-                                onItemTap: onItemTap,
-                                row: week,
-                                col: dayOfWeek,
-                                rowCount: 6,
-                                colCount: 7,
+                          children: [
+                            if (showWeeks)
+                              _WeekNumber(
+                                rowStart: gridStart.add(
+                                  Duration(days: week * 7),
+                                ),
                               ),
-                            );
-                          }),
+                            ...List.generate(7, (dayOfWeek) {
+                              final date = gridStart.add(
+                                Duration(days: week * 7 + dayOfWeek),
+                              );
+                              final isCurrentMonth =
+                                  date.month == focused.month;
+                              final isToday = date.isAtSameMomentAs(today);
+                              final dayItems = calendarItems.itemsForDay(date);
+
+                              return Expanded(
+                                child: _MonthCell(
+                                  date: date,
+                                  isCurrentMonth: isCurrentMonth,
+                                  isToday: isToday,
+                                  items: dayItems,
+                                  onTap: () => onDayTap?.call(date),
+                                  onItemTap: onItemTap,
+                                  row: week,
+                                  col: dayOfWeek,
+                                  rowCount: 6,
+                                  colCount: 7,
+                                ),
+                              );
+                            }),
+                          ],
                         ),
                       );
                     }),
@@ -115,6 +135,37 @@ class MonthView extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Width of the week-number gutter. Narrow on purpose: it is a mark, not a
+/// column of the grid.
+const double _weekNumberWidth = 20;
+
+/// The ISO week number of one grid row — a quiet label in the leading edge,
+/// with no block of its own so the grid keeps reading as seven columns.
+class _WeekNumber extends StatelessWidget {
+  final DateTime rowStart;
+
+  const _WeekNumber({required this.rowStart});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: _weekNumberWidth,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Text(
+          '${isoWeekNumberForRow(rowStart)}',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textTertiary,
+          ),
+        ),
       ),
     );
   }
@@ -193,8 +244,8 @@ class _MonthCell extends StatelessWidget {
               padding: const EdgeInsets.only(top: 4),
               child: Center(
                 child: Container(
-                  width: 22,
-                  height: 22,
+                  width: 24,
+                  height: 24,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: isToday ? CalendarStyle.accent : Colors.transparent,
@@ -203,7 +254,7 @@ class _MonthCell extends StatelessWidget {
                   child: Text(
                     '${date.day}',
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: isToday
                           ? AppColors.onPrimary
@@ -222,8 +273,8 @@ class _MonthCell extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 2),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    // ~16px per chip incl. spacing; reserve room for "+N".
-                    final maxChips = (constraints.maxHeight / 16).floor().clamp(
+                    // ~18px per chip incl. spacing; reserve room for "+N".
+                    final maxChips = (constraints.maxHeight / 18).floor().clamp(
                       0,
                       4,
                     );
@@ -240,7 +291,7 @@ class _MonthCell extends StatelessWidget {
                             child: Text(
                               '+$overflow more',
                               style: TextStyle(
-                                fontSize: 9.5,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.textTertiary,
                               ),
@@ -266,7 +317,7 @@ class _MonthCell extends StatelessWidget {
       onTap: () => onItemTap?.call(item),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
         decoration: BoxDecoration(
           color: item.isAllDay ? color : color.withValues(alpha: 0.28),
           borderRadius: BorderRadius.circular(AppShapes.groupInner),
@@ -287,7 +338,7 @@ class _MonthCell extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: item.isAllDay
                       ? CalendarStyle.onEventColor(color)

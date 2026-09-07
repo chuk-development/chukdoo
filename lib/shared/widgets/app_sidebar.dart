@@ -12,13 +12,7 @@ import '../../features/todos/domain/models/todo.dart';
 import '../../features/todos/providers/todo_provider.dart';
 
 /// Desktop section selected via the icon rail
-enum SidebarSection {
-  tasks,
-  calendar,
-  notes,
-  habits,
-  kanban,
-}
+enum SidebarSection { tasks, calendar, notes, habits, kanban }
 
 class AppSidebar extends ConsumerStatefulWidget {
   final String currentView;
@@ -91,11 +85,8 @@ class _AppSidebarState extends ConsumerState<AppSidebar> {
     return Row(
       children: [
         // ── Icon Rail (narrow left bar) ──
-        _IconRail(
-          activeSection: section,
-          onSectionSelected: _selectSection,
-        ),
-        Container(width: 1, color: AppColors.divider),
+        _IconRail(activeSection: section, onSectionSelected: _selectSection),
+        const SizedBox(width: AppShapes.groupGap),
 
         // ── Sub-Panel (contextual navigation) ──
         SizedBox(
@@ -315,38 +306,38 @@ class _SubPanel extends ConsumerWidget {
       color: AppColors.surface,
       child: switch (section) {
         SidebarSection.tasks => _TasksSubPanel(
-            currentView: currentView,
-            onViewSelected: onViewSelected,
-            onProjectTap: onProjectTap,
-          ),
+          currentView: currentView,
+          onViewSelected: onViewSelected,
+          onProjectTap: onProjectTap,
+        ),
         SidebarSection.calendar => _SimpleSubPanel(
-            title: 'Calendar',
-            icon: MdiIcons.calendarOutline,
-            currentView: currentView,
-            onViewSelected: onViewSelected,
-            section: SidebarSection.calendar,
-          ),
+          title: 'Calendar',
+          icon: MdiIcons.calendarOutline,
+          currentView: currentView,
+          onViewSelected: onViewSelected,
+          section: SidebarSection.calendar,
+        ),
         SidebarSection.notes => _SimpleSubPanel(
-            title: 'Notes',
-            icon: MdiIcons.noteMultipleOutline,
-            currentView: currentView,
-            onViewSelected: onViewSelected,
-            section: SidebarSection.notes,
-          ),
+          title: 'Notes',
+          icon: MdiIcons.noteMultipleOutline,
+          currentView: currentView,
+          onViewSelected: onViewSelected,
+          section: SidebarSection.notes,
+        ),
         SidebarSection.habits => _SimpleSubPanel(
-            title: 'Habits',
-            icon: MdiIcons.target,
-            currentView: currentView,
-            onViewSelected: onViewSelected,
-            section: SidebarSection.habits,
-          ),
+          title: 'Habits',
+          icon: MdiIcons.target,
+          currentView: currentView,
+          onViewSelected: onViewSelected,
+          section: SidebarSection.habits,
+        ),
         SidebarSection.kanban => _SimpleSubPanel(
-            title: 'Kanban Board',
-            icon: MdiIcons.viewGridPlusOutline,
-            currentView: currentView,
-            onViewSelected: onViewSelected,
-            section: SidebarSection.kanban,
-          ),
+          title: 'Kanban Board',
+          icon: MdiIcons.viewGridPlusOutline,
+          currentView: currentView,
+          onViewSelected: onViewSelected,
+          section: SidebarSection.kanban,
+        ),
       },
     );
   }
@@ -474,7 +465,9 @@ class _TasksSubPanel extends ConsumerWidget {
                 onTap: () => onProjectTap(project),
                 onAcceptTodo: (todo) {
                   if (todo.projectId == project.id) return;
-                  ref.read(todoProvider.notifier).moveToProject(todo.id, project.id);
+                  ref
+                      .read(todoProvider.notifier)
+                      .moveToProject(todo.id, project.id);
                 },
               );
             },
@@ -715,7 +708,9 @@ class _SubNavItemState extends State<_SubNavItem> {
                 Icon(
                   icon,
                   size: 19,
-                  color: isSelected ? AppColors.primary : (iconColor ?? AppColors.textSecondary),
+                  color: isSelected
+                      ? AppColors.primary
+                      : (iconColor ?? AppColors.textSecondary),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -723,8 +718,12 @@ class _SubNavItemState extends State<_SubNavItem> {
                     label,
                     style: TextStyle(
                       fontSize: 14.5,
-                      color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
                     ),
                   ),
                 ),
@@ -733,7 +732,9 @@ class _SubNavItemState extends State<_SubNavItem> {
                     '$count',
                     style: TextStyle(
                       fontSize: 13,
-                      color: isSelected ? AppColors.primary : AppColors.textTertiary,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textTertiary,
                     ),
                   ),
               ],
@@ -819,14 +820,20 @@ class _ProjectItemState extends State<_ProjectItem> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                Icon(projectIconFor(project.icon), size: 18, color: projectColor),
+                Icon(
+                  projectIconFor(project.icon),
+                  size: 18,
+                  color: projectColor,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     project.name,
                     style: TextStyle(
                       fontSize: 14,
-                      color: _hovering ? AppColors.primary : AppColors.textSecondary,
+                      color: _hovering
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -834,7 +841,10 @@ class _ProjectItemState extends State<_ProjectItem> {
                 if (count > 0)
                   Text(
                     '$count',
-                    style: TextStyle(fontSize: 13, color: AppColors.textTertiary),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textTertiary,
+                    ),
                   ),
               ],
             ),

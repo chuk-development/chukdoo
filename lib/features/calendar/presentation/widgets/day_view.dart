@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_shapes.dart';
+import '../../../settings/providers/settings_provider.dart';
 import '../../domain/models/calendar_item.dart';
 import '../../providers/calendar_event_provider.dart';
 import '../../providers/calendar_items_provider.dart';
@@ -16,12 +17,15 @@ class DayView extends ConsumerWidget {
 
   const DayView({super.key, this.onSlotTap, this.onItemTap, this.onItemDrop});
 
-  static const _timeColumnWidth = 52.0;
+  /// Same narrow hour scale as Google Calendar, so the day columns keep
+  /// the width instead of the labels.
+  static const _timeColumnWidth = 44.0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final eventState = ref.watch(calendarEventProvider);
     final calendarItems = ref.watch(calendarItemsProvider);
+    final settings = ref.watch(settingsProvider);
     final focused = eventState.focusedDate;
     final date = DateTime(focused.year, focused.month, focused.day);
 
@@ -43,6 +47,9 @@ class DayView extends ConsumerWidget {
               columnDates: [date],
               itemsByColumn: [timedItems],
               allDayItemsByColumn: [allDayItems],
+              // The day window is the user's, not a fixed 0-24.
+              startHour: settings.calendarDayStartHour,
+              endHour: settings.calendarDayEndHour,
               timeColumnWidth: _timeColumnWidth,
               onSlotTap: onSlotTap,
               onItemTap: onItemTap,

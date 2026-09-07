@@ -11,6 +11,7 @@ import 'features/sync/services/connectivity_service.dart';
 import 'features/sync/services/sync_service.dart';
 import 'native_init.dart';
 import 'shared/services/supabase_service.dart';
+import 'features/notes/domain/models/note_folder.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +29,7 @@ void main() async {
   await Hive.openBox<Map>(AppConstants.hiveCalendarEventsBox);
   await Hive.openBox<Map>(AppConstants.hiveHabitsBox);
   await Hive.openBox<Map>(AppConstants.hiveNotesBox);
+  await Hive.openBox<Map>(NoteFolder.hiveBox);
   await Hive.openBox<Map>(AppConstants.hiveIcsFeedsBox);
 
   // Initialize sync service (local queue - always works)

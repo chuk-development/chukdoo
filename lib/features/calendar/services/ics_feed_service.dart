@@ -18,6 +18,12 @@ class IcsFeed {
   final String url;
   final String name;
   final int color;
+
+  /// Whether the views show this feed. A hidden feed stays subscribed and
+  /// keeps its cached events; it is only filtered out of month/week/day and
+  /// the agenda.
+  final bool isVisible;
+
   final DateTime? lastSyncAt;
   final String? lastError;
 
@@ -26,16 +32,24 @@ class IcsFeed {
     required this.url,
     required this.name,
     required this.color,
+    this.isVisible = true,
     this.lastSyncAt,
     this.lastError,
   });
 
-  IcsFeed copyWith({DateTime? lastSyncAt, String? lastError, String? name}) {
+  IcsFeed copyWith({
+    DateTime? lastSyncAt,
+    String? lastError,
+    String? name,
+    int? color,
+    bool? isVisible,
+  }) {
     return IcsFeed(
       id: id,
       url: url,
       name: name ?? this.name,
-      color: color,
+      color: color ?? this.color,
+      isVisible: isVisible ?? this.isVisible,
       lastSyncAt: lastSyncAt ?? this.lastSyncAt,
       lastError: lastError,
     );
@@ -46,6 +60,7 @@ class IcsFeed {
     'url': url,
     'name': name,
     'color': color,
+    'is_visible': isVisible,
     'last_sync_at': lastSyncAt?.toIso8601String(),
     'last_error': lastError,
   };
@@ -55,6 +70,7 @@ class IcsFeed {
     url: json['url'] as String,
     name: json['name'] as String,
     color: json['color'] as int? ?? 0xFF64B5F6,
+    isVisible: json['is_visible'] as bool? ?? true,
     lastSyncAt: json['last_sync_at'] != null
         ? DateTime.tryParse(json['last_sync_at'] as String)
         : null,
@@ -85,6 +101,10 @@ class IcsFeedService {
   static Box<Map> get _feedBox => Hive.box<Map>(AppConstants.hiveIcsFeedsBox);
   static Box<Map> get _eventBox =>
       Hive.box<Map>(AppConstants.hiveCalendarEventsBox);
+
+  /// Fires whenever a feed is written — the app-start refresh runs after the
+  /// first frame, so whoever shows the list has to hear about it.
+  static Stream<BoxEvent> watch() => _feedBox.watch();
 
   /// All subscribed feeds.
   static List<IcsFeed> get feeds => _feedBox.values
@@ -119,6 +139,29 @@ class IcsFeedService {
     );
     await _feedBox.put(feed.id, feed.toJson());
     return refresh(feed);
+  }
+
+  /// Show or hide a feed in the views. The subscription is untouched.
+  static Future<IcsFeed> setVisible(IcsFeed feed, bool visible) =>
+      _store(feed.copyWith(isVisible: visible));
+
+  /// Rename a feed or repaint it. A recolour is written through to the
+  /// cached events, because a feed event carries its feed's colour.
+  static Future<IcsFeed> update(
+    IcsFeed feed, {
+    String? name,
+    int? color,
+  }) async {
+    final updated = feed.copyWith(name: name, color: color);
+    if (color != null && color != feed.color) {
+      for (final entry in _eventBox.toMap().entries) {
+        final map = Map<String, dynamic>.from(entry.value);
+        if (map['user_id'] != 'feed:${feed.id}') continue;
+        map['color'] = color;
+        await _eventBox.put(entry.key, map);
+      }
+    }
+    return _store(updated);
   }
 
   /// Unsubscribe and drop every event that came from that feed.

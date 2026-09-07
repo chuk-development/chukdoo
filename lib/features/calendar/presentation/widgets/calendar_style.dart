@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../settings/providers/settings_provider.dart';
 
 /// The shared look of the calendar family.
 ///
@@ -10,8 +11,8 @@ import '../../../../core/theme/app_colors.dart';
 class CalendarStyle {
   const CalendarStyle._();
 
-  /// Weekday labels, Monday first. Every view uses these strings.
-  static const List<String> weekdays = [
+  /// Weekday labels in calendar order, Monday first.
+  static const List<String> _names = [
     'Mon',
     'Tue',
     'Wed',
@@ -21,6 +22,24 @@ class CalendarStyle {
     'Sun',
   ];
 
+  /// Weekday labels in the order a grid draws its columns.
+  ///
+  /// A function instead of a const list: the first column is a setting now, so
+  /// every view has to ask for the order rather than assume Monday.
+  static List<String> weekdays(WeekStart weekStart) {
+    final offset = weekStart.weekday - DateTime.monday;
+    return [for (var i = 0; i < 7; i++) _names[(i + offset) % 7]];
+  }
+
+  /// Label of one date's weekday. Independent of the week start — the agenda
+  /// names a single day instead of drawing a week.
+  static String weekdayLabel(DateTime date) => _names[date.weekday - 1];
+
+  /// True on Saturday and Sunday. Which grid column that is depends on the
+  /// week start, so the check is on the date, never on the column index.
+  static bool isWeekend(DateTime date) =>
+      date.weekday == DateTime.saturday || date.weekday == DateTime.sunday;
+
   /// Marks today and the selected period in every view.
   static Color get accent => AppColors.primary;
 
@@ -28,11 +47,11 @@ class CalendarStyle {
   static Color get defaultEventColor => AppColors.primary;
 
   /// Colour of one item, with the fallback already applied.
-  static Color colorOf(int raw) =>
-      raw != 0 ? Color(raw) : defaultEventColor;
+  static Color colorOf(int raw) => raw != 0 ? Color(raw) : defaultEventColor;
 
   /// Foreground that stays readable on a filled block of [background].
-  static Color onEventColor(Color background) => background.computeLuminance() > 0.6
+  static Color onEventColor(Color background) =>
+      background.computeLuminance() > 0.6
       ? const Color(0xFF1A1A22)
       : Colors.white;
 

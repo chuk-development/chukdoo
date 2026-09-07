@@ -120,7 +120,7 @@ class _DateColumn extends StatelessWidget {
         children: [
           const SizedBox(height: 4),
           Text(
-            CalendarStyle.weekdays[day.weekday - 1].toUpperCase(),
+            CalendarStyle.weekdayLabel(day).toUpperCase(),
             style: TextStyle(
               fontSize: 10,
               letterSpacing: 0.6,

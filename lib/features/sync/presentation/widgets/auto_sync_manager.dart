@@ -9,6 +9,11 @@ import '../../../projects/providers/project_provider.dart';
 import '../../../todos/providers/todo_provider.dart';
 import '../../../integrations/sunrise_export_service.dart';
 import '../../services/adaptive_sync_manager.dart';
+import '../../../notes/providers/note_provider.dart';
+import '../../../notes/providers/note_folder_provider.dart';
+import '../../../calendar/providers/calendar_provider.dart';
+import '../../../calendar/providers/calendar_event_provider.dart';
+import '../../../habits/providers/habit_provider.dart';
 
 /// Widget that manages automatic sync and refreshes providers.
 /// Uses AdaptiveSyncManager for battery-efficient sync with:
@@ -16,10 +21,7 @@ import '../../services/adaptive_sync_manager.dart';
 /// - Connectivity-aware (no polling when offline)
 /// - Activity-based intervals (longer polling when idle)
 class AutoSyncManager extends ConsumerStatefulWidget {
-  const AutoSyncManager({
-    super.key,
-    required this.child,
-  });
+  const AutoSyncManager({super.key, required this.child});
 
   final Widget child;
 
@@ -132,9 +134,10 @@ class _AutoSyncManagerState extends ConsumerState<AutoSyncManager>
 
     // Subscribe to data changes
     _dataChangedSubscription?.cancel();
-    _dataChangedSubscription = AdaptiveSyncManager.instance.onDataChanged.listen((_) {
-      _refreshProviders();
-    });
+    _dataChangedSubscription = AdaptiveSyncManager.instance.onDataChanged
+        .listen((_) {
+          _refreshProviders();
+        });
 
     // Start the adaptive sync manager
     AdaptiveSyncManager.instance.start();
@@ -167,6 +170,22 @@ class _AutoSyncManagerState extends ConsumerState<AutoSyncManager>
       ref.read(projectProvider.notifier).refresh();
     } catch (e) {
       debugPrint('AutoSyncManager: Error refreshing projects: $e');
+    }
+
+    // Everything else that syncs. Without this a pulled note, folder,
+    // calendar or habit only appeared after the next app start.
+    for (final entry in <String, void Function()>{
+      'notes': () => ref.read(noteProvider.notifier).refresh(),
+      'note folders': () => ref.read(noteFolderProvider.notifier).refresh(),
+      'calendars': () => ref.read(calendarContainerProvider.notifier).refresh(),
+      'events': () => ref.read(calendarEventProvider.notifier).refresh(),
+      'habits': () => ref.read(habitProvider.notifier).refresh(),
+    }.entries) {
+      try {
+        entry.value();
+      } catch (e) {
+        debugPrint('AutoSyncManager: Error refreshing ${entry.key}: $e');
+      }
     }
   }
 

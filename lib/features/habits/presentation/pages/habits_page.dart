@@ -21,10 +21,21 @@ class HabitsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final habitState = ref.watch(habitProvider);
-    final habits = habitState.habits;
+    final filter = ref.watch(habitFilterProvider);
+    final habits = switch (filter) {
+      HabitFilter.all => habitState.habits,
+      HabitFilter.daily =>
+        habitState.habits.where((h) => h.frequency == 'daily').toList(),
+      HabitFilter.weekly =>
+        habitState.habits.where((h) => h.frequency == 'weekly').toList(),
+    };
 
     return AppScaffold(
-      title: 'Habits',
+      title: switch (filter) {
+        HabitFilter.all => 'Habits',
+        HabitFilter.daily => 'Daily habits',
+        HabitFilter.weekly => 'Weekly habits',
+      },
       onMenu: embedded ? onMenu : null,
       onBack: embedded ? null : () => Navigator.pop(context),
       body: habitState.isLoading

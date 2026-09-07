@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/bottom_nav_bar.dart';
 import '../../../../shared/widgets/sync_error_banner.dart';
 import '../../../../shared/widgets/app_sidebar.dart';
@@ -26,6 +25,7 @@ import 'todo_detail_page.dart';
 import 'today_page.dart';
 import 'upcoming_page.dart';
 import 'completed_tasks_page.dart';
+import '../../../../core/theme/app_shapes.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -246,7 +246,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       onAddTodo: _handleAddTodo,
                       onProjectTap: _handleProjectTap,
                     ),
-                    Container(width: 1, color: AppColors.divider),
+                    const SizedBox(width: AppShapes.groupGap),
                     Expanded(
                       child: Column(
                         children: [
@@ -376,7 +376,7 @@ class _DesktopDetailPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(width: 1, color: AppColors.divider),
+        const SizedBox(width: AppShapes.groupGap),
         SizedBox(
           width: width,
           child: TodoDetailPage(

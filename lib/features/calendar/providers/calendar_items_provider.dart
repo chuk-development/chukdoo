@@ -1,10 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../settings/providers/settings_provider.dart';
 import '../../todos/providers/todo_provider.dart';
 import '../domain/models/calendar_item.dart';
+import '../domain/week_dates.dart';
 import '../domain/models/rrule_helper.dart';
 import 'calendar_event_provider.dart';
 import 'calendar_provider.dart';
+import 'ics_feeds_provider.dart';
 
 /// Provides a merged list of calendar events and todos for the currently visible date range.
 /// Expands recurring events into individual occurrences.
@@ -12,8 +15,12 @@ final calendarItemsProvider = Provider<CalendarItemsState>((ref) {
   final eventState = ref.watch(calendarEventProvider);
   final todoState = ref.watch(todoProvider);
   final calendarState = ref.watch(calendarContainerProvider);
+  final hiddenFeedIds = ref.watch(hiddenFeedIdsProvider);
+  final settings = ref.watch(settingsProvider);
 
-  final visibleCalendarIds = calendarState.visibleCalendars.map((c) => c.id).toSet();
+  final visibleCalendarIds = calendarState.visibleCalendars
+      .map((c) => c.id)
+      .toSet();
   // Events of a subscribed ICS feed carry the feed's id, which is not one of
   // the user's own calendars. Only a known calendar can be hidden — otherwise
   // every subscribed feed would be filtered away and never appear.
@@ -29,9 +36,10 @@ final calendarItemsProvider = Provider<CalendarItemsState>((ref) {
       rangeStart = DateTime(focused.year, focused.month, focused.day);
       rangeEnd = rangeStart.add(const Duration(days: 1));
     case CalendarViewMode.week:
-      final weekday = focused.weekday;
-      rangeStart = DateTime(focused.year, focused.month, focused.day)
-          .subtract(Duration(days: weekday - 1));
+      // The week the grid draws, not a Monday week — otherwise the first
+      // column of a Sunday week would be outside the loaded range and look
+      // empty.
+      rangeStart = startOfWeek(focused, settings.calendarWeekStart);
       rangeEnd = rangeStart.add(const Duration(days: 7));
     case CalendarViewMode.month:
       rangeStart = DateTime(focused.year, focused.month, 1);
@@ -48,7 +56,9 @@ final calendarItemsProvider = Provider<CalendarItemsState>((ref) {
   // Collect exception originalStartTimes for each parent to exclude from expansion
   final exceptionsByParent = <String, Set<String>>{};
   for (final event in eventState.events) {
-    if (event.isException && event.recurrenceId != null && event.originalStartTime != null) {
+    if (event.isException &&
+        event.recurrenceId != null &&
+        event.originalStartTime != null) {
       exceptionsByParent.putIfAbsent(event.recurrenceId!, () => {});
       // Extract date part from ISO string
       final date = DateTime.tryParse(event.originalStartTime!);
@@ -69,6 +79,11 @@ final calendarItemsProvider = Provider<CalendarItemsState>((ref) {
       continue;
     }
 
+    // A feed switched off in the drawer must disappear from every view too.
+    if (event.calendarId != null && hiddenFeedIds.contains(event.calendarId)) {
+      continue;
+    }
+
     // Skip deleted exceptions
     if (event.isException && event.title == '__DELETED__') continue;
 
@@ -83,20 +98,24 @@ final calendarItemsProvider = Provider<CalendarItemsState>((ref) {
         excludedDates: excludedDates,
       );
       for (final occurrence in occurrences) {
-        items.add(EventItem(
-          event: event,
-          occurrenceStart: occurrence,
-          occurrenceEnd: occurrence.add(event.duration),
-        ));
+        items.add(
+          EventItem(
+            event: event,
+            occurrenceStart: occurrence,
+            occurrenceEnd: occurrence.add(event.duration),
+          ),
+        );
       }
     } else if (!event.isException) {
       // Regular non-recurring event
-      if (event.startTime.isBefore(rangeEnd) && event.endTime.isAfter(rangeStart)) {
+      if (event.startTime.isBefore(rangeEnd) &&
+          event.endTime.isAfter(rangeStart)) {
         items.add(EventItem(event: event));
       }
     } else {
       // Exception event (modified occurrence)
-      if (event.startTime.isBefore(rangeEnd) && event.endTime.isAfter(rangeStart)) {
+      if (event.startTime.isBefore(rangeEnd) &&
+          event.endTime.isAfter(rangeStart)) {
         items.add(EventItem(event: event));
       }
     }
@@ -105,8 +124,13 @@ final calendarItemsProvider = Provider<CalendarItemsState>((ref) {
   // Add todos with due dates
   for (final todo in todoState.todos) {
     if (todo.isCompleted || todo.dueDate == null) continue;
-    final todoDay = DateTime(todo.dueDate!.year, todo.dueDate!.month, todo.dueDate!.day);
-    if (todoDay.isBefore(rangeEnd) && todoDay.add(const Duration(days: 1)).isAfter(rangeStart)) {
+    final todoDay = DateTime(
+      todo.dueDate!.year,
+      todo.dueDate!.month,
+      todo.dueDate!.day,
+    );
+    if (todoDay.isBefore(rangeEnd) &&
+        todoDay.add(const Duration(days: 1)).isAfter(rangeStart)) {
       items.add(TodoItem(todo: todo));
     }
   }
@@ -114,7 +138,11 @@ final calendarItemsProvider = Provider<CalendarItemsState>((ref) {
   // Sort by start time
   items.sort((a, b) => a.startTime.compareTo(b.startTime));
 
-  return CalendarItemsState(items: items, rangeStart: rangeStart, rangeEnd: rangeEnd);
+  return CalendarItemsState(
+    items: items,
+    rangeStart: rangeStart,
+    rangeEnd: rangeEnd,
+  );
 });
 
 class CalendarItemsState {

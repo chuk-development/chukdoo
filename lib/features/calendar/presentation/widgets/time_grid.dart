@@ -17,6 +17,10 @@ class TimeGrid extends StatefulWidget {
   final List<DateTime> columnDates;
   final List<List<CalendarItem>> itemsByColumn;
   final List<List<CalendarItem>>? allDayItemsByColumn;
+
+  /// First hour drawn. The grid spans [startHour] to [endHour], so the end is
+  /// exclusive: 7 to 22 draws fifteen rows and stops at 22:00. That matches
+  /// the settings' `calendarDayHourCount`, which is `end - start`.
   final int startHour;
   final int endHour;
   final double hourHeight;
@@ -24,6 +28,10 @@ class TimeGrid extends StatefulWidget {
   final ValueChanged<({DateTime date, TimeOfDay time})>? onSlotTap;
   final ValueChanged<CalendarItem>? onItemTap;
   final void Function(CalendarItem item, DateTime newStart)? onItemDrop;
+
+  /// Last hour that still has a row. [endHour] is the end of the span, so the
+  /// last row starts one hour before it.
+  int get _lastHour => endHour - 1;
 
   const TimeGrid({
     super.key,
@@ -33,9 +41,12 @@ class TimeGrid extends StatefulWidget {
     required this.itemsByColumn,
     this.allDayItemsByColumn,
     this.startHour = 0,
-    this.endHour = 23,
-    this.hourHeight = 56.0,
-    this.timeColumnWidth = 52.0,
+    this.endHour = 24,
+    // One hour is 60 logical pixels, like Google Calendar: a 30 minute
+    // meeting still gets two readable lines, and an hour of empty grid does
+    // not look squeezed while scrolling.
+    this.hourHeight = 60.0,
+    this.timeColumnWidth = 44.0,
     this.onSlotTap,
     this.onItemTap,
     this.onItemDrop,
@@ -46,9 +57,8 @@ class TimeGrid extends StatefulWidget {
 }
 
 /// Big radius only on the four corners of the whole grid.
-Radius _corner(bool isGridCorner) => Radius.circular(
-  isGridCorner ? AppShapes.groupOuter : AppShapes.groupInner,
-);
+Radius _corner(bool isGridCorner) =>
+    Radius.circular(isGridCorner ? AppShapes.groupOuter : AppShapes.groupInner);
 
 class _TimeGridState extends State<TimeGrid> {
   late ScrollController _scrollController;
@@ -68,9 +78,11 @@ class _TimeGridState extends State<TimeGrid> {
   void _scrollToNow() {
     if (!_scrollController.hasClients) return;
     final now = DateTime.now();
-    final anchorHour = now.hour.clamp(widget.startHour, widget.endHour);
-    final target = ((anchorHour - widget.startHour) * widget.hourHeight - widget.hourHeight)
-        .clamp(0.0, _scrollController.position.maxScrollExtent);
+    final anchorHour = now.hour.clamp(widget.startHour, widget._lastHour);
+    final target =
+        ((anchorHour - widget.startHour) * widget.hourHeight -
+                widget.hourHeight)
+            .clamp(0.0, _scrollController.position.maxScrollExtent);
     _scrollController.jumpTo(target);
   }
 
@@ -83,7 +95,7 @@ class _TimeGridState extends State<TimeGrid> {
 
   @override
   Widget build(BuildContext context) {
-    final hours = widget.endHour - widget.startHour + 1;
+    final hours = widget.endHour - widget.startHour;
     final totalHeight = hours * widget.hourHeight;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -118,16 +130,23 @@ class _TimeGridState extends State<TimeGrid> {
                           SizedBox(
                             width: widget.timeColumnWidth,
                             child: Transform.translate(
-                              offset: const Offset(0, -7),
+                              offset: const Offset(0, -6),
                               child: Padding(
-                                padding: const EdgeInsets.only(left: 6, right: 8),
+                                padding: const EdgeInsets.only(
+                                  left: 2,
+                                  right: 8,
+                                ),
                                 child: Text(
                                   i == 0
                                       ? ''
                                       : '${hour.toString().padLeft(2, '0')}:00',
+                                  // Right against the grid, the way every
+                                  // calendar app sets its hour scale.
+                                  textAlign: TextAlign.right,
                                   style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textTertiary,
                                   ),
                                 ),
                               ),
@@ -147,12 +166,9 @@ class _TimeGridState extends State<TimeGrid> {
                                   decoration: BoxDecoration(
                                     color: AppColors.surface,
                                     borderRadius: BorderRadius.only(
-                                      topLeft: _corner(
-                                        i == 0 && col == 0,
-                                      ),
+                                      topLeft: _corner(i == 0 && col == 0),
                                       topRight: _corner(
-                                        i == 0 &&
-                                            col == widget.columnCount - 1,
+                                        i == 0 && col == widget.columnCount - 1,
                                       ),
                                       bottomLeft: _corner(
                                         i == hours - 1 && col == 0,
@@ -179,12 +195,14 @@ class _TimeGridState extends State<TimeGrid> {
                     bottom: 0,
                     child: LayoutBuilder(
                       builder: (context, constraints) {
-                        final dayWidth = constraints.maxWidth / widget.columnCount;
+                        final dayWidth =
+                            constraints.maxWidth / widget.columnCount;
                         return Stack(
                           children: [
                             ...List.generate(widget.columnCount, (col) {
                               final date = widget.columnDates[col];
-                              final isToday = date.year == today.year &&
+                              final isToday =
+                                  date.year == today.year &&
                                   date.month == today.month &&
                                   date.day == today.day;
 
@@ -203,7 +221,12 @@ class _TimeGridState extends State<TimeGrid> {
                               );
                             }),
 
-                            ..._buildCurrentTimeIndicator(now, today, dayWidth),
+                            ..._buildCurrentTimeIndicator(
+                              now,
+                              today,
+                              dayWidth,
+                              totalHeight,
+                            ),
                           ],
                         );
                       },
@@ -225,7 +248,9 @@ class _TimeGridState extends State<TimeGrid> {
     required double dayWidth,
     required double totalHeight,
   }) {
-    final items = col < widget.itemsByColumn.length ? widget.itemsByColumn[col] : <CalendarItem>[];
+    final items = col < widget.itemsByColumn.length
+        ? widget.itemsByColumn[col]
+        : <CalendarItem>[];
     final layoutInfos = EventLayoutCalculator.calculateLayout(
       items.where((i) => !i.isAllDay).toList(),
     );
@@ -237,12 +262,15 @@ class _TimeGridState extends State<TimeGrid> {
         final localPos = renderBox.globalToLocal(details.offset);
         final gridY = localPos.dy + _scrollController.offset;
         final hour = widget.startHour + (gridY / widget.hourHeight).floor();
-        final minute = ((gridY % widget.hourHeight) / widget.hourHeight * 60).round();
+        final minute = ((gridY % widget.hourHeight) / widget.hourHeight * 60)
+            .round();
         final snappedMinute = (minute ~/ 15) * 15;
 
         final newStart = DateTime(
-          date.year, date.month, date.day,
-          hour.clamp(widget.startHour, widget.endHour),
+          date.year,
+          date.month,
+          date.day,
+          hour.clamp(widget.startHour, widget._lastHour),
           snappedMinute.clamp(0, 45),
         );
 
@@ -254,12 +282,13 @@ class _TimeGridState extends State<TimeGrid> {
           onTapUp: (details) {
             final tapY = details.localPosition.dy;
             final hour = widget.startHour + (tapY / widget.hourHeight).floor();
-            final minute = ((tapY % widget.hourHeight) / widget.hourHeight * 60).round();
+            final minute = ((tapY % widget.hourHeight) / widget.hourHeight * 60)
+                .round();
             final snappedMinute = (minute ~/ 15) * 15;
             widget.onSlotTap?.call((
               date: date,
               time: TimeOfDay(
-                hour: hour.clamp(widget.startHour, widget.endHour),
+                hour: hour.clamp(widget.startHour, widget._lastHour),
                 minute: snappedMinute.clamp(0, 45),
               ),
             ));
@@ -277,18 +306,31 @@ class _TimeGridState extends State<TimeGrid> {
 
                 ...layoutInfos.map((info) {
                   final item = info.item;
-                  final startY = (item.startTime.hour - widget.startHour) * widget.hourHeight +
+                  final startY =
+                      (item.startTime.hour - widget.startHour) *
+                          widget.hourHeight +
                       (item.startTime.minute / 60.0) * widget.hourHeight;
-                  final endY = (item.endTime.hour - widget.startHour) * widget.hourHeight +
+                  final endY =
+                      (item.endTime.hour - widget.startHour) *
+                          widget.hourHeight +
                       (item.endTime.minute / 60.0) * widget.hourHeight;
-                  final blockHeight = (endY - startY).clamp(20.0, totalHeight);
+                  // The grid can start after and end before the event (the
+                  // day window is a setting). Cut the block to the window
+                  // instead of letting it run past the last hour — hiding it
+                  // outright would lose an event the user does have.
+                  final visibleTop = startY.clamp(0.0, totalHeight - 20);
+                  final visibleBottom = endY.clamp(visibleTop, totalHeight);
+                  final blockHeight = (visibleBottom - visibleTop).clamp(
+                    20.0,
+                    totalHeight,
+                  );
 
                   final blockWidth = dayWidth * info.widthFraction - 3;
                   final blockLeft = dayWidth * info.leftFraction + 1.5;
 
                   return Positioned(
                     left: blockLeft,
-                    top: startY.clamp(0.0, totalHeight - 20),
+                    top: visibleTop,
                     width: blockWidth.clamp(10.0, dayWidth - 2),
                     child: EventBlock(
                       item: item,
@@ -306,13 +348,22 @@ class _TimeGridState extends State<TimeGrid> {
     );
   }
 
-  List<Widget> _buildCurrentTimeIndicator(DateTime now, DateTime today, double dayWidth) {
+  List<Widget> _buildCurrentTimeIndicator(
+    DateTime now,
+    DateTime today,
+    double dayWidth,
+    double totalHeight,
+  ) {
     for (var i = 0; i < widget.columnDates.length; i++) {
       final date = widget.columnDates[i];
-      if (date.year == today.year && date.month == today.month && date.day == today.day) {
-        final y = (now.hour - widget.startHour) * widget.hourHeight +
+      if (date.year == today.year &&
+          date.month == today.month &&
+          date.day == today.day) {
+        final y =
+            (now.hour - widget.startHour) * widget.hourHeight +
             (now.minute / 60.0) * widget.hourHeight;
-        if (y < 0) return [];
+        // The day window can end before now: no line outside the grid.
+        if (y < 0 || y > totalHeight) return [];
         return [
           Positioned(
             top: y - 5,
@@ -328,9 +379,7 @@ class _TimeGridState extends State<TimeGrid> {
                     shape: BoxShape.circle,
                   ),
                 ),
-                Expanded(
-                  child: Container(height: 2, color: AppColors.error),
-                ),
+                Expanded(child: Container(height: 2, color: AppColors.error)),
               ],
             ),
           ),
@@ -359,13 +408,15 @@ class _TimeGridState extends State<TimeGrid> {
                 padding: const EdgeInsets.only(top: 4, right: 8),
                 child: Text(
                   'All day',
-                  style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
+                  style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
                   textAlign: TextAlign.right,
                 ),
               ),
             ),
             ...List.generate(widget.columnCount, (i) {
-              final items = i < allDayItems.length ? allDayItems[i] : <CalendarItem>[];
+              final items = i < allDayItems.length
+                  ? allDayItems[i]
+                  : <CalendarItem>[];
               return Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 1),
@@ -379,7 +430,7 @@ class _TimeGridState extends State<TimeGrid> {
                           margin: const EdgeInsets.symmetric(vertical: 2),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
-                            vertical: 7,
+                            vertical: 6,
                           ),
                           decoration: BoxDecoration(
                             color: color,

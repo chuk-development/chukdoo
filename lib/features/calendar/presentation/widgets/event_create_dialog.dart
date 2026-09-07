@@ -7,12 +7,14 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_shapes.dart';
 import '../../../../shared/widgets/app_field.dart';
 import '../../../../shared/widgets/picker_sheet.dart';
+import '../../../settings/providers/settings_provider.dart';
 import '../../domain/models/calendar.dart';
 import '../../domain/models/calendar_event.dart';
 import '../../domain/models/rrule_helper.dart';
 import '../../providers/calendar_event_provider.dart';
 import '../../providers/calendar_provider.dart';
 import 'calendar_style.dart';
+import 'color_swatch_grid.dart';
 
 /// The event editor: one stable sheet with filled fields and no outline.
 ///
@@ -72,8 +74,13 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
   /// 0 means "use the calendar colour".
   int _color = 0;
 
-  /// Minutes before the start, empty when the event has no reminder.
-  List<int> _reminderMinutes = const [15];
+  /// Minutes before the start, empty when the event has no reminder. A new
+  /// event starts from the setting; an edited one from what it carries.
+  List<int> _reminderMinutes = const [];
+
+  /// Length a new event gets, from the settings. Also the length the form
+  /// falls back to when an edit pushes the end before the start.
+  int _defaultEventMinutes = 60;
 
   bool get _isEditing => widget.editEvent != null;
 
@@ -82,6 +89,11 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
     super.initState();
     final event = widget.editEvent;
     final now = DateTime.now();
+    // The default length also governs an edit: it is the length the form
+    // falls back to when a new start pushes the end before it.
+    _defaultEventMinutes = ref
+        .read(settingsProvider)
+        .calendarDefaultEventMinutes;
 
     _titleController = TextEditingController(text: event?.title ?? '');
     _descriptionController = TextEditingController(
@@ -100,17 +112,45 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
       _color = event.color;
       _reminderMinutes = List.from(event.reminderMinutes);
     } else {
+      // No reminder is a real choice, so null means "leave it off".
+      final reminder = ref
+          .read(settingsProvider)
+          .calendarDefaultReminderMinutes;
+      _reminderMinutes = reminder == null ? const [] : <int>[reminder];
+
       _startDate = widget.initialDate ?? now;
       _startTime =
           widget.initialTime ?? TimeOfDay(hour: (now.hour + 1) % 24, minute: 0);
-      // Default end is one hour after start; roll over to the next day if that
-      // crosses midnight (avoids invalid hour 24 and end-before-start).
-      final endHour = _startTime.hour + 1;
-      _endDate = endHour > 23
-          ? _startDate.add(const Duration(days: 1))
-          : _startDate;
-      _endTime = TimeOfDay(hour: endHour % 24, minute: _startTime.minute);
+      // The default length is a setting. Computing the end as a DateTime keeps
+      // it right when the event runs past midnight — an hour 24 does not
+      // exist, and an end before the start would be worse.
+      final end = DateTime(
+        _startDate.year,
+        _startDate.month,
+        _startDate.day,
+        _startTime.hour,
+        _startTime.minute,
+      ).add(Duration(minutes: _defaultEventMinutes));
+      _endDate = end;
+      _endTime = TimeOfDay(hour: end.hour, minute: end.minute);
+
+      // A new event lands in the default calendar instead of nowhere — an
+      // event with no calendar cannot be hidden and looks lost in the drawer.
+      final calendars = ref.read(calendarContainerProvider);
+      _selectedCalendarId =
+          calendars.defaultCalendar?.id ?? calendars.calendars.firstOrNull?.id;
     }
+  }
+
+  /// A birthday is always a whole day and comes back every year, so picking
+  /// the birthday calendar sets those two fields instead of asking twice.
+  void _applyCalendarRules(CalendarContainerState state) {
+    final cal = state.calendars
+        .where((c) => c.id == _selectedCalendarId)
+        .firstOrNull;
+    if (cal?.kind != CalendarKind.birthdays) return;
+    _isAllDay = true;
+    _recurrenceRule ??= 'FREQ=YEARLY';
   }
 
   @override
@@ -473,7 +513,7 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
       _endTime.minute,
     );
     if (!end.isAfter(start)) {
-      final newEnd = start.add(const Duration(hours: 1));
+      final newEnd = start.add(Duration(minutes: _defaultEventMinutes));
       _endDate = newEnd;
       _endTime = TimeOfDay(hour: newEnd.hour, minute: newEnd.minute);
     }
@@ -502,7 +542,10 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
       ],
     );
     if (picked == null || !mounted) return;
-    setState(() => _selectedCalendarId = picked.isEmpty ? null : picked);
+    setState(() {
+      _selectedCalendarId = picked.isEmpty ? null : picked;
+      _applyCalendarRules(ref.read(calendarContainerProvider));
+    });
   }
 
   Future<void> _pickColor(CalendarContainerState calendarState) async {
@@ -580,9 +623,7 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
       ],
     );
     if (picked == null || !mounted) return;
-    setState(
-      () => _reminderMinutes = picked < 0 ? const [] : <int>[picked],
-    );
+    setState(() => _reminderMinutes = picked < 0 ? const [] : <int>[picked]);
   }
 
   // ---------------- Helpers ----------------
@@ -636,14 +677,10 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
     if (config == null) return rule;
     final n = config.interval;
     return switch (config.frequency) {
-      RecurrenceFrequency.daily =>
-        n == 1 ? 'Every day' : 'Every $n days',
-      RecurrenceFrequency.weekly =>
-        n == 1 ? 'Every week' : 'Every $n weeks',
-      RecurrenceFrequency.monthly =>
-        n == 1 ? 'Every month' : 'Every $n months',
-      RecurrenceFrequency.yearly =>
-        n == 1 ? 'Every year' : 'Every $n years',
+      RecurrenceFrequency.daily => n == 1 ? 'Every day' : 'Every $n days',
+      RecurrenceFrequency.weekly => n == 1 ? 'Every week' : 'Every $n weeks',
+      RecurrenceFrequency.monthly => n == 1 ? 'Every month' : 'Every $n months',
+      RecurrenceFrequency.yearly => n == 1 ? 'Every year' : 'Every $n years',
     };
   }
 
@@ -765,7 +802,11 @@ class _TapRow extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(MdiIcons.chevronRight, color: AppColors.textTertiary, size: 20),
+            Icon(
+              MdiIcons.chevronRight,
+              color: AppColors.textTertiary,
+              size: 20,
+            ),
           ],
         ),
       ),
@@ -830,107 +871,53 @@ class _ColorGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppShapes.listInset,
-        0,
-        AppShapes.listInset,
-        4,
-      ),
+      padding: const EdgeInsets.only(bottom: 4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Material(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppShapes.groupOuter),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () => onPick(0),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 15,
-                ),
-                child: Row(
-                  children: [
-                    _Dot(color: calendarColor, size: 22),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Text(
-                        'Calendar colour',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: AppColors.textPrimary,
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppShapes.listInset,
+            ),
+            child: Material(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppShapes.groupOuter),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => onPick(0),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 15,
+                  ),
+                  child: Row(
+                    children: [
+                      _Dot(color: calendarColor, size: 22),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          'Calendar colour',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                       ),
-                    ),
-                    if (selected == 0)
-                      Icon(
-                        MdiIcons.check,
-                        size: 20,
-                        color: AppColors.textPrimary,
-                      ),
-                  ],
+                      if (selected == 0)
+                        Icon(
+                          MdiIcons.check,
+                          size: 20,
+                          color: AppColors.textPrimary,
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
           const SizedBox(height: AppShapes.groupGap),
-          Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppShapes.groupOuter),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-            child: Wrap(
-              spacing: 14,
-              runSpacing: 14,
-              alignment: WrapAlignment.center,
-              children: [
-                for (final color in CalendarStyle.eventColors)
-                  _Swatch(
-                    color: color,
-                    isSelected: selected == color.toARGB32(),
-                    onTap: () => onPick(color.toARGB32()),
-                  ),
-              ],
-            ),
-          ),
+          ColorSwatchGrid(selected: selected, onPick: onPick),
         ],
-      ),
-    );
-  }
-}
-
-class _Swatch extends StatelessWidget {
-  final Color color;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _Swatch({
-    required this.color,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: CalendarStyle.motion,
-        curve: Curves.easeOutCubic,
-        width: 46,
-        height: 46,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        child: isSelected
-            ? Icon(
-                MdiIcons.check,
-                size: 22,
-                color: CalendarStyle.onEventColor(color),
-              )
-            : null,
       ),
     );
   }

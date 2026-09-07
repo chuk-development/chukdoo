@@ -11,6 +11,10 @@ class Note {
   /// Optional card tint (ARGB int). Null = default surface color.
   final int? color;
 
+  /// Folder this note lives in. Null = no folder ("All notes" only).
+  /// Notes written before folders existed load with null, by design.
+  final String? folderId;
+
   /// Manual ordering. Lower = earlier. Reorder rewrites this for every note.
   final int sortOrder;
 
@@ -27,6 +31,7 @@ class Note {
     this.title = '',
     this.content = '',
     this.color,
+    this.folderId,
     this.sortOrder = 0,
     this.isPinned = false,
     required this.createdAt,
@@ -36,7 +41,9 @@ class Note {
 
   /// Sensitive data to encrypt before sync.
   Map<String, dynamic> toEncryptedPayload() {
-    return {'title': title, 'content': content};
+    // folderId rides in the encrypted blob: no column on `notes`, and no
+    // foreign key that could reject a note uploaded before its folder.
+    return {'title': title, 'content': content, 'folder_id': folderId};
   }
 
   /// Non-sensitive metadata for Supabase (with the encrypted blob).
@@ -66,6 +73,7 @@ class Note {
       userId: row['user_id'] as String,
       title: decryptedPayload['title'] as String? ?? '',
       content: decryptedPayload['content'] as String? ?? '',
+      folderId: decryptedPayload['folder_id'] as String?,
       color: colorStr == null
           ? null
           : int.tryParse(colorStr.replaceFirst('#', ''), radix: 16),
@@ -87,6 +95,7 @@ class Note {
       'title': title,
       'content': content,
       'color': color,
+      'folder_id': folderId,
       'sort_order': sortOrder,
       'is_pinned': isPinned,
       'created_at': createdAt.toIso8601String(),
@@ -102,6 +111,7 @@ class Note {
       title: json['title'] as String? ?? '',
       content: json['content'] as String? ?? '',
       color: json['color'] as int?,
+      folderId: json['folder_id'] as String?,
       sortOrder: json['sort_order'] as int? ?? 0,
       isPinned: json['is_pinned'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'] as String),
@@ -116,12 +126,14 @@ class Note {
     String? title,
     String? content,
     int? color,
+    String? folderId,
     int? sortOrder,
     bool? isPinned,
     DateTime? createdAt,
     DateTime? updatedAt,
     int? version,
     bool clearColor = false,
+    bool clearFolder = false,
   }) {
     return Note(
       id: id ?? this.id,
@@ -129,6 +141,7 @@ class Note {
       title: title ?? this.title,
       content: content ?? this.content,
       color: clearColor ? null : (color ?? this.color),
+      folderId: clearFolder ? null : (folderId ?? this.folderId),
       sortOrder: sortOrder ?? this.sortOrder,
       isPinned: isPinned ?? this.isPinned,
       createdAt: createdAt ?? this.createdAt,

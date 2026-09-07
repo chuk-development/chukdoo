@@ -1,3 +1,10 @@
+/// What a calendar is for.
+///
+/// The app seeds two of them on first start. `birthdays` is not a plain
+/// calendar: everything in it is all-day and repeats every year, so the
+/// editor pre-sets those two fields when this calendar is picked.
+enum CalendarKind { general, birthdays }
+
 class Calendar {
   final String id;
   final String userId;
@@ -7,6 +14,7 @@ class Calendar {
   final bool isDefault;
   final bool isVisible;
   final int sortOrder;
+  final CalendarKind kind;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -19,6 +27,7 @@ class Calendar {
     this.isDefault = false,
     this.isVisible = true,
     this.sortOrder = 0,
+    this.kind = CalendarKind.general,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -28,6 +37,9 @@ class Calendar {
     return {
       'name': name,
       'description': description,
+      // The kind rides in the encrypted blob so a synced calendar keeps its
+      // meaning without a new column on the server.
+      'kind': kind.name,
     };
   }
 
@@ -59,6 +71,7 @@ class Calendar {
       isDefault: row['is_default'] as bool? ?? false,
       isVisible: row['is_visible'] as bool? ?? true,
       sortOrder: row['sort_order'] as int? ?? 0,
+      kind: _parseKind(decryptedPayload['kind']),
       createdAt: DateTime.parse(row['created_at'] as String),
       updatedAt: DateTime.parse(row['updated_at'] as String),
     );
@@ -75,6 +88,7 @@ class Calendar {
       'is_default': isDefault,
       'is_visible': isVisible,
       'sort_order': sortOrder,
+      'kind': kind.name,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -90,6 +104,7 @@ class Calendar {
       isDefault: json['is_default'] as bool? ?? false,
       isVisible: json['is_visible'] as bool? ?? true,
       sortOrder: json['sort_order'] as int? ?? 0,
+      kind: _parseKind(json['kind']),
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
@@ -104,6 +119,7 @@ class Calendar {
     bool? isDefault,
     bool? isVisible,
     int? sortOrder,
+    CalendarKind? kind,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool clearDescription = false,
@@ -117,9 +133,17 @@ class Calendar {
       isDefault: isDefault ?? this.isDefault,
       isVisible: isVisible ?? this.isVisible,
       sortOrder: sortOrder ?? this.sortOrder,
+      kind: kind ?? this.kind,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
+  }
+
+  static CalendarKind _parseKind(Object? raw) {
+    return CalendarKind.values
+            .where((k) => k.name == raw)
+            .firstOrNull ??
+        CalendarKind.general;
   }
 
   static int _parseColor(String? hex) {

@@ -41,13 +41,15 @@ class EventBlock extends StatelessWidget {
     final blockColor = _color;
     final fg = _onColor(blockColor);
     final displayHeight = height.clamp(20.0, double.infinity);
-    final isCompact = displayHeight < 36;
+    // Below this a block only fits one line — the same cut Google Calendar
+    // makes between a 30 minute and a 15 minute slot.
+    final isCompact = displayHeight < 34;
 
     final child = GestureDetector(
       onTap: onTap,
       child: Container(
         height: displayHeight,
-        padding: EdgeInsets.symmetric(horizontal: 6, vertical: isCompact ? 1 : 3),
+        padding: EdgeInsets.symmetric(horizontal: 7, vertical: isCompact ? 1 : 4),
         decoration: BoxDecoration(
           // No outline — a task reads as a softer tint of the same color.
           color: _isTodo ? blockColor.withValues(alpha: 0.3) : blockColor,
@@ -64,7 +66,7 @@ class EventBlock extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: _isTodo ? AppColors.textPrimary : fg,
                         ),
@@ -78,11 +80,11 @@ class EventBlock extends StatelessWidget {
                     Text(
                       item.title,
                       style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 12.5,
                         fontWeight: FontWeight.w600,
                         color: _isTodo ? AppColors.textPrimary : fg,
                       ),
-                      maxLines: displayHeight < 56 ? 1 : 2,
+                      maxLines: displayHeight < 58 ? 1 : 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 1),
@@ -91,7 +93,7 @@ class EventBlock extends StatelessWidget {
                           ? 'Task · ${_formatTime(item.startTime)}'
                           : '${_formatTime(item.startTime)} to ${_formatTime(item.endTime)}',
                       style: TextStyle(
-                        fontSize: 9.5,
+                        fontSize: 10.5,
                         color: (_isTodo ? AppColors.textSecondary : fg)
                             .withValues(alpha: _isTodo ? 1 : 0.85),
                       ),

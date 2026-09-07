@@ -43,7 +43,9 @@ class CalendarEventState {
       events: events ?? this.events,
       viewMode: viewMode ?? this.viewMode,
       focusedDate: focusedDate ?? this.focusedDate,
-      selectedDate: clearSelectedDate ? null : (selectedDate ?? this.selectedDate),
+      selectedDate: clearSelectedDate
+          ? null
+          : (selectedDate ?? this.selectedDate),
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
     );
@@ -79,10 +81,7 @@ class CalendarEventNotifier extends StateNotifier<CalendarEventState> {
     // without the user having to reopen the calendar.
     _boxSub = _eventsBox.watch().listen((_) {
       _reloadDebounce?.cancel();
-      _reloadDebounce = Timer(
-        const Duration(milliseconds: 300),
-        _loadEvents,
-      );
+      _reloadDebounce = Timer(const Duration(milliseconds: 300), _loadEvents);
     });
   }
 
@@ -102,6 +101,22 @@ class CalendarEventNotifier extends StateNotifier<CalendarEventState> {
   /// View modes visited before the current one, so the back gesture can walk
   /// back from a day into the month or week it was opened from.
   final List<CalendarViewMode> _viewHistory = [];
+
+  /// The default view from the settings is applied once per app run.
+  bool _defaultViewApplied = false;
+
+  /// Opens the calendar in the user's default view.
+  ///
+  /// Runs only the first time the page is built: a view the user switched to
+  /// afterwards must survive leaving and reopening the tab. It writes no
+  /// history entry either — the user did not navigate here, so the back
+  /// gesture must not walk into a view they never saw.
+  void applyDefaultView(CalendarViewMode mode) {
+    if (_defaultViewApplied) return;
+    _defaultViewApplied = true;
+    if (mode == state.viewMode) return;
+    state = state.copyWith(viewMode: mode);
+  }
 
   bool get canGoBack => _viewHistory.isNotEmpty;
 
@@ -185,7 +200,8 @@ class CalendarEventNotifier extends StateNotifier<CalendarEventState> {
     await ReminderScheduler.instance.scheduleForEvent(event);
 
     state = state.copyWith(
-      events: [...state.events, event]..sort((a, b) => a.startTime.compareTo(b.startTime)),
+      events: [...state.events, event]
+        ..sort((a, b) => a.startTime.compareTo(b.startTime)),
     );
   }
 
@@ -294,7 +310,8 @@ class CalendarEventNotifier extends StateNotifier<CalendarEventState> {
     );
 
     state = state.copyWith(
-      events: [...state.events, exception]..sort((a, b) => a.startTime.compareTo(b.startTime)),
+      events: [...state.events, exception]
+        ..sort((a, b) => a.startTime.compareTo(b.startTime)),
     );
   }
 
@@ -324,7 +341,10 @@ class CalendarEventNotifier extends StateNotifier<CalendarEventState> {
     final untilDate = fromOccurrence.subtract(const Duration(days: 1));
     final existingRule = parentEvent.recurrenceRule ?? '';
     final truncatedRule = existingRule.contains('UNTIL')
-        ? existingRule.replaceFirst(RegExp(r'UNTIL=[^;]+'), 'UNTIL=${_formatUntilDate(untilDate)}')
+        ? existingRule.replaceFirst(
+            RegExp(r'UNTIL=[^;]+'),
+            'UNTIL=${_formatUntilDate(untilDate)}',
+          )
         : '$existingRule;UNTIL=${_formatUntilDate(untilDate)}';
     await updateEvent(parentEvent.copyWith(recurrenceRule: truncatedRule));
 
@@ -378,5 +398,5 @@ class CalendarEventNotifier extends StateNotifier<CalendarEventState> {
 
 final calendarEventProvider =
     StateNotifierProvider<CalendarEventNotifier, CalendarEventState>((ref) {
-  return CalendarEventNotifier();
-});
+      return CalendarEventNotifier();
+    });

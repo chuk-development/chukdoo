@@ -139,3 +139,32 @@ CREATE TRIGGER update_notes_updated_at
 -- those four columns. No status or is_completed column is needed, so this
 -- script does not touch either table.
 -- ============================================================================
+
+-- ── Note folders ────────────────────────────────────────────────────────────
+-- Folders that group notes. The name is encrypted like every other user text;
+-- only colour and order stay readable. A note points at its folder from inside
+-- its own encrypted payload, so the `notes` table needs no new column and no
+-- foreign key that could reject a note uploaded before its folder.
+CREATE TABLE IF NOT EXISTS note_folders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  encrypted_payload TEXT NOT NULL,
+  color TEXT,
+  sort_order INTEGER DEFAULT 0,
+  version INTEGER DEFAULT 1,
+  encryption_context TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE note_folders ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can manage own note folders" ON note_folders;
+CREATE POLICY "Users can manage own note folders" ON note_folders
+  FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+
+CREATE INDEX IF NOT EXISTS idx_note_folders_user_id ON note_folders(user_id);
+
+DROP TRIGGER IF EXISTS update_note_folders_updated_at ON note_folders;
+CREATE TRIGGER update_note_folders_updated_at
+  BEFORE UPDATE ON note_folders FOR EACH ROW EXECUTE FUNCTION update_updated_at();

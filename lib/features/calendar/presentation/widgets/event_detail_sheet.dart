@@ -148,25 +148,27 @@ class EventDetailSheet extends ConsumerWidget {
           text: '${feed?.name ?? 'Subscribed calendar'} · read-only',
         ),
       );
-    } else if (event.calendarId != null) {
+    } else {
+      // The calendar an event belongs to is always shown, even when it has
+      // none — otherwise "which calendar is this in" has no answer in the UI.
       final cal = calendarState.calendars
           .where((c) => c.id == event.calendarId)
           .firstOrNull;
-      if (cal != null) {
-        rows.add(
-          _DetailRow(
-            leading: Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                color: Color(cal.color),
-                shape: BoxShape.circle,
-              ),
+      rows.add(
+        _DetailRow(
+          leading: Container(
+            width: 14,
+            height: 14,
+            decoration: BoxDecoration(
+              color: cal != null
+                  ? Color(cal.color)
+                  : AppColors.textTertiary,
+              shape: BoxShape.circle,
             ),
-            text: cal.name,
           ),
-        );
-      }
+          text: cal?.name ?? 'No calendar',
+        ),
+      );
     }
 
     return rows;
