@@ -42,8 +42,13 @@ class AppDrawerPanel extends StatelessWidget {
   /// Share of the screen width a panel takes.
   static const double widthFactor = 0.84;
 
-  /// How far the panel stays clear of the top and the bottom edge.
-  static const double endInset = 28;
+  /// How far the panel stays clear of the top and the bottom edge. The top
+  /// gap has to clear the status bar, and the bottom gap repeats exactly that
+  /// number, so the panel sits symmetrically in the screen.
+  static double endInset(BuildContext context) {
+    final view = View.of(context);
+    return view.viewPadding.top / view.devicePixelRatio + AppShapes.dockMargin;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,59 +58,55 @@ class AppDrawerPanel extends StatelessWidget {
       elevation: 0,
       shape: const RoundedRectangleBorder(),
       width: MediaQuery.of(context).size.width * widthFactor,
-      child: Align(
-        alignment: Alignment.topLeft,
+      child: Center(
         child: Container(
-          // Free on every side, like the quick-add dock: the gap is what makes
-          // it read as a panel lying over the page.
-          margin: const EdgeInsets.all(AppShapes.dockMargin),
+          // Free on every side and cut back at both ends: the panel runs
+          // nearly the full height without touching the top or bottom edge.
+          margin: EdgeInsets.fromLTRB(
+            AppShapes.dockMargin,
+            endInset(context),
+            AppShapes.dockMargin,
+            endInset(context),
+          ),
           decoration: BoxDecoration(
             // A tone above the page background, so the panel has a visible edge.
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(AppShapes.sheetTop),
           ),
           clipBehavior: Clip.antiAlias,
-          child: SafeArea(
-            child: Column(
-              // Wrap the content instead of filling the screen: the panel ends
-              // right under its last row.
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  // Tight under the title: the rows start right below it.
-                  padding: const EdgeInsets.fromLTRB(20, 4, 8, 6),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                // Tight under the title: the rows start right below it.
+                padding: const EdgeInsets.fromLTRB(20, 12, 8, 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
                         ),
                       ),
-                      ...titleActions,
-                    ],
-                  ),
+                    ),
+                    ...titleActions,
+                  ],
                 ),
-                ...header,
-                // Flexible, not Expanded: a short list keeps the panel short,
-                // a long one still scrolls inside the screen.
-                Flexible(
-                  child: ListView(
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.only(top: 4, bottom: 4),
-                    children: children,
-                  ),
+              ),
+              ...header,
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.only(top: 4, bottom: 4),
+                  children: children,
                 ),
-                ?footer,
-                const SizedBox(height: 8),
-              ],
-            ),
+              ),
+              ?footer,
+              const SizedBox(height: 8),
+            ],
           ),
         ),
       ),
