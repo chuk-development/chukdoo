@@ -82,10 +82,10 @@ class _MonthStripState extends State<MonthStrip> {
               _MonthPill(
                 label: DateFormat('MMM', 'en_US').format(month),
                 selected: selected,
-                // A selected pill is round on both sides; the first and the
-                // last of the strip keep the group's own outer corners.
-                isFirst: i == 0,
-                isLast: i == count - 1,
+                // A group ends where the strip ends and where a year turns
+                // over, so January and December are rounded off as well.
+                isFirst: i == 0 || month.month == 1,
+                isLast: i == count - 1 || month.month == 12,
                 onTap: () => widget.onPick(month),
               ),
             ],
@@ -125,9 +125,8 @@ class _MonthPill extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(right: AppShapes.groupGap),
-      child: GestureDetector(
+      child: _TapTolerant(
         onTap: onTap,
-        behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: CalendarStyle.motion,
           curve: Curves.easeOutCubic,
@@ -172,6 +171,50 @@ class _YearMarker extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// A tap target that survives a shaky finger inside a scrolling row.
+///
+/// A `GestureDetector` inside a horizontal list hands the gesture to the
+/// scroll view as soon as the finger travels a pixel or two, so pressing a
+/// month did nothing on a real device while a synthetic zero-movement tap in
+/// a test worked. This listens to the raw pointer instead and calls back when
+/// the finger lifts close to where it went down, without entering the arena.
+class _TapTolerant extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _TapTolerant({required this.child, required this.onTap});
+
+  /// Everything within this distance is still the same spot.
+  static const double slop = 18;
+
+  @override
+  State<_TapTolerant> createState() => _TapTolerantState();
+}
+
+class _TapTolerantState extends State<_TapTolerant> {
+  /// Where the finger went down. Kept in the state, not in build: the pill
+  /// rebuilds while the finger is still down and a local would be lost.
+  Offset? _down;
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: (event) => _down = event.position,
+      onPointerUp: (event) {
+        final start = _down;
+        _down = null;
+        if (start == null) return;
+        if ((event.position - start).distance <= _TapTolerant.slop) {
+          widget.onTap();
+        }
+      },
+      onPointerCancel: (_) => _down = null,
+      child: widget.child,
     );
   }
 }

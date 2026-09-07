@@ -52,6 +52,29 @@ void main() {
     expect(picks, 0);
   });
 
+  testWidgets('a shaky finger still selects', (tester) async {
+    DateTime? picked;
+    await pumpStrip(
+      tester,
+      focused: DateTime(2026, 9, 1),
+      onPick: (m) => picked = m,
+    );
+    await tester.pumpAndSettle();
+
+    // A real finger moves a few pixels between touch and lift; that used to
+    // hand the gesture to the scroll view and swallow the selection.
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Oct')),
+    );
+    await tester.pump(const Duration(milliseconds: 40));
+    await gesture.moveBy(const Offset(-6, 2));
+    await tester.pump(const Duration(milliseconds: 40));
+    await gesture.up();
+    await tester.pump();
+
+    expect(picked, DateTime(2026, 10, 1));
+  });
+
   testWidgets('the strip opens on the focused month', (tester) async {
     await pumpStrip(tester, focused: DateTime(2026, 9, 1), onPick: (_) {});
     await tester.pumpAndSettle();
