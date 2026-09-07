@@ -19,7 +19,7 @@ class DayView extends ConsumerWidget {
 
   /// Same narrow hour scale as Google Calendar, so the day columns keep
   /// the width instead of the labels.
-  static const _timeColumnWidth = 34.0;
+  static const _timeColumnWidth = 44.0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

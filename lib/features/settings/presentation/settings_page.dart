@@ -188,13 +188,13 @@ class SettingsPage extends ConsumerWidget {
 
     return [
       SettingsNavTile(
-        icon: MdiIcons.formatListChecks,
+        icon: MdiIcons.inboxOutline,
         title: 'Tasks',
         value: settings.checkboxSize.label,
         onTap: () => open(const TasksSettingsPage()),
       ),
       SettingsNavTile(
-        icon: MdiIcons.calendarMonthOutline,
+        icon: MdiIcons.calendarOutline,
         title: 'Calendar',
         value: settings.calendarDefaultView.label,
         onTap: () => open(const CalendarSettingsPage()),
@@ -206,7 +206,7 @@ class SettingsPage extends ConsumerWidget {
         onTap: () => open(const NotesSettingsPage()),
       ),
       SettingsNavTile(
-        icon: MdiIcons.checkAll,
+        icon: MdiIcons.trophyOutline,
         title: 'Habits',
         value: settings.habitReminderMinutes == null
             ? 'No reminder'

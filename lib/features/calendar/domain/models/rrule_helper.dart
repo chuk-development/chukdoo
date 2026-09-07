@@ -166,8 +166,9 @@ class RRuleHelper {
           final occurrence = weekStart.add(Duration(days: adjusted));
 
           if (occurrence.isAfter(rangeEnd)) continue;
-          if (config.until != null && occurrence.isAfter(config.until!))
+          if (config.until != null && occurrence.isAfter(config.until!)) {
             continue;
+          }
           if (config.count != null && count >= config.count!) break;
 
           final dateKey =
