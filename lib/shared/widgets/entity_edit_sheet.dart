@@ -410,8 +410,9 @@ class EntitySwatch extends StatelessWidget {
   });
 
   /// Foreground that stays readable on top of [background].
-  static Color onColor(Color background) =>
-      background.computeLuminance() > 0.6 ? const Color(0xFF1A1A22) : Colors.white;
+  static Color onColor(Color background) => background.computeLuminance() > 0.6
+      ? const Color(0xFF1A1A22)
+      : Colors.white;
 
   @override
   Widget build(BuildContext context) {

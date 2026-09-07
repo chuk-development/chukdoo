@@ -44,7 +44,10 @@ class _NoteFolderEditSheetState extends ConsumerState<NoteFolderEditSheet> {
       await notifier.updateFolder(updated);
       if (mounted) Navigator.pop(context, updated);
     } else {
-      final created = await notifier.addFolder(name: values.name, color: _color);
+      final created = await notifier.addFolder(
+        name: values.name,
+        color: _color,
+      );
       if (mounted) Navigator.pop(context, created);
     }
   }

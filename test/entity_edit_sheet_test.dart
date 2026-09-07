@@ -90,6 +90,9 @@ void main() {
 
     expect(tester.widget<FilledButton>(saveButton).onPressed, isNotNull);
 
+    // The form scrolls, so the action can sit below the fold.
+    await tester.ensureVisible(saveButton);
+    await tester.pumpAndSettle();
     await tester.tap(saveButton);
     await tester.pump();
 
@@ -111,8 +114,10 @@ void main() {
               width: 300,
               child: EntityFlushGrid(
                 count: 10,
-                itemBuilder: (i, cell) =>
-                    ColoredBox(key: ValueKey(i), color: const Color(0xFF000000)),
+                itemBuilder: (i, cell) => ColoredBox(
+                  key: ValueKey(i),
+                  color: const Color(0xFF000000),
+                ),
               ),
             ),
           ),
