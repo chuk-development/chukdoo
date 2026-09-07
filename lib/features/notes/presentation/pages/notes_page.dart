@@ -4,8 +4,11 @@ import 'package:material_design_icons_flutter/material_design_icons_flutter.dart
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_shapes.dart';
+import '../../../../shared/widgets/app_field.dart';
+import '../../../../shared/widgets/app_scaffold.dart';
 import '../../../../shared/widgets/picker_sheet.dart';
 import '../../../settings/providers/settings_provider.dart';
+import '../../../todos/presentation/widgets/quick_add_fab.dart';
 import '../../domain/markdown_preview.dart';
 import '../../domain/models/note.dart';
 import '../../domain/models/note_folder.dart';
@@ -14,13 +17,13 @@ import '../../providers/note_provider.dart';
 import '../widgets/note_card.dart';
 import '../widgets/note_folder_picker.dart';
 import 'note_editor_page.dart';
-import '../../../../shared/widgets/app_scaffold.dart';
-import '../../../todos/presentation/widgets/quick_add_fab.dart';
 
-/// The Notes overview — a masonry of note cards with long-press drag
-/// reordering. Cards keep their intrinsic height, so the columns stagger. How
-/// many columns there are, and in which order the cards come, is up to the
-/// notes settings.
+/// The Notes overview.
+///
+/// Two shapes, both built from the same filled blocks: a masonry of cards
+/// whose height follows their text, and a single-column list in which the
+/// cards close up into one group. Which one it is, and in which order the
+/// notes come, is up to the notes settings.
 class NotesPage extends ConsumerStatefulWidget {
   /// True when rendered inside the home shell (bottom nav / drawer present).
   final bool embedded;
@@ -194,14 +197,13 @@ class _NotesPageState extends ConsumerState<NotesPage> {
           ? TextField(
               controller: _searchController,
               autofocus: true,
-              style: const TextStyle(fontSize: 18),
-              decoration: InputDecoration(
-                hintText: 'Search notes…',
+              style: TextStyle(fontSize: 18, color: AppColors.textPrimary),
+              decoration: AppField.decoration(
+                'Search notes…',
                 hintStyle: TextStyle(
-                  color: AppColors.textSecondary,
                   fontSize: 18,
+                  color: AppColors.textSecondary,
                 ),
-                border: InputBorder.none,
               ),
               onChanged: (v) => setState(() => _query = v),
             )
@@ -229,11 +231,12 @@ class _NotesPageState extends ConsumerState<NotesPage> {
           ? const Center(child: CircularProgressIndicator())
           : notes.isEmpty
           ? _buildEmpty(selectedFolder?.name)
-          : _buildGrid(
+          : settings.noteLayout == NoteLayout.list
+          ? _buildList(notes, folderState, showFolder: selectedFolderId == null)
+          : _buildMasonry(
               notes,
               folderState,
               showFolder: selectedFolderId == null,
-              layout: settings.noteLayout,
             ),
       floatingActionButton: _searching
           ? null
@@ -241,30 +244,62 @@ class _NotesPageState extends ConsumerState<NotesPage> {
     );
   }
 
-  Widget _buildGrid(
+  /// List layout: the notes are one group, exactly like a to-do list — the
+  /// 3px gap is the separator, so nothing is drawn between two rows.
+  Widget _buildList(
     List<Note> notes,
     NoteFolderState folderState, {
     required bool showFolder,
-    required NoteLayout layout,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        const gap = 12.0;
-        const outer = 12.0;
-        // The list layout is the same masonry with one column: a card keeps
-        // its height, so a single column is exactly a list.
-        final columns = layout == NoteLayout.list
-            ? 1
-            : (constraints.maxWidth / 260).floor().clamp(2, 4);
+        final width = constraints.maxWidth - AppShapes.listInset * 2;
+        return SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            AppShapes.listInset,
+            AppShapes.listInset,
+            AppShapes.listInset,
+            AppShapes.contentBottom(context),
+          ),
+          child: Column(
+            children: [
+              for (var i = 0; i < notes.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppShapes.groupGap),
+                  child: _reorderableCard(
+                    notes[i],
+                    width,
+                    showFolder ? folderState.byId(notes[i].folderId) : null,
+                    isFirst: i == 0,
+                    isLast: i == notes.length - 1,
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Grid layout: a masonry of standalone blocks. Cards keep their intrinsic
+  /// height, so the columns stagger.
+  Widget _buildMasonry(
+    List<Note> notes,
+    NoteFolderState folderState, {
+    required bool showFolder,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = AppShapes.listInset;
+        final columns = (constraints.maxWidth / 260).floor().clamp(2, 4);
         final colWidth =
-            (constraints.maxWidth - outer * 2 - gap * (columns - 1)) / columns;
+            (constraints.maxWidth - gap * 2 - gap * (columns - 1)) / columns;
 
         // Masonry fill: place each note into the currently shortest column.
         final colHeights = List<double>.filled(columns, 0);
         final colChildren = List.generate(columns, (_) => <Widget>[]);
 
-        for (var i = 0; i < notes.length; i++) {
-          final note = notes[i];
+        for (final note in notes) {
           var target = 0;
           for (var c = 1; c < columns; c++) {
             if (colHeights[c] < colHeights[target]) target = c;
@@ -284,9 +319,9 @@ class _NotesPageState extends ConsumerState<NotesPage> {
 
         return SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
-            outer,
-            outer,
-            outer,
+            gap,
+            gap,
+            gap,
             AppShapes.contentBottom(context),
           ),
           child: Row(
@@ -309,13 +344,21 @@ class _NotesPageState extends ConsumerState<NotesPage> {
   /// Wrap a card as both a drag source (long press) and a drop target so
   /// notes can be reordered by dragging one onto another. A long press that
   /// ends where it started opens the note menu instead.
-  Widget _reorderableCard(Note note, double width, NoteFolder? folder) {
+  Widget _reorderableCard(
+    Note note,
+    double width,
+    NoteFolder? folder, {
+    bool isFirst = true,
+    bool isLast = true,
+  }) {
     final key = _cardKeys.putIfAbsent(note.id, GlobalKey.new);
     final card = NoteCard(
       key: key,
       note: note,
       folder: folder,
       isDragging: _draggingId == note.id,
+      isFirst: isFirst,
+      isLast: isLast,
       onTap: () => _openNote(note),
     );
 
@@ -390,45 +433,61 @@ class _NotesPageState extends ConsumerState<NotesPage> {
   /// Rough card-height estimate to balance the masonry columns. Exact layout
   /// height isn't known ahead of paint, so approximate from text length.
   double _estimateHeight(Note note) {
-    var h = 70.0; // padding + date row
+    var h = 62.0; // padding + meta line
     if (note.title.trim().isNotEmpty) {
-      h += 24 * ((note.title.trim().length / 22).ceil().clamp(1, 3));
+      h += 20 * ((note.title.trim().length / 22).ceil().clamp(1, 2));
     }
     // The card shows the stripped text, so estimate from that.
     final content = markdownToPlainText(note.content);
     final contentLen = content.isEmpty ? 6 : content.length;
-    h += 20 * ((contentLen / 26).ceil().clamp(1, 9));
-    if (note.isPinned) h += 20;
+    h += 20 * ((contentLen / 26).ceil().clamp(1, 8));
     return h;
   }
 
+  /// Nothing to show: no notes at all, an empty folder, or a search that
+  /// found none. Same words as the rest of the app, one line of help.
   Widget _buildEmpty(String? folderName) {
     final searching = _query.trim().isNotEmpty;
+    final (icon, title, hint) = switch ((searching, folderName)) {
+      (true, _) => (
+        MdiIcons.magnify,
+        'No matching notes',
+        'Try a different search',
+      ),
+      (false, null) => (
+        MdiIcons.noteTextOutline,
+        'No notes yet',
+        'Tap + to write your first one',
+      ),
+      (false, final name) => (
+        MdiIcons.folderOutline,
+        'Nothing in $name',
+        'Tap + to write a note here',
+      ),
+    };
+
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.fromLTRB(32, 0, 32, 64),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              searching ? MdiIcons.magnify : MdiIcons.noteTextOutline,
-              size: 80,
-              color: AppColors.textSecondary.withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 24),
+            Icon(icon, size: 64, color: AppColors.textTertiary),
+            const SizedBox(height: 20),
             Text(
-              searching
-                  ? 'No matching notes'
-                  : folderName == null
-                  ? 'No notes yet'
-                  : 'Nothing in $folderName',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              searching ? 'Try a different search' : 'Tap + to write one',
-              style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
+              title,
               textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              hint,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
             ),
           ],
         ),

@@ -1,6 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -13,10 +14,21 @@ import '../../domain/models/note.dart';
 import '../../providers/note_folder_provider.dart';
 import '../../providers/note_provider.dart';
 import '../widgets/note_folder_picker.dart';
+import '../widgets/note_format_bar.dart';
+import '../widgets/note_markdown_view.dart';
 
-/// Full-screen note editor. The note already exists in the provider before this
-/// page opens; edits are saved when the page is popped. An untouched, empty
-/// note is discarded automatically.
+/// Full-screen note editor: one writing surface, no save button.
+///
+/// Two things it must never do, because both were reported as broken:
+///
+/// * **Type into nothing.** The body used to be only as tall as its text, so a
+///   tap under the last line hit no field at all and the keyboard stayed shut
+///   until the title was tapped. The whole surface below the title is now one
+///   tap target that drops the caret at the end of the text.
+/// * **Lose writing.** There is no save button; the note is written 600 ms
+///   after the last keystroke, when the page is left, when the app goes to the
+///   background and when the preview is toggled. The header says which of the
+///   two states it is in.
 ///
 /// A note is Markdown. The body has two states — write and read — because
 /// editing rendered Markdown in place is a text field with the marks hidden,
@@ -26,7 +38,7 @@ class NoteEditorPage extends ConsumerStatefulWidget {
 
   const NoteEditorPage({super.key, required this.noteId});
 
-  /// Optional card tints — muted so they read on the dark theme.
+  /// Optional note tints — muted so they read on the dark theme.
   static const List<int?> palette = [
     null,
     0xFF4A3B2A, // amber
@@ -40,9 +52,18 @@ class NoteEditorPage extends ConsumerStatefulWidget {
   ConsumerState<NoteEditorPage> createState() => _NoteEditorPageState();
 }
 
-class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
+/// What the header says about the note's state.
+enum _SaveStatus { untouched, saving, saved }
+
+class _NoteEditorPageState extends ConsumerState<NoteEditorPage>
+    with WidgetsBindingObserver {
   late final TextEditingController _titleController;
   late final TextEditingController _contentController;
+  final _bodyFocus = FocusNode();
+  final _titleFocus = FocusNode();
+
+  Timer? _debounce;
+  _SaveStatus _status = _SaveStatus.untouched;
 
   bool _isPinned = false;
   int? _color;
@@ -50,9 +71,13 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   bool _deleted = false;
   bool _preview = false;
 
+  /// Time the editor waits after the last keystroke before it writes. Long
+  /// enough that a sentence is one save, short enough to survive a swipe out
+  /// of the app.
+  static const _saveDelay = Duration(milliseconds: 600);
+
   Note? get _note {
-    final notes = ref.read(noteProvider).notes;
-    for (final n in notes) {
+    for (final n in ref.read(noteProvider).notes) {
       if (n.id == widget.noteId) return n;
     }
     return null;
@@ -61,37 +86,70 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
     final note = _note;
     _titleController = TextEditingController(text: note?.title ?? '');
     _contentController = TextEditingController(text: note?.content ?? '');
     _isPinned = note?.isPinned ?? false;
     _color = note?.color;
     _folderId = note?.folderId;
-    // The note opens in the state the settings ask for. A note with nothing
-    // in it is the exception: there is nothing to render, so it opens for
-    // writing whatever the setting says.
+    // The note opens in the state the settings ask for. A note with nothing in
+    // it is the exception: there is nothing to render, so it opens for writing
+    // whatever the setting says.
     _preview =
         ref.read(settingsProvider).noteOpenMode == NoteOpenMode.preview &&
         !(note?.isEmpty ?? true);
+
+    // The formatting bar belongs to the body, so it appears and goes with it.
+    _bodyFocus.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _debounce?.cancel();
     _titleController.dispose();
     _contentController.dispose();
+    _bodyFocus.dispose();
+    _titleFocus.dispose();
     super.dispose();
   }
 
-  void _save() {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Leaving the app is the one exit the page never sees as a pop.
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      _save();
+    }
+  }
+
+  // ── Saving ────────────────────────────────────────────────────────────────
+
+  /// A keystroke: show "Saving…" and restart the timer.
+  void _onEdited() {
+    _debounce?.cancel();
+    if (_status != _SaveStatus.saving) {
+      setState(() => _status = _SaveStatus.saving);
+    }
+    _debounce = Timer(_saveDelay, _save);
+  }
+
+  /// Write the note. [exiting] allows the one destructive case: a note that
+  /// never got a title or a body is dropped instead of kept as an empty ghost.
+  void _save({bool exiting = false}) {
+    _debounce?.cancel();
     if (_deleted) return;
+
     final note = _note;
     if (note == null) return;
 
-    final title = _titleController.text;
-    final content = _contentController.text;
     final updated = note.copyWith(
-      title: title,
-      content: content,
+      title: _titleController.text,
+      content: _contentController.text,
       isPinned: _isPinned,
       color: _color,
       clearColor: _color == null,
@@ -100,8 +158,13 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     );
 
     if (updated.isEmpty) {
-      // Nothing worth keeping — drop it silently.
-      ref.read(noteProvider.notifier).deleteNote(note.id);
+      // Mid-edit an empty note is simply not written: deleting it here would
+      // pull the record out from under the editor while the user is still in
+      // it, and every later save would then have nothing to write to.
+      if (exiting) {
+        _deleted = true;
+        ref.read(noteProvider.notifier).deleteNote(note.id);
+      }
       return;
     }
 
@@ -111,12 +174,70 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
         updated.isPinned == note.isPinned &&
         updated.color == note.color &&
         updated.folderId == note.folderId;
-    if (unchanged) return;
 
-    ref.read(noteProvider.notifier).updateNote(updated);
+    if (!unchanged) ref.read(noteProvider.notifier).updateNote(updated);
+    if (mounted && _status != _SaveStatus.untouched) {
+      setState(() => _status = _SaveStatus.saved);
+    }
   }
 
-  void _togglePin() => setState(() => _isPinned = !_isPinned);
+  String? get _statusLabel => switch (_status) {
+    _SaveStatus.untouched => null,
+    _SaveStatus.saving => 'Saving…',
+    _SaveStatus.saved => 'Saved',
+  };
+
+  // ── Body focus ────────────────────────────────────────────────────────────
+
+  /// Put the caret at the end of the body and open the keyboard.
+  ///
+  /// This is what the empty space under the text does. From the preview it
+  /// also switches back to writing — a tap on the page is the gesture people
+  /// try first, and refusing it is what "typing into nothing" felt like.
+  void _writeAtEnd() {
+    void caretToEnd() {
+      _contentController.selection = TextSelection.collapsed(
+        offset: _contentController.text.length,
+      );
+      _bodyFocus.requestFocus();
+    }
+
+    if (_preview) {
+      _save();
+      setState(() => _preview = false);
+      // The body field does not exist yet in this frame — a focus request on
+      // an unmounted node is dropped, so wait for the rebuild.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) caretToEnd();
+      });
+      return;
+    }
+    caretToEnd();
+  }
+
+  void _togglePreview() {
+    _save();
+    setState(() => _preview = !_preview);
+    if (_preview) FocusScope.of(context).unfocus();
+  }
+
+  /// A checkbox was ticked in the preview: the rewritten source goes straight
+  /// back into the field, so read and write mode never disagree.
+  void _onPreviewSourceChanged(String source) {
+    // The preview reads the controller, so the rebuild is what redraws the
+    // ticked box — the debounce alone would not repaint it.
+    setState(() {
+      _contentController.text = source;
+    });
+    _onEdited();
+  }
+
+  // ── Note properties ───────────────────────────────────────────────────────
+
+  void _togglePin() {
+    setState(() => _isPinned = !_isPinned);
+    _save();
+  }
 
   Future<void> _moveToFolder() async {
     final choice = await showNoteFolderPicker(
@@ -126,7 +247,11 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     );
     if (choice == null || !mounted) return;
     setState(() => _folderId = choice.folderId);
+    _save();
   }
+
+  /// Stands in for "no colour" so a dismissed sheet stays distinguishable.
+  static const int _noColour = 0;
 
   Future<void> _pickColor() async {
     final picked = await showAppPicker<int?>(
@@ -134,8 +259,11 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       builder: (ctx) => PickerSheetScaffold(
         title: 'Note colour',
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppShapes.listInset + 8,
+          padding: const EdgeInsets.fromLTRB(
+            AppShapes.listInset + 8,
+            0,
+            AppShapes.listInset + 8,
+            8,
           ),
           child: Wrap(
             spacing: 14,
@@ -177,10 +305,8 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
 
     if (picked == null || !mounted) return;
     setState(() => _color = picked == _noColour ? null : picked);
+    _save();
   }
-
-  /// Stands in for "no colour" so a dismissed sheet stays distinguishable.
-  static const int _noColour = 0;
 
   Future<void> _confirmDelete() async {
     final ok = await showPickerSheet<bool>(
@@ -197,12 +323,13 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
         PickerOption(value: false, label: 'Cancel', icon: MdiIcons.close),
       ],
     );
-    if (ok == true && mounted) {
-      _deleted = true;
-      final id = _note?.id;
-      if (id != null) ref.read(noteProvider.notifier).deleteNote(id);
-      if (mounted) Navigator.pop(context);
-    }
+    if (ok != true || !mounted) return;
+
+    _debounce?.cancel();
+    _deleted = true;
+    final id = _note?.id;
+    if (id != null) ref.read(noteProvider.notifier).deleteNote(id);
+    if (mounted) Navigator.pop(context);
   }
 
   /// Everything that does not fit the header: folder, colour, delete.
@@ -237,25 +364,28 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     }
   }
 
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final bg = _color != null ? Color(_color!) : AppColors.background;
     final folder = ref.watch(noteFolderProvider).byId(_folderId);
+    final showFormatBar = !_preview && _bodyFocus.hasFocus;
 
     return PopScope(
       canPop: true,
-      onPopInvokedWithResult: (didPop, _) => _save(),
-      // The page owns its background so a tinted note keeps its tint; the
-      // frame itself is the same header every other page uses.
+      onPopInvokedWithResult: (didPop, _) => _save(exiting: true),
+      // A pushed route paints no shell behind it, so the page carries the
+      // app background itself. The note's own tint stays on the writing
+      // surface, not on the whole screen — the header must not change colour.
       child: ColoredBox(
-        color: bg,
+        color: AppColors.background,
         child: AppScaffold(
-          title: folder?.name ?? 'Note',
           onBack: () => Navigator.pop(context),
+          titleWidget: _buildStatus(folder?.name, folder?.color),
           actions: [
             AppHeaderAction(
               icon: _preview ? MdiIcons.pencilOutline : MdiIcons.eyeOutline,
-              onPressed: () => setState(() => _preview = !_preview),
+              onPressed: _togglePreview,
               tooltip: _preview ? 'Edit' : 'Preview',
             ),
             AppHeaderAction(
@@ -270,100 +400,186 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
               tooltip: 'More',
             ),
           ],
-          body: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppShapes.listInset,
-              0,
-              AppShapes.listInset,
-              AppShapes.listInset,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Title and body are two filled blocks of one group — no
-                // outlines anywhere, same language as the task detail page.
-                AppField(
-                  isFirst: true,
-                  isLast: false,
-                  child: TextField(
-                    controller: _titleController,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: null,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: AppField.decoration(
-                      'Title',
-                      hintStyle: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
+          body: Column(
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppShapes.listInset,
                   ),
+                  child: _buildSurface(),
                 ),
-                const SizedBox(height: AppShapes.groupGap),
-                Expanded(
-                  child: AppField(
-                    isFirst: false,
-                    isLast: true,
-                    child: _preview ? _buildPreview() : _buildEditor(),
-                  ),
+              ),
+              if (showFormatBar)
+                NoteFormatBar(
+                  controller: _contentController,
+                  focusNode: _bodyFocus,
+                )
+              else
+                SizedBox(
+                  height:
+                      AppShapes.dockMargin +
+                      MediaQuery.viewPaddingOf(context).bottom,
                 ),
-              ],
-            ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildEditor() {
+  /// Folder and save state, in the title slot: the only thing the header says
+  /// about the note besides its three buttons.
+  Widget _buildStatus(String? folderName, int? folderColor) {
+    final label = _statusLabel;
+    // Before the first keystroke a note outside every folder has nothing to
+    // report; the header would otherwise be a row of buttons around a hole.
+    if (folderName == null && label == null) {
+      return Text(
+        'Note',
+        style: TextStyle(fontSize: 15, color: AppColors.textTertiary),
+      );
+    }
+
+    return Row(
+      children: [
+        if (folderName != null && folderColor != null) ...[
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: Color(folderColor),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              folderName,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
+            ),
+          ),
+          if (label != null) ...[
+            const SizedBox(width: 8),
+            Text('·', style: TextStyle(color: AppColors.textTertiary)),
+          ],
+        ],
+        if (label != null) ...[
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(fontSize: 13, color: AppColors.textTertiary),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// The writing surface: one filled block that runs to the bottom of the
+  /// page, with the title on top and the body under it.
+  Widget _buildSurface() {
+    final surfaceColor = _color != null ? Color(_color!) : AppColors.surface;
+
+    return Material(
+      color: surfaceColor,
+      // One block, so the radii are the outer ones of a group.
+      borderRadius: AppShapes.row(isFirst: true, isLast: true),
+      clipBehavior: Clip.antiAlias,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const padding = EdgeInsets.fromLTRB(18, 16, 18, 24);
+          return GestureDetector(
+            // Every point of the surface that no field claims writes at the
+            // end of the note. This is the fix for "typing into nothing".
+            behavior: HitTestBehavior.opaque,
+            onTap: _writeAtEnd,
+            child: SingleChildScrollView(
+              padding: padding,
+              child: ConstrainedBox(
+                // Fill the surface even when the note is two words long, so
+                // the empty area belongs to the tap target above.
+                constraints: BoxConstraints(
+                  minHeight: (constraints.maxHeight - padding.vertical).clamp(
+                    0.0,
+                    double.infinity,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildTitleField(),
+                    const SizedBox(height: 10),
+                    _preview ? _buildPreview() : _buildBodyField(),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildTitleField() {
+    return TextField(
+      controller: _titleController,
+      focusNode: _titleFocus,
+      style: TextStyle(
+        fontSize: 26,
+        fontWeight: FontWeight.w700,
+        height: 1.2,
+        color: AppColors.textPrimary,
+      ),
+      minLines: 1,
+      maxLines: 3,
+      textCapitalization: TextCapitalization.sentences,
+      textInputAction: TextInputAction.next,
+      onSubmitted: (_) => _writeAtEnd(),
+      onChanged: (_) => _onEdited(),
+      decoration: AppField.decoration(
+        'Title',
+        hintStyle: TextStyle(
+          fontSize: 26,
+          fontWeight: FontWeight.w700,
+          height: 1.2,
+          color: AppColors.textTertiary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBodyField() {
     return TextField(
       controller: _contentController,
-      autofocus: (_note?.isEmpty ?? true),
-      style: TextStyle(
-        fontSize: 16,
-        color: AppColors.textPrimary,
-        height: 1.45,
-      ),
+      focusNode: _bodyFocus,
+      // A new note opens ready to be written in; an existing one waits for a
+      // tap, so reading it does not throw the keyboard up.
+      autofocus: _note?.isEmpty ?? true,
+      style: TextStyle(fontSize: 16, color: AppColors.textPrimary, height: 1.5),
+      // The field grows with its text and the surface around it scrolls —
+      // a field that scrolls inside a scroll view fights every drag.
       maxLines: null,
-      expands: true,
-      textAlignVertical: TextAlignVertical.top,
       keyboardType: TextInputType.multiline,
       textCapitalization: TextCapitalization.sentences,
-      decoration: AppField.decoration('Note… (Markdown supported)'),
+      onChanged: (_) => _onEdited(),
+      decoration: AppField.decoration('Start writing… Markdown works'),
     );
   }
 
   Widget _buildPreview() {
     final text = _contentController.text.trim();
     if (text.isEmpty) {
-      return Align(
-        alignment: Alignment.topLeft,
-        child: Text(
-          'Nothing to preview',
-          style: TextStyle(fontSize: 16, color: AppColors.textTertiary),
-        ),
+      return Text(
+        'Nothing to preview yet',
+        style: TextStyle(fontSize: 16, color: AppColors.textTertiary),
       );
     }
 
-    return SingleChildScrollView(
-      child: SizedBox(
-        width: double.infinity,
-        // Same renderer and metrics as the task description, so a note and a
-        // task read identically.
-        child: GptMarkdown(
-          text,
-          style: TextStyle(
-            fontSize: 16,
-            height: 1.45,
-            color: AppColors.textPrimary,
-          ),
-        ),
-      ),
+    return NoteMarkdownView(
+      source: _contentController.text,
+      onSourceChanged: _onPreviewSourceChanged,
+      style: TextStyle(fontSize: 16, height: 1.5, color: AppColors.textPrimary),
     );
   }
 }
