@@ -19,6 +19,7 @@ import '../widgets/day_view.dart';
 import '../widgets/week_view.dart';
 import '../widgets/month_view.dart';
 import '../widgets/month_strip.dart';
+import '../widgets/period_pager.dart';
 import '../widgets/agenda_view.dart';
 import '../widgets/view_mode_selector.dart';
 import '../widgets/event_create_dialog.dart';
@@ -43,6 +44,12 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   /// Whether the month picker under the title is open.
   bool _monthStripOpen = false;
 
+  /// True while two fingers zoom the day/week grid. The pager stops taking
+  /// drags then, so a pinch cannot slide into the next period. A notifier
+  /// rather than state, so a pinch rebuilds the pager alone and not the whole
+  /// page under it.
+  final ValueNotifier<bool> _gridZooming = ValueNotifier(false);
+
   @override
   void initState() {
     super.initState();
@@ -56,6 +63,12 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             ref.read(settingsProvider).calendarDefaultView.name,
           ),
         );
+  }
+
+  @override
+  void dispose() {
+    _gridZooming.dispose();
+    super.dispose();
   }
 
   @override
@@ -145,26 +158,32 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             ),
           ],
         ),
-        body: GestureDetector(
-          // Swipe left/right to move to the next/previous period. This is the
-          // only period navigation — the header carries no arrows.
-          // Agenda has no period to shift, so skip it there.
-          onHorizontalDragEnd: eventState.viewMode == CalendarViewMode.agenda
-              ? null
-              : (details) {
-                  final vx = details.primaryVelocity ?? 0;
-                  if (vx.abs() < 250) return;
-                  final dir = vx < 0 ? 1 : -1; // swipe left -> next
-                  notifier.setFocusedDate(_shiftFocused(eventState, dir));
-                },
-          child: KeyedSubtree(
-            // Switching between month, week and agenda swaps the view
-            // outright. Cross-fading two full-screen grids showed both at
-            // once and read as a glitch.
-            key: ValueKey(eventState.viewMode),
-            child: _buildView(context, ref, eventState.viewMode),
-          ),
-        ),
+        // Agenda is a running list with no period to page through, so it
+        // keeps its plain scroll view. Everything else is one page per
+        // period, dragged in under the finger.
+        body: eventState.viewMode == CalendarViewMode.agenda
+            ? AgendaView(
+                onItemTap: (item) => _showItemDetail(context, item),
+                onSubscribe: () => IcsFeedsSheet.show(context),
+              )
+            : ValueListenableBuilder<bool>(
+                valueListenable: _gridZooming,
+                builder: (context, zooming, _) => PeriodPager(
+                  mode: eventState.viewMode,
+                  weekStart: settings.calendarWeekStart,
+                  focusedDate: eventState.focusedDate,
+                  onFocusedDateChanged: notifier.setFocusedDate,
+                  physics: zooming
+                      ? const NeverScrollableScrollPhysics()
+                      : null,
+                  pageBuilder: (context, periodStart) => _buildView(
+                    context,
+                    ref,
+                    eventState.viewMode,
+                    periodStart,
+                  ),
+                ),
+              ),
         floatingActionButton: QuickAddFab(
           onPressed: () => _createEvent(context),
         ),
@@ -172,43 +191,36 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     );
   }
 
-  /// Period shift for swipe navigation.
-  DateTime _shiftFocused(CalendarEventState state, int dir) {
-    final f = state.focusedDate;
-    switch (state.viewMode) {
-      case CalendarViewMode.day:
-        return f.add(Duration(days: dir));
-      case CalendarViewMode.week:
-        return f.add(Duration(days: 7 * dir));
-      case CalendarViewMode.month:
-        return DateTime(f.year, f.month + dir, 1);
-      case CalendarViewMode.agenda:
-        return f.add(Duration(days: 30 * dir));
-    }
-  }
-
+  /// One page of the pager. [periodStart] is the page's own date, not the
+  /// focused one — the page beside the finger draws another period.
   Widget _buildView(
     BuildContext context,
     WidgetRef ref,
     CalendarViewMode mode,
+    DateTime periodStart,
   ) {
     switch (mode) {
       case CalendarViewMode.day:
         return DayView(
+          date: periodStart,
           onSlotTap: (slot) =>
               _createEvent(context, date: slot.date, time: slot.time),
           onItemTap: (item) => _showItemDetail(context, item),
           onItemDrop: (item, newStart) => _handleDrop(ref, item, newStart),
+          onZoomingChanged: (zooming) => _gridZooming.value = zooming,
         );
       case CalendarViewMode.week:
         return WeekView(
+          date: periodStart,
           onSlotTap: (slot) =>
               _createEvent(context, date: slot.date, time: slot.time),
           onItemTap: (item) => _showItemDetail(context, item),
           onItemDrop: (item, newStart) => _handleDrop(ref, item, newStart),
+          onZoomingChanged: (zooming) => _gridZooming.value = zooming,
         );
       case CalendarViewMode.month:
         return MonthView(
+          date: periodStart,
           onDayTap: (date) {
             ref.read(calendarEventProvider.notifier).setFocusedDate(date);
             ref

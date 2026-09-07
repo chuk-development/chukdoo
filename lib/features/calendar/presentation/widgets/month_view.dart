@@ -15,17 +15,20 @@ import 'calendar_style.dart';
 ///
 /// Navigation is handled by the page header and by swiping.
 class MonthView extends ConsumerWidget {
+  /// Any day of the month this page draws — one page of the pager is one
+  /// month, so it cannot read the focused date. Null falls back to it.
+  final DateTime? date;
+
   final ValueChanged<DateTime>? onDayTap;
   final ValueChanged<CalendarItem>? onItemTap;
 
-  const MonthView({super.key, this.onDayTap, this.onItemTap});
+  const MonthView({super.key, this.date, this.onDayTap, this.onItemTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final eventState = ref.watch(calendarEventProvider);
     final calendarItems = ref.watch(calendarItemsProvider);
     final settings = ref.watch(settingsProvider);
-    final focused = eventState.focusedDate;
+    final focused = date ?? ref.watch(calendarEventProvider).focusedDate;
 
     final firstOfMonth = DateTime(focused.year, focused.month, 1);
     // The grid always begins on the user's first day of the week, so the

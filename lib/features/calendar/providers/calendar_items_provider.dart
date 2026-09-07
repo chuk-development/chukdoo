@@ -31,19 +31,27 @@ final calendarItemsProvider = Provider<CalendarItemsState>((ref) {
   late DateTime rangeStart;
   late DateTime rangeEnd;
 
+  // The pager keeps the period on either side built, so it can be dragged in
+  // under the finger. Loading only the focused period would slide an empty
+  // grid in and fill it after the swipe settles, so every range reaches one
+  // period back and one period forward.
   switch (eventState.viewMode) {
     case CalendarViewMode.day:
-      rangeStart = DateTime(focused.year, focused.month, focused.day);
-      rangeEnd = rangeStart.add(const Duration(days: 1));
+      final day = DateTime(focused.year, focused.month, focused.day);
+      rangeStart = DateTime(day.year, day.month, day.day - 1);
+      rangeEnd = DateTime(day.year, day.month, day.day + 2);
     case CalendarViewMode.week:
       // The week the grid draws, not a Monday week — otherwise the first
       // column of a Sunday week would be outside the loaded range and look
       // empty.
-      rangeStart = startOfWeek(focused, settings.calendarWeekStart);
-      rangeEnd = rangeStart.add(const Duration(days: 7));
+      final week = startOfWeek(focused, settings.calendarWeekStart);
+      rangeStart = DateTime(week.year, week.month, week.day - 7);
+      rangeEnd = DateTime(week.year, week.month, week.day + 14);
     case CalendarViewMode.month:
-      rangeStart = DateTime(focused.year, focused.month, 1);
-      rangeEnd = DateTime(focused.year, focused.month + 1, 1);
+      // A month grid draws six full weeks, so it already shows days of the
+      // month before and after — those were empty until this range grew.
+      rangeStart = DateTime(focused.year, focused.month - 1, 1);
+      rangeEnd = DateTime(focused.year, focused.month + 2, 1);
     case CalendarViewMode.agenda:
       // Agenda is the running list of what is coming: everything with a date
       // in the next three months, events and dated tasks alike.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/picker_sheet.dart';
 import '../../../../shared/widgets/rounded_group.dart';
 import '../../providers/settings_provider.dart';
@@ -106,6 +107,7 @@ class CalendarSettingsPage extends ConsumerWidget {
                 }
               },
             ),
+            const _HourHeightTile(),
           ],
         ),
         const SettingsFootnote(
@@ -202,6 +204,60 @@ class CalendarSettingsPage extends ConsumerWidget {
             selected: hour == current,
           ),
       ],
+    );
+  }
+}
+
+/// Hour height of the day and week grid.
+///
+/// The same value a pinch on the grid writes, so the slider is only the second
+/// way to reach it — it exists because a pinch is not discoverable.
+class _HourHeightTile extends ConsumerWidget {
+  const _HourHeightTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final height = ref.watch(settingsProvider).calendarHourHeight;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(MdiIcons.arrowExpandVertical, color: AppColors.textPrimary),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'Hour height',
+                  style: TextStyle(fontSize: 16, color: AppColors.textPrimary),
+                ),
+              ),
+              Text(
+                '${height.round()} px',
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+          Slider(
+            value: height,
+            min: AppSettings.calendarHourHeightMin,
+            max: AppSettings.calendarHourHeightMax,
+            // Steps of 4 px: the slider writes to the settings box on every
+            // change, and a free double would write on every frame of a drag.
+            divisions:
+                ((AppSettings.calendarHourHeightMax -
+                            AppSettings.calendarHourHeightMin) /
+                        4)
+                    .round(),
+            label: '${height.round()} px',
+            onChanged: (value) => ref
+                .read(settingsProvider.notifier)
+                .setCalendarHourHeight(value),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -14,11 +14,25 @@ import 'time_grid.dart';
 /// Week view: the weekday strip on top, then the tiled time grid — the same
 /// build Google Calendar uses for a week.
 class WeekView extends ConsumerWidget {
+  /// Any day of the week this page draws — one page of the pager is one week,
+  /// so it cannot read the focused date. Null falls back to it.
+  final DateTime? date;
+
   final ValueChanged<({DateTime date, TimeOfDay time})>? onSlotTap;
   final ValueChanged<CalendarItem>? onItemTap;
   final void Function(CalendarItem item, DateTime newStart)? onItemDrop;
 
-  const WeekView({super.key, this.onSlotTap, this.onItemTap, this.onItemDrop});
+  /// Passed straight to the grid: true while two fingers zoom it.
+  final ValueChanged<bool>? onZoomingChanged;
+
+  const WeekView({
+    super.key,
+    this.date,
+    this.onSlotTap,
+    this.onItemTap,
+    this.onItemDrop,
+    this.onZoomingChanged,
+  });
 
   /// Same narrow hour scale as Google Calendar, so the day columns keep
   /// the width instead of the labels.
@@ -26,10 +40,9 @@ class WeekView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final eventState = ref.watch(calendarEventProvider);
     final calendarItems = ref.watch(calendarItemsProvider);
     final settings = ref.watch(settingsProvider);
-    final focused = eventState.focusedDate;
+    final focused = date ?? ref.watch(calendarEventProvider).focusedDate;
 
     final weekStart = startOfWeek(focused, settings.calendarWeekStart);
     final labels = CalendarStyle.weekdays(settings.calendarWeekStart);
@@ -141,10 +154,15 @@ class WeekView extends ConsumerWidget {
               allDayItemsByColumn: allDayByColumn,
               startHour: settings.calendarDayStartHour,
               endHour: settings.calendarDayEndHour,
+              hourHeight: settings.calendarHourHeight,
               timeColumnWidth: _timeColumnWidth,
               onSlotTap: onSlotTap,
               onItemTap: onItemTap,
               onItemDrop: onItemDrop,
+              onHourHeightChanged: ref
+                  .read(settingsProvider.notifier)
+                  .setCalendarHourHeight,
+              onZoomingChanged: onZoomingChanged,
             ),
           ),
         ],

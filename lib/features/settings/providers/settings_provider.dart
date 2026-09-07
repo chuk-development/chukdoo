@@ -147,6 +147,12 @@ class AppSettings {
   /// ISO week numbers in the month/week grid.
   final bool calendarShowWeekNumbers;
 
+  /// Height of one hour row in the day and week grid, in logical pixels.
+  ///
+  /// A pinch on the grid writes this, so it is a free double instead of a
+  /// step: the value settles wherever the fingers left it.
+  final double calendarHourHeight;
+
   // ── Notes ────────────────────────────────────────────────────────────────
 
   final NoteSort noteSort;
@@ -180,6 +186,7 @@ class AppSettings {
     this.calendarDefaultEventMinutes = 60,
     this.calendarDefaultReminderMinutes = 10,
     this.calendarShowWeekNumbers = false,
+    this.calendarHourHeight = calendarHourHeightDefault,
     this.noteSort = NoteSort.updated,
     this.noteOpenMode = NoteOpenMode.preview,
     this.noteLayout = NoteLayout.grid,
@@ -191,6 +198,17 @@ class AppSettings {
 
   /// Number of hour rows the day/week grid draws.
   int get calendarDayHourCount => calendarDayEndHour - calendarDayStartHour;
+
+  /// Range a pinch on the day/week grid may reach. Below the minimum an hour
+  /// row no longer fits a single line of text, above the maximum barely three
+  /// hours are on screen — both ends stop being useful, so the pinch clamps
+  /// here and the settings slider offers exactly this span.
+  static const double calendarHourHeightMin = 28;
+  static const double calendarHourHeightMax = 140;
+
+  /// One hour is 60 logical pixels until the user pinches, like Google
+  /// Calendar: a 30 minute meeting still gets two readable lines.
+  static const double calendarHourHeightDefault = 60;
 
   AppSettings copyWith({
     CheckboxSize? checkboxSize,
@@ -205,6 +223,7 @@ class AppSettings {
     int? calendarDefaultReminderMinutes,
     bool clearCalendarDefaultReminder = false,
     bool? calendarShowWeekNumbers,
+    double? calendarHourHeight,
     NoteSort? noteSort,
     NoteOpenMode? noteOpenMode,
     NoteLayout? noteLayout,
@@ -232,6 +251,7 @@ class AppSettings {
                 this.calendarDefaultReminderMinutes),
       calendarShowWeekNumbers:
           calendarShowWeekNumbers ?? this.calendarShowWeekNumbers,
+      calendarHourHeight: calendarHourHeight ?? this.calendarHourHeight,
       noteSort: noteSort ?? this.noteSort,
       noteOpenMode: noteOpenMode ?? this.noteOpenMode,
       noteLayout: noteLayout ?? this.noteLayout,
@@ -263,6 +283,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   static const _calendarEventMinutesKey = 'calendar_event_minutes';
   static const _calendarReminderKey = 'calendar_reminder_minutes';
   static const _calendarWeekNumbersKey = 'calendar_week_numbers';
+  static const _calendarHourHeightKey = 'calendar_hour_height';
   static const _noteSortKey = 'note_sort';
   static const _noteOpenModeKey = 'note_open_mode';
   static const _noteLayoutKey = 'note_layout';
@@ -340,6 +361,19 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       calendarShowWeekNumbers:
           _settingsBox.get(_calendarWeekNumbersKey, defaultValue: false)
               as bool,
+      // Clamped on read as well: a value written by an older build (or a
+      // hand-edited box) must never make an hour row zero pixels high.
+      calendarHourHeight:
+          (_settingsBox.get(
+                    _calendarHourHeightKey,
+                    defaultValue: AppSettings.calendarHourHeightDefault,
+                  )
+                  as num)
+              .toDouble()
+              .clamp(
+                AppSettings.calendarHourHeightMin,
+                AppSettings.calendarHourHeightMax,
+              ),
       noteSort: _enum(_noteSortKey, NoteSort.values, NoteSort.updated),
       noteOpenMode: _enum(
         _noteOpenModeKey,
@@ -425,6 +459,18 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   Future<void> setCalendarShowWeekNumbers(bool show) async {
     await _settingsBox.put(_calendarWeekNumbersKey, show);
     state = state.copyWith(calendarShowWeekNumbers: show);
+  }
+
+  /// Hour height of the day/week grid, written by the pinch on the grid and
+  /// by the slider in the calendar settings.
+  Future<void> setCalendarHourHeight(double height) async {
+    final clamped = height.clamp(
+      AppSettings.calendarHourHeightMin,
+      AppSettings.calendarHourHeightMax,
+    );
+    if (clamped == state.calendarHourHeight) return;
+    await _settingsBox.put(_calendarHourHeightKey, clamped);
+    state = state.copyWith(calendarHourHeight: clamped);
   }
 
   // ── Notes ────────────────────────────────────────────────────────────────

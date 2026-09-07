@@ -5,6 +5,9 @@ import 'package:material_design_icons_flutter/material_design_icons_flutter.dart
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_shapes.dart';
 import '../../../../shared/widgets/app_field.dart';
+import '../../../../shared/widgets/connected_group.dart';
+import '../../../../shared/widgets/entity_edit_sheet.dart';
+import '../../../../shared/widgets/picker_sheet.dart';
 import '../../domain/models/habit.dart';
 import '../../providers/habit_provider.dart';
 import '../../../todos/presentation/widgets/quick_add_fab.dart';
@@ -97,10 +100,9 @@ class HabitsPage extends ConsumerWidget {
   }
 
   void _showHabitSheet(BuildContext context, WidgetRef ref, {Habit? habit}) {
-    showModalBottomSheet(
+    // The habit form is a picker like every other modal in the app.
+    showAppPicker<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => _HabitEditSheet(
         habit: habit,
         onSave: (name, description, color, frequency) {
@@ -166,10 +168,9 @@ class _HabitCardState extends ConsumerState<_HabitCard> {
   static const _weekdayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
   void _openEdit() {
-    showModalBottomSheet(
+    // The habit form is a picker like every other modal in the app.
+    showAppPicker<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => _HabitEditSheet(
         habit: widget.habit,
         onSave: (name, description, color, frequency) {
@@ -570,6 +571,9 @@ class _HabitHeatmap extends StatelessWidget {
 
 // ==================== EDIT SHEET (Create + Edit) ====================
 
+/// A habit has a name, a description and a colour like every other entity, so
+/// it uses the shared [EntityEditSheet]. The only thing it does not share is
+/// the frequency switch, which goes into the form's `extra` slot.
 class _HabitEditSheet extends StatefulWidget {
   final Habit? habit;
   final void Function(
@@ -588,249 +592,72 @@ class _HabitEditSheet extends StatefulWidget {
 }
 
 class _HabitEditSheetState extends State<_HabitEditSheet> {
-  late final TextEditingController _nameController;
-  late final TextEditingController _descriptionController;
-  late int _selectedColor;
-  late String _frequency;
+  late int _color =
+      widget.habit?.color ?? AppColors.projectColors.first.toARGB32();
+  late String _frequency = widget.habit?.frequency ?? 'daily';
+
+  static const List<String> _frequencies = ['daily', 'weekly'];
 
   bool get _isEditing => widget.habit != null;
 
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController(text: widget.habit?.name ?? '');
-    _descriptionController = TextEditingController(
-      text: widget.habit?.description ?? '',
+  void _save(EntityEditValues values) {
+    widget.onSave(
+      values.name,
+      values.description.isEmpty ? null : values.description,
+      _color,
+      _frequency,
     );
-    _selectedColor =
-        widget.habit?.color ?? AppColors.projectColors.first.toARGB32();
-    _frequency = widget.habit?.frequency ?? 'daily';
+    Navigator.pop(context);
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
-  /// One filled field block of the sheet's input group.
-  Widget _fieldBlock({
-    required Widget child,
-    required bool isFirst,
-    required bool isLast,
-    String? label,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppShapes.groupGap),
-      child: AppField(
-        label: label,
-        isFirst: isFirst,
-        isLast: isLast,
-        child: child,
-      ),
-    );
-  }
-
-  Widget _label(String text) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 0, 0, 8),
-      child: Text(
-        text.toUpperCase(),
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.6,
-          color: AppColors.textTertiary,
+  /// Deleting asks in a sheet, like every other confirmation in the app.
+  Future<void> _confirmDelete() async {
+    final confirmed = await showPickerSheet<bool>(
+      context: context,
+      title: 'Delete habit?',
+      footnote: 'All data for this habit will be deleted.',
+      options: [
+        PickerOption(
+          value: true,
+          label: 'Delete habit',
+          icon: MdiIcons.trashCanOutline,
+          color: AppColors.error,
         ),
-      ),
+        PickerOption(value: false, label: 'Cancel', icon: MdiIcons.close),
+      ],
     );
+    if (confirmed != true || !mounted) return;
+    widget.onDelete!();
+    if (mounted) Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    // Same chrome as the event sheet: handle, title, filled field blocks with
-    // no outlines, and the action pinned at the bottom.
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppShapes.sheetTop),
-        ),
-      ),
-      padding: EdgeInsets.only(
-        left: AppShapes.listInset,
-        right: AppShapes.listInset,
-        top: 10,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            Padding(
-              padding: const EdgeInsets.only(left: 4, bottom: 12),
-              child: Text(
-                _isEditing ? 'Edit habit' : 'New habit',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-
-            // Name
-            _fieldBlock(
-              isFirst: true,
-              isLast: false,
-              child: TextField(
-                controller: _nameController,
-                autofocus: !_isEditing,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                ),
-                decoration: AppField.decoration('Name'),
-              ),
-            ),
-
-            // Description
-            _fieldBlock(
-              isFirst: false,
-              isLast: true,
-              child: TextField(
-                controller: _descriptionController,
-                decoration: AppField.decoration('Description (optional)'),
-                maxLines: 2,
-                minLines: 1,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Color
-            _label('Color'),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: AppColors.projectColors.map((c) {
-                final isSelected = c.toARGB32() == _selectedColor;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedColor = c.toARGB32()),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: c,
-                      shape: BoxShape.circle,
-                      border: isSelected
-                          ? Border.all(color: Colors.white, width: 2)
-                          : null,
-                    ),
-                    child: isSelected
-                        ? const Icon(Icons.check, size: 16, color: Colors.white)
-                        : null,
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
-
-            // Frequency
-            _label('Frequency'),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'daily', label: Text('Daily')),
-                ButtonSegment(value: 'weekly', label: Text('Weekly')),
-              ],
-              selected: {_frequency},
-              onSelectionChanged: (v) => setState(() => _frequency = v.first),
-            ),
-            const SizedBox(height: 24),
-
-            // Save button
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: FilledButton(
-                onPressed: () {
-                  final name = _nameController.text.trim();
-                  if (name.isEmpty) return;
-                  final desc = _descriptionController.text.trim();
-                  widget.onSave(
-                    name,
-                    desc.isEmpty ? null : desc,
-                    _selectedColor,
-                    _frequency,
-                  );
-                  Navigator.pop(context);
-                },
-                child: Text(
-                  _isEditing ? 'Save changes' : 'Create habit',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-
-            // Delete button (edit mode)
-            if (_isEditing && widget.onDelete != null) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton.icon(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Delete habit?'),
-                        content: const Text(
-                          'All data for this habit will be deleted.',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            child: const Text('Cancel'),
-                          ),
-                          FilledButton(
-                            onPressed: () {
-                              widget.onDelete!();
-                              Navigator.pop(ctx);
-                              Navigator.pop(context);
-                            },
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.error,
-                            ),
-                            child: const Text('Delete'),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                  icon: Icon(MdiIcons.trashCanOutline, size: 18),
-                  label: const Text('Delete habit'),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.error),
-                ),
-              ),
-            ],
+    return EntityEditSheet(
+      title: _isEditing ? 'Edit habit' : 'New habit',
+      nameHint: 'Name',
+      initialName: widget.habit?.name ?? '',
+      secondLabel: 'Description',
+      secondHint: 'Optional',
+      initialSecond: widget.habit?.description ?? '',
+      colors: AppColors.projectColors,
+      selectedColor: _color,
+      onColorChanged: (value) => setState(() => _color = value),
+      extra: AppField(
+        label: 'Frequency',
+        child: ConnectedButtonGroup(
+          items: const [
+            ConnectedItem(label: 'Daily'),
+            ConnectedItem(label: 'Weekly'),
           ],
+          selectedIndex: _frequencies.indexOf(_frequency),
+          onSelected: (i) => setState(() => _frequency = _frequencies[i]),
         ),
       ),
+      deleteLabel: _isEditing ? 'Delete habit' : null,
+      onDelete: _isEditing && widget.onDelete != null ? _confirmDelete : null,
+      saveLabel: _isEditing ? 'Save' : 'Create',
+      onSave: _save,
     );
   }
 }

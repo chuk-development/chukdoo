@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_shapes.dart';
+import '../../../../shared/widgets/app_field.dart';
+import '../../../../shared/widgets/entity_edit_sheet.dart';
 import 'calendar_style.dart';
 
-/// The palette a calendar, a feed or an event can be painted with, drawn as
-/// one filled block of swatches.
+/// The palette a calendar, a feed or an event can be painted with.
 ///
-/// Events, calendars and subscribed feeds all pick from the same swatches, so
-/// a colour means the same thing wherever it shows up.
+/// It is only the shared [EntityFlushGrid] wrapped in an [AppField], so the
+/// event editor paints its swatches with the exact same block, cell size and
+/// selection ring as "New calendar" and "New project". The swatches used to be
+/// a centred [Wrap] of fixed 46px dots, which is why the last dot of a row
+/// never lined up with the right edge.
 class ColorSwatchGrid extends StatelessWidget {
   final int selected;
   final ValueChanged<int> onPick;
@@ -24,62 +26,20 @@ class ColorSwatchGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppShapes.listInset),
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppShapes.groupOuter),
+      child: AppField(
+        label: 'Colour',
+        child: EntityFlushGrid(
+          count: CalendarStyle.eventColors.length,
+          itemBuilder: (i, cell) {
+            final color = CalendarStyle.eventColors[i];
+            return EntitySwatch(
+              color: color,
+              size: cell,
+              selected: selected == color.toARGB32(),
+              onTap: () => onPick(color.toARGB32()),
+            );
+          },
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        child: Wrap(
-          spacing: 14,
-          runSpacing: 14,
-          alignment: WrapAlignment.center,
-          children: [
-            for (final color in CalendarStyle.eventColors)
-              ColorSwatchDot(
-                color: color,
-                isSelected: selected == color.toARGB32(),
-                onTap: () => onPick(color.toARGB32()),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// One swatch of [ColorSwatchGrid].
-class ColorSwatchDot extends StatelessWidget {
-  final Color color;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const ColorSwatchDot({
-    super.key,
-    required this.color,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: CalendarStyle.motion,
-        curve: Curves.easeOutCubic,
-        width: 46,
-        height: 46,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        child: isSelected
-            ? Icon(
-                MdiIcons.check,
-                size: 22,
-                color: CalendarStyle.onEventColor(color),
-              )
-            : null,
       ),
     );
   }

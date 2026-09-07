@@ -3,20 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_shapes.dart';
-import '../../../../shared/widgets/app_field.dart';
+import '../../../../shared/widgets/entity_edit_sheet.dart';
 import '../../../../shared/widgets/picker_sheet.dart';
 import '../../domain/models/calendar.dart';
 import '../../providers/calendar_provider.dart';
 import '../../providers/ics_feeds_provider.dart';
 import '../../services/ics_feed_service.dart';
 import 'calendar_style.dart';
-import 'color_swatch_grid.dart';
 
 /// Creates a calendar, or renames, recolours and deletes an existing one.
 ///
 /// One sheet for both jobs: the drawer's footer opens it empty, a long press
-/// on a calendar row opens it filled.
+/// on a calendar row opens it filled. The form itself is [EntityEditSheet],
+/// the same one "New project" and "New folder" use — only the palette, the
+/// labels and the delete action come from here.
 class CalendarEditSheet extends ConsumerStatefulWidget {
   final Calendar? calendar;
 
@@ -34,32 +34,19 @@ class CalendarEditSheet extends ConsumerStatefulWidget {
 }
 
 class _CalendarEditSheetState extends ConsumerState<CalendarEditSheet> {
-  late final TextEditingController _nameController = TextEditingController(
-    text: widget.calendar?.name ?? '',
-  );
-
   late int _color =
       widget.calendar?.color ?? CalendarStyle.eventColors.first.toARGB32();
 
   bool get _isEditing => widget.calendar != null;
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    final name = _nameController.text.trim();
-    if (name.isEmpty) return;
-
+  Future<void> _save(EntityEditValues values) async {
     final notifier = ref.read(calendarContainerProvider.notifier);
     if (_isEditing) {
       await notifier.updateCalendar(
-        widget.calendar!.copyWith(name: name, color: _color),
+        widget.calendar!.copyWith(name: values.name, color: _color),
       );
     } else {
-      await notifier.addCalendar(name: name, color: _color);
+      await notifier.addCalendar(name: values.name, color: _color);
     }
     if (mounted) Navigator.pop(context);
   }
@@ -93,73 +80,26 @@ class _CalendarEditSheetState extends ConsumerState<CalendarEditSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return PickerSheetScaffold(
+    return EntityEditSheet(
       title: _isEditing ? 'Edit calendar' : 'New calendar',
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppShapes.listInset,
-            ),
-            child: AppField(
-              label: 'Name',
-              child: TextField(
-                controller: _nameController,
-                autofocus: !_isEditing,
-                textCapitalization: TextCapitalization.sentences,
-                cursorColor: AppColors.primary,
-                style: const TextStyle(fontSize: 15),
-                onSubmitted: (_) => _save(),
-                decoration: AppField.decoration('Work, Family, Sport…'),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppShapes.groupGap),
-          ColorSwatchGrid(
-            selected: _color,
-            onPick: (value) => setState(() => _color = value),
-          ),
-          const SizedBox(height: 14),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                if (_isEditing)
-                  TextButton.icon(
-                    onPressed: _delete,
-                    icon: Icon(MdiIcons.trashCanOutline, size: 18),
-                    label: const Text('Delete'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.error,
-                      shape: const StadiumBorder(),
-                    ),
-                  ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: _save,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.onPrimary,
-                    shape: const StadiumBorder(),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                  ),
-                  child: Text(_isEditing ? 'Save' : 'Create'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      nameHint: 'Work, Family, Sport…',
+      initialName: widget.calendar?.name ?? '',
+      colors: CalendarStyle.eventColors,
+      selectedColor: _color,
+      onColorChanged: (value) => setState(() => _color = value),
+      deleteLabel: _isEditing ? 'Delete calendar' : null,
+      onDelete: _isEditing ? _delete : null,
+      saveLabel: _isEditing ? 'Save' : 'Create',
+      onSave: _save,
     );
   }
 }
 
 /// Rename a subscribed feed and repaint it. The URL and the events stay as
 /// they are — a feed is read-only, only its label belongs to the user.
+///
+/// The URL is a fact, not an input, so it is shown as the sheet's footnote
+/// instead of a second field; everything else is the shared form.
 class IcsFeedEditSheet extends ConsumerStatefulWidget {
   final IcsFeed feed;
 
@@ -177,23 +117,12 @@ class IcsFeedEditSheet extends ConsumerStatefulWidget {
 }
 
 class _IcsFeedEditSheetState extends ConsumerState<IcsFeedEditSheet> {
-  late final TextEditingController _nameController = TextEditingController(
-    text: widget.feed.name,
-  );
-
   late int _color = widget.feed.color;
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    final name = _nameController.text.trim();
+  Future<void> _save(EntityEditValues values) async {
     await ref
         .read(icsFeedsProvider.notifier)
-        .update(widget.feed, name: name.isEmpty ? null : name, color: _color);
+        .update(widget.feed, name: values.name, color: _color);
     if (mounted) Navigator.pop(context);
   }
 
@@ -224,84 +153,17 @@ class _IcsFeedEditSheetState extends ConsumerState<IcsFeedEditSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return PickerSheetScaffold(
+    return EntityEditSheet(
       title: 'Subscribed calendar',
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppShapes.listInset,
-            ),
-            child: AppFieldGroup(
-              children: [
-                AppField(
-                  label: 'Name',
-                  isFirst: true,
-                  isLast: false,
-                  child: TextField(
-                    controller: _nameController,
-                    cursorColor: AppColors.primary,
-                    style: const TextStyle(fontSize: 15),
-                    onSubmitted: (_) => _save(),
-                    decoration: AppField.decoration('Taken from the feed'),
-                  ),
-                ),
-                AppField(
-                  label: 'Source',
-                  isFirst: false,
-                  isLast: true,
-                  child: Text(
-                    widget.feed.url,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppShapes.groupGap),
-          ColorSwatchGrid(
-            selected: _color,
-            onPick: (value) => setState(() => _color = value),
-          ),
-          const SizedBox(height: 14),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                TextButton.icon(
-                  onPressed: _remove,
-                  icon: Icon(MdiIcons.trashCanOutline, size: 18),
-                  label: const Text('Unsubscribe'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                    shape: const StadiumBorder(),
-                  ),
-                ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: _save,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.onPrimary,
-                    shape: const StadiumBorder(),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                  ),
-                  child: const Text('Save'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      nameHint: 'Taken from the feed',
+      initialName: widget.feed.name,
+      footnote: 'Source: ${widget.feed.url}',
+      colors: CalendarStyle.eventColors,
+      selectedColor: _color,
+      onColorChanged: (value) => setState(() => _color = value),
+      deleteLabel: 'Unsubscribe',
+      onDelete: _remove,
+      onSave: _save,
     );
   }
 }

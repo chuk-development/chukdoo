@@ -89,9 +89,12 @@ class AppScaffold extends StatelessWidget {
           ],
         ),
       ),
-      floatingActionButton: floatingActionButton == null || !isTopmost
+      floatingActionButton: floatingActionButton == null
           ? null
-          : LiftedFab(child: floatingActionButton),
+          : Offstage(
+              offstage: !isTopmost,
+              child: LiftedFab(child: floatingActionButton),
+            ),
     );
   }
 }
