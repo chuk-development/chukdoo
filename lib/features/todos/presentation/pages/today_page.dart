@@ -10,6 +10,7 @@ import '../../providers/todo_provider.dart';
 import '../widgets/todo_input_sheet.dart';
 import '../widgets/todo_swipe_tile.dart';
 import '../widgets/quick_add_fab.dart';
+import '../../../../shared/widgets/lifted_fab.dart';
 
 class TodayPage extends ConsumerWidget {
   final VoidCallback? onMenu;
@@ -77,11 +78,11 @@ class TodayPage extends ConsumerWidget {
               ? _buildEmptyState()
               : SlidableAutoCloseBehavior(
                   child: ListView(
-                    padding: const EdgeInsets.only(bottom: 100),
+                    padding: const EdgeInsets.only(bottom: 96),
                     children: [
                       // Active todos
                       for (var i = 0; i < todos.length; i++)
-                        _buildTodoItem(context, ref, todos[i], settings.checkboxSize == CheckboxSize.large,
+                        _buildTodoItem(context, ref, todos[i], settings.checkboxSize,
                             isFirst: i == 0, isLast: i == todos.length - 1),
                       // Completed todos section
                       if (showCompleted && completedTodos.isNotEmpty) ...[
@@ -113,24 +114,24 @@ class TodayPage extends ConsumerWidget {
                           ),
                         ),
                         for (var i = 0; i < completedTodos.length; i++)
-                          _buildTodoItem(context, ref, completedTodos[i], settings.checkboxSize == CheckboxSize.large,
+                          _buildTodoItem(context, ref, completedTodos[i], settings.checkboxSize,
                               isCompleted: true, isFirst: i == 0, isLast: i == completedTodos.length - 1),
                       ],
                     ],
                   ),
                 ),
-      floatingActionButton: QuickAddFab(
+      floatingActionButton: LiftedFab(child: QuickAddFab(
         onPressed: () => _showAddTodoSheet(context, ref),
-      ),
+      )),
     );
   }
 
-  Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox,
+  Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, CheckboxSize size,
       {bool isCompleted = false, bool isFirst = true, bool isLast = true}) {
     return TodoSwipeTile(
       key: ValueKey(todo.id),
       todo: todo,
-      largeCheckbox: largeCheckbox,
+      size: size,
       isCompleted: isCompleted,
       isFirst: isFirst,
       isLast: isLast,

@@ -9,6 +9,7 @@ import '../../providers/todo_provider.dart';
 import '../widgets/todo_input_sheet.dart';
 import '../widgets/todo_sectioned_list.dart';
 import '../widgets/quick_add_fab.dart';
+import '../../../../shared/widgets/lifted_fab.dart';
 
 class InboxPage extends ConsumerStatefulWidget {
   /// When true, shows ALL uncompleted todos (not just project-less inbox).
@@ -68,13 +69,11 @@ class _InboxPageState extends ConsumerState<InboxPage> {
     final showAll = widget.showAll;
     final todoState = ref.watch(todoProvider);
     final settings = ref.watch(settingsProvider);
-    var todos = showAll
-        ? todoState.todos.where((t) => !t.isCompleted).toList()
-        : todoState.inboxTodos;
-    var completedTodos = showAll
-        ? todoState.todos.where((t) => t.isCompleted).toList()
-        : todoState.completedInboxTodos;
-    final large = settings.checkboxSize == CheckboxSize.large;
+    // Both variants show the main list (no project). Project tasks are only
+    // shown inside their project.
+    var todos = todoState.inboxTodos;
+    var completedTodos = todoState.completedInboxTodos;
+    final size = settings.checkboxSize;
 
     final q = _query.trim().toLowerCase();
     if (q.isNotEmpty) {
@@ -117,7 +116,7 @@ class _InboxPageState extends ConsumerState<InboxPage> {
                 ),
                 onChanged: (v) => setState(() => _query = v),
               )
-            : Text(showAll ? 'All Tasks' : settings.mainListName),
+            : Text(showAll ? 'Main' : settings.mainListName),
         actions: _searching
             ? [
                 if (_query.isNotEmpty)
@@ -142,10 +141,10 @@ class _InboxPageState extends ConsumerState<InboxPage> {
           ? const Center(child: CircularProgressIndicator())
           : (todos.isEmpty && completedTodos.isEmpty)
               ? (q.isNotEmpty ? _buildNoResults() : _buildEmptyState())
-              : TodoSectionedList(active: todos, completed: completedTodos, large: large),
-      floatingActionButton: _searching
+              : TodoSectionedList(active: todos, completed: completedTodos, size: size),
+      floatingActionButton: LiftedFab(child: _searching
           ? null
-          : QuickAddFab(onPressed: _showAddTodoSheet),
+          : QuickAddFab(onPressed: _showAddTodoSheet)),
     );
   }
 

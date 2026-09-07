@@ -6,6 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'app.dart';
 import 'core/constants/app_constants.dart';
+import 'features/calendar/services/ics_feed_service.dart';
 import 'features/sync/services/connectivity_service.dart';
 import 'features/sync/services/sync_service.dart';
 import 'native_init.dart';
@@ -27,6 +28,7 @@ void main() async {
   await Hive.openBox<Map>(AppConstants.hiveCalendarEventsBox);
   await Hive.openBox<Map>(AppConstants.hiveHabitsBox);
   await Hive.openBox<Map>(AppConstants.hiveNotesBox);
+  await Hive.openBox<Map>(AppConstants.hiveIcsFeedsBox);
 
   // Initialize sync service (local queue - always works)
   await SyncService.initialize();
@@ -66,4 +68,8 @@ Future<void> _initializeNetworkServices() async {
   if (!kIsWeb) {
     await initializeNativeNetworkServices();
   }
+
+  // Subscribed ICS calendars are refreshed on the client, so opening the app
+  // is what keeps them current. Failures are recorded per feed.
+  await IcsFeedService.refreshAll();
 }

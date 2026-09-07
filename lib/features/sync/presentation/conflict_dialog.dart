@@ -2,16 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_shapes.dart';
+import '../../../shared/widgets/picker_sheet.dart';
+import '../../../shared/widgets/rounded_group.dart';
 import '../domain/models/sync_conflict.dart';
 
-/// Shows a dialog for the user to resolve a sync conflict
+/// Shows the sheet for the user to resolve a sync conflict.
+///
+/// Like every other choice in the app this is a bottom sheet, not a dialog.
+/// It cannot be dismissed by tapping outside — the caller needs an answer.
 Future<ConflictResolution?> showConflictDialog(
   BuildContext context,
   SyncConflict conflict,
 ) {
-  return showDialog<ConflictResolution>(
+  return showModalBottomSheet<ConflictResolution>(
     context: context,
-    barrierDismissible: false,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    isDismissible: false,
+    enableDrag: false,
     builder: (context) => ConflictDialog(conflict: conflict),
   );
 }
@@ -26,106 +35,141 @@ class ConflictDialog extends StatelessWidget {
     final local = conflict.localVersion;
     final server = conflict.serverVersion;
 
-    return AlertDialog(
-      backgroundColor: AppColors.surface,
-      title: Row(
+    return PickerSheetScaffold(
+      title: 'Sync conflict',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(MdiIcons.alertOutline, color: AppColors.warning),
-          const SizedBox(width: 12),
-          const Text('Sync Conflict'),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppShapes.listInset + 6,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(MdiIcons.alertOutline, size: 20, color: AppColors.warning),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'This task was changed on another device.',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Changed fields:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: conflict.changedFields.map((field) {
+                    return Chip(
+                      label: Text(field, style: const TextStyle(fontSize: 12)),
+                      padding: EdgeInsets.zero,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+
+                // Local version
+                _buildVersionBlock(
+                  icon: MdiIcons.cellphone,
+                  label: 'Local (this device)',
+                  todo: local,
+                  color: AppColors.blue,
+                ),
+                const SizedBox(height: AppShapes.groupGap),
+
+                // Server version
+                _buildVersionBlock(
+                  icon: MdiIcons.cloudOutline,
+                  label: 'Server (other device)',
+                  todo: server,
+                  color: AppColors.purple,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // The three answers as one rounded group of rows
+          RoundedGroup(
+            children: [
+              _buildChoiceRow(
+                context,
+                icon: MdiIcons.cellphone,
+                label: 'Keep local',
+                resolution: ConflictResolution.keepLocal,
+              ),
+              _buildChoiceRow(
+                context,
+                icon: MdiIcons.cloudOutline,
+                label: 'Keep server',
+                resolution: ConflictResolution.keepServer,
+              ),
+              _buildChoiceRow(
+                context,
+                icon: MdiIcons.contentCopy,
+                label: 'Keep both',
+                resolution: ConflictResolution.keepBoth,
+              ),
+            ],
+          ),
         ],
       ),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+
+  Widget _buildChoiceRow(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required ConflictResolution resolution,
+  }) {
+    return InkWell(
+      onTap: () => Navigator.pop(context, resolution),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+        child: Row(
           children: [
-            Text(
-              'This task was changed on another device.',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Changed fields:',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-                fontSize: 12,
+            Icon(icon, size: 22, color: AppColors.textSecondary),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(fontSize: 16, color: AppColors.textPrimary),
               ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: conflict.changedFields.map((field) {
-                return Chip(
-                  label: Text(field, style: const TextStyle(fontSize: 12)),
-                  backgroundColor: AppColors.surfaceLight,
-                  padding: EdgeInsets.zero,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 20),
-            const Divider(),
-            const SizedBox(height: 12),
-
-            // Local version
-            _buildVersionCard(
-              icon: MdiIcons.cellphone,
-              label: 'Local (This Device)',
-              todo: local,
-              color: AppColors.blue,
-            ),
-            const SizedBox(height: 12),
-
-            // Server version
-            _buildVersionCard(
-              icon: MdiIcons.cloudOutline,
-              label: 'Server (Other Device)',
-              todo: server,
-              color: AppColors.purple,
             ),
           ],
         ),
       ),
-      actions: [
-        // Keep local
-        TextButton.icon(
-          onPressed: () => Navigator.pop(context, ConflictResolution.keepLocal),
-          icon: Icon(MdiIcons.cellphone, size: 18),
-          label: const Text('Keep Local'),
-        ),
-        // Keep server
-        TextButton.icon(
-          onPressed: () => Navigator.pop(context, ConflictResolution.keepServer),
-          icon: Icon(MdiIcons.cloudOutline, size: 18),
-          label: const Text('Keep Server'),
-        ),
-        // Keep both
-        TextButton.icon(
-          onPressed: () => Navigator.pop(context, ConflictResolution.keepBoth),
-          icon: Icon(MdiIcons.contentCopy, size: 18),
-          label: const Text('Keep Both'),
-        ),
-      ],
-      actionsAlignment: MainAxisAlignment.spaceEvenly,
-      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
     );
   }
 
-  Widget _buildVersionCard({
+  Widget _buildVersionBlock({
     required IconData icon,
     required String label,
     required dynamic todo,
     required Color color,
   }) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(AppShapes.dockField),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

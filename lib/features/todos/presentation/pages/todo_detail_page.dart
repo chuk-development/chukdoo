@@ -12,6 +12,8 @@ import '../../../settings/providers/settings_provider.dart';
 import '../../../nlp/parser/date_parser.dart';
 import '../../../nlp/parser/natural_language_parser.dart';
 import '../../../notifications/reminder_scheduler.dart';
+import '../../../../shared/widgets/app_field.dart';
+import '../../../../shared/widgets/picker_sheet.dart';
 
 class TodoDetailPage extends ConsumerStatefulWidget {
   final Todo todo;
@@ -192,28 +194,38 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title — normal text weight, not a heading.
-            TextField(
-              controller: _titleController,
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500, height: 1.35),
-              decoration: const InputDecoration(
-                hintText: 'Task',
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                filled: false,
-                isCollapsed: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 6),
+            // Title and description are two clearly separate fields: each one
+            // is its own filled block with a label, so it is obvious which is
+            // which.
+            _inputBlock(
+              label: 'Task',
+              isFirst: true,
+              isLast: false,
+              child: TextField(
+                controller: _titleController,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                ),
+                decoration: const InputDecoration(
+                  hintText: 'What needs doing?',
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
+                  isCollapsed: true,
+                ),
+                maxLines: null,
               ),
-              maxLines: null,
             ),
-            const SizedBox(height: 6),
-            Divider(height: 1, thickness: 1, color: AppColors.divider),
-            const SizedBox(height: 14),
-
-            // Description — Markdown: rendered when not editing, raw on tap.
-            _buildDescription(),
-            const SizedBox(height: 24),
+            _inputBlock(
+              label: 'Description',
+              isFirst: false,
+              isLast: true,
+              child: _buildDescription(),
+            ),
+            const SizedBox(height: 18),
 
             // Properties — flat, squared, divided rows.
             _propGroup([
@@ -231,87 +243,27 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
                         })
                     : null,
               ),
-              PopupMenuButton<TodoPriority>(
-                color: AppColors.surface,
-                position: PopupMenuPosition.under,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                onSelected: (p) => setState(() => _priority = p),
-                itemBuilder: (_) => [
-                  for (final p in [TodoPriority.p1, TodoPriority.p2, TodoPriority.p3])
-                    PopupMenuItem(
-                      value: p,
-                      height: 40,
-                      child: Row(
-                        children: [
-                          Icon(MdiIcons.flag, size: 16, color: AppColors.getPriorityColor(p.value)),
-                          const SizedBox(width: 10),
-                          Text('Priority ${p.value}'),
-                        ],
-                      ),
-                    ),
-                  PopupMenuItem(
-                    value: TodoPriority.p4,
-                    height: 40,
-                    child: Row(
-                      children: [
-                        Icon(MdiIcons.flagOutline, size: 16, color: AppColors.textSecondary),
-                        const SizedBox(width: 10),
-                        const Text('None'),
-                      ],
-                    ),
-                  ),
-                ],
-                child: _propRow(
-                  icon: _priority == TodoPriority.p4 ? MdiIcons.flagOutline : MdiIcons.flag,
-                  iconColor: _priority == TodoPriority.p4
-                      ? null
-                      : AppColors.getPriorityColor(_priority.value),
-                  label: 'Priority',
-                  value: _priority == TodoPriority.p4 ? null : 'P${_priority.value}',
-                  valueColor: AppColors.getPriorityColor(_priority.value),
-                ),
+              _propRow(
+                icon: _priority == TodoPriority.p4
+                    ? MdiIcons.flagOutline
+                    : MdiIcons.flag,
+                iconColor: _priority == TodoPriority.p4
+                    ? null
+                    : AppColors.getPriorityColor(_priority.value),
+                label: 'Priority',
+                value: _priority == TodoPriority.p4
+                    ? null
+                    : 'P${_priority.value}',
+                valueColor: AppColors.getPriorityColor(_priority.value),
+                onTap: _pickPriority,
               ),
-              PopupMenuButton<String?>(
-                color: AppColors.surface,
-                position: PopupMenuPosition.under,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                onSelected: (id) => setState(() => _projectId = id),
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: null,
-                    height: 40,
-                    child: Row(
-                      children: [
-                        Icon(MdiIcons.inboxOutline, size: 16, color: AppColors.textSecondary),
-                        SizedBox(width: 10),
-                        Text('No project'),
-                      ],
-                    ),
-                  ),
-                  for (final p in projects)
-                    PopupMenuItem(
-                      value: p.id,
-                      height: 40,
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 12,
-                            height: 12,
-                            color: Color(p.color),
-                          ),
-                          const SizedBox(width: 10),
-                          Flexible(child: Text(p.name, overflow: TextOverflow.ellipsis)),
-                        ],
-                      ),
-                    ),
-                ],
-                child: _propRow(
-                  icon: MdiIcons.folderOutline,
-                  iconColor: project != null ? Color(project.color) : null,
-                  label: 'Project',
-                  value: project?.name,
-                  valueColor: project != null ? AppColors.textPrimary : null,
-                ),
+              _propRow(
+                icon: MdiIcons.folderOutline,
+                iconColor: project != null ? Color(project.color) : null,
+                label: 'Project',
+                value: project?.name,
+                valueColor: project != null ? AppColors.textPrimary : null,
+                onTap: () => _pickProject(projects),
               ),
               _propRow(
                 icon: MdiIcons.bellOutline,
@@ -334,6 +286,24 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
     );
   }
 
+  /// A labelled input block — the shape every field in the app uses.
+  Widget _inputBlock({
+    required String label,
+    required Widget child,
+    required bool isFirst,
+    required bool isLast,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppShapes.groupGap),
+      child: AppField(
+        label: label,
+        isFirst: isFirst,
+        isLast: isLast,
+        child: child,
+      ),
+    );
+  }
+
   // ── Description with Markdown ──
   // Renders Markdown when not focused; tap to edit the raw text.
   Widget _buildDescription() {
@@ -346,15 +316,16 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
         autofocus: _editingDesc,
         style: const TextStyle(fontSize: 16, height: 1.4),
         decoration: InputDecoration(
-          hintText: 'Description (Markdown supported)',
+          hintText: 'Markdown supported',
           hintStyle: TextStyle(color: AppColors.textSecondary),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
           filled: false,
+          isCollapsed: true,
         ),
         maxLines: null,
-        minLines: 3,
+        minLines: 2,
         onChanged: (_) => setState(() {}),
       );
     }
@@ -383,40 +354,36 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppShapes.groupOuter),
       ),
       child: child,
     );
   }
 
   /// Rounded surface wrapping a vertical list of property rows, hairline-divided.
+  /// The property rows are drawn like every other list in the app: one group,
+  /// strong outer corners, soft corners in between, no hairlines.
   Widget _propGroup(List<Widget> rows) {
-    final children = <Widget>[];
-    for (var i = 0; i < rows.length; i++) {
-      children.add(rows[i]);
-      if (i != rows.length - 1) {
-        children.add(Divider(
-          height: 1,
-          thickness: 1,
-          indent: 48,
-          color: AppColors.divider,
-        ));
-      }
-    }
-    // Material (not Container) so InkWell ripples clip to the rounded corners
-    // instead of painting a square highlight on the ancestor Material.
-    return Material(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(16),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: children,
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < rows.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppShapes.groupGap),
+            child: Material(
+              color: AppColors.surface,
+              borderRadius: AppShapes.row(
+                isFirst: i == 0,
+                isLast: i == rows.length - 1,
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: rows[i],
+            ),
+          ),
+      ],
     );
   }
 
-  /// A single full-width property row: icon · label · value · clear/chevron.
   Widget _propRow({
     required IconData icon,
     Color? iconColor,
@@ -494,7 +461,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
                 padding: const EdgeInsets.fromLTRB(13, 8, 9, 8),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(AppShapes.dockChip),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -552,9 +519,8 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(AppShapes.dockChip),
                       color: AppColors.background,
-                      border: Border.all(color: AppColors.divider, width: 1),
                     ),
                     child: Text('#$s', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
                   ),
@@ -588,117 +554,147 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
     });
   }
 
-  // ── Combined date + time picker ──
+  // ── Every picker in this page opens the same sheet ──
   Future<void> _pickDateTime() async {
-    final now = DateTime.now();
-    final date = await showDatePicker(
+    final choice = await showDateTimeSheet(
       context: context,
-      initialDate: _dueDate ?? now,
-      firstDate: now.subtract(const Duration(days: 365)),
-      lastDate: now.add(const Duration(days: 365 * 5)),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: ColorScheme.dark(primary: AppColors.primary, surface: AppColors.surface),
-        ),
-        child: child!,
-      ),
+      title: 'Due date',
+      date: _dueDate,
+      time: _dueTime,
     );
-    if (date == null || !mounted) return;
-
-    final time = await showTimePicker(
-      context: context,
-      initialTime: _dueTime ?? TimeOfDay.now(),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: ColorScheme.dark(primary: AppColors.primary, surface: AppColors.surface),
-        ),
-        child: child!,
-      ),
-    );
-
+    if (choice == null || !mounted) return;
     setState(() {
-      _dueDate = date;
-      _dueTime = time; // null = date only
+      _dueDate = choice.date;
+      _dueTime = choice.time;
     });
   }
 
-  void _showReminderPicker() {
-    showModalBottomSheet(
+  Future<void> _pickPriority() async {
+    final picked = await showPickerSheet<TodoPriority>(
       context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppShapes.sheetTop)),
-      ),
-      builder: (context) {
-        final now = DateTime.now();
-        final dueDateTime = _dueDate != null && _dueTime != null
-            ? DateTime(_dueDate!.year, _dueDate!.month, _dueDate!.day, _dueTime!.hour, _dueTime!.minute)
-            : null;
-
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 16),
-              const Text('Reminder', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 16),
-              if (dueDateTime != null) ...[
-                ListTile(
-                  leading: Icon(MdiIcons.bellRingOutline),
-                  title: const Text('30 minutes before'),
-                  onTap: () {
-                    setState(() => _reminderTime = dueDateTime.subtract(const Duration(minutes: 30)));
-                    Navigator.pop(context);
-                  },
-                ),
-                ListTile(
-                  leading: Icon(MdiIcons.bellRingOutline),
-                  title: const Text('1 hour before'),
-                  onTap: () {
-                    setState(() => _reminderTime = dueDateTime.subtract(const Duration(hours: 1)));
-                    Navigator.pop(context);
-                  },
-                ),
-                ListTile(
-                  leading: Icon(MdiIcons.bellRingOutline),
-                  title: const Text('1 day before'),
-                  onTap: () {
-                    setState(() => _reminderTime = dueDateTime.subtract(const Duration(days: 1)));
-                    Navigator.pop(context);
-                  },
-                ),
-              ] else
-                const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text('Set a due date and time first'),
-                ),
-              ListTile(
-                leading: Icon(MdiIcons.calendarPlusOutline),
-                title: const Text('Custom…'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: now,
-                    firstDate: now,
-                    lastDate: now.add(const Duration(days: 365)),
-                  );
-                  if (date != null && context.mounted) {
-                    final time = await showTimePicker(context: context, initialTime: TimeOfDay.now());
-                    if (time != null && context.mounted) {
-                      setState(() {
-                        _reminderTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-                      });
-                    }
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
+      title: 'Priority',
+      options: [
+        for (final p in [TodoPriority.p1, TodoPriority.p2, TodoPriority.p3])
+          PickerOption(
+            value: p,
+            label: 'Priority ${p.value}',
+            icon: MdiIcons.flag,
+            color: AppColors.getPriorityColor(p.value),
+            selected: _priority == p,
           ),
-        );
-      },
+        PickerOption(
+          value: TodoPriority.p4,
+          label: 'None',
+          icon: MdiIcons.flagOutline,
+          selected: _priority == TodoPriority.p4,
+        ),
+      ],
     );
+    if (picked != null && mounted) setState(() => _priority = picked);
+  }
+
+  Future<void> _pickProject(List<dynamic> projects) async {
+    final picked = await showPickerSheet<String>(
+      context: context,
+      title: 'Project',
+      options: [
+        PickerOption(
+          value: '',
+          label: 'No project',
+          icon: MdiIcons.inboxOutline,
+          selected: _projectId == null,
+        ),
+        for (final p in projects)
+          PickerOption(
+            value: p.id as String,
+            label: p.name as String,
+            leading: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                color: Color(p.color as int),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            selected: _projectId == p.id,
+          ),
+      ],
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _projectId = picked.isEmpty ? null : picked);
+  }
+
+  Future<void> _showReminderPicker() async {
+    final dueDateTime = _dueDate != null && _dueTime != null
+        ? DateTime(
+            _dueDate!.year,
+            _dueDate!.month,
+            _dueDate!.day,
+            _dueTime!.hour,
+            _dueTime!.minute,
+          )
+        : null;
+
+    final picked = await showPickerSheet<Duration?>(
+      context: context,
+      title: 'Reminder',
+      footnote: dueDateTime == null
+          ? 'Set a due date and time to use the quick options.'
+          : null,
+      options: [
+        if (dueDateTime != null) ...[
+          PickerOption(
+            value: const Duration(minutes: 30),
+            label: '30 minutes before',
+            icon: MdiIcons.bellRingOutline,
+          ),
+          PickerOption(
+            value: const Duration(hours: 1),
+            label: '1 hour before',
+            icon: MdiIcons.bellRingOutline,
+          ),
+          PickerOption(
+            value: const Duration(days: 1),
+            label: '1 day before',
+            icon: MdiIcons.bellRingOutline,
+          ),
+        ],
+        const PickerOption(
+          value: null,
+          label: 'Pick a date and time…',
+          icon: Icons.event,
+        ),
+      ],
+    );
+
+    if (!mounted) return;
+
+    if (picked != null && dueDateTime != null) {
+      setState(() => _reminderTime = dueDateTime.subtract(picked));
+      return;
+    }
+
+    final choice = await showDateTimeSheet(
+      context: context,
+      title: 'Reminder',
+      date: _reminderTime,
+      time: _reminderTime != null
+          ? TimeOfDay(hour: _reminderTime!.hour, minute: _reminderTime!.minute)
+          : null,
+    );
+    if (choice == null || !mounted) return;
+    setState(() {
+      final date = choice.date;
+      final time = choice.time;
+      _reminderTime = date == null
+          ? null
+          : DateTime(
+              date.year,
+              date.month,
+              date.day,
+              time?.hour ?? 9,
+              time?.minute ?? 0,
+            );
+    });
   }
 }
-

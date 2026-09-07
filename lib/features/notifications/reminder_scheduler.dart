@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../calendar/domain/models/calendar_event.dart';
 import '../todos/domain/models/todo.dart';
 import 'notification_service.dart';
 
@@ -12,6 +13,54 @@ class ReminderScheduler {
   static ReminderScheduler get instance => _instance;
 
   ReminderScheduler._();
+
+  /// Schedule the reminders of one calendar event.
+  ///
+  /// An event stores offsets in minutes before its start; each one becomes its
+  /// own notification, keyed by event id and offset so they can be replaced.
+  Future<void> scheduleForEvent(CalendarEvent event) async {
+    await cancelForEvent(event);
+    if (event.reminderMinutes.isEmpty) return;
+
+    for (final minutes in event.reminderMinutes) {
+      final remindAt = event.startTime.subtract(Duration(minutes: minutes));
+      if (remindAt.isBefore(DateTime.now())) continue;
+
+      try {
+        await NotificationService.instance.scheduleReminder(
+          todoId: '${event.id}#$minutes',
+          title: event.title,
+          remindAt: remindAt,
+          body: _buildEventBody(event, minutes),
+        );
+      } catch (e) {
+        debugPrint('ReminderScheduler: Error scheduling event reminder: $e');
+      }
+    }
+  }
+
+  /// Drop every notification belonging to an event.
+  Future<void> cancelForEvent(CalendarEvent event) async {
+    for (final minutes in const [0, 5, 10, 15, 30, 60, 120, 1440, 2880]) {
+      await NotificationService.instance.cancelReminder('${event.id}#$minutes');
+    }
+    for (final minutes in event.reminderMinutes) {
+      await NotificationService.instance.cancelReminder('${event.id}#$minutes');
+    }
+  }
+
+  String _buildEventBody(CalendarEvent event, int minutes) {
+    final when = minutes == 0
+        ? 'Starts now'
+        : minutes % 1440 == 0
+        ? 'In ${minutes ~/ 1440} day(s)'
+        : minutes % 60 == 0
+        ? 'In ${minutes ~/ 60} hour(s)'
+        : 'In $minutes minutes';
+    return event.location != null && event.location!.isNotEmpty
+        ? '$when · ${event.location}'
+        : when;
+  }
 
   /// Schedule all pending reminders on app startup
   /// Call this after Hive and NotificationService are initialized
@@ -29,6 +78,15 @@ class ReminderScheduler {
           await _scheduleReminder(todo);
           scheduled++;
         }
+      }
+
+      // Calendar events carry their own reminder offsets.
+      final eventsBox = Hive.box<Map>(AppConstants.hiveCalendarEventsBox);
+      for (final raw in eventsBox.values) {
+        final event = CalendarEvent.fromJson(Map<String, dynamic>.from(raw));
+        if (event.reminderMinutes.isEmpty) continue;
+        await scheduleForEvent(event);
+        scheduled += event.reminderMinutes.length;
       }
 
       debugPrint('ReminderScheduler: Scheduled $scheduled reminders');

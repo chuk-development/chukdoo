@@ -4,9 +4,39 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../../core/constants/app_constants.dart';
 
 /// Checkbox size options
+/// Row density of the task lists. [medium] is the default look; [small] fits
+/// more tasks on screen, [large] gives a bigger tap target.
 enum CheckboxSize {
-  normal,
-  large,
+  small,
+  medium,
+  large;
+
+  /// Diameter of the circle.
+  double get circle => switch (this) {
+    CheckboxSize.small => 20,
+    CheckboxSize.medium => 23,
+    CheckboxSize.large => 28,
+  };
+
+  /// Vertical padding of a task row.
+  double get rowPadding => switch (this) {
+    CheckboxSize.small => 8,
+    CheckboxSize.medium => 11,
+    CheckboxSize.large => 15,
+  };
+
+  /// Title size of a task row.
+  double get titleSize => switch (this) {
+    CheckboxSize.small => 15,
+    CheckboxSize.medium => 16,
+    CheckboxSize.large => 17,
+  };
+
+  String get label => switch (this) {
+    CheckboxSize.small => 'Small',
+    CheckboxSize.medium => 'Medium',
+    CheckboxSize.large => 'Large',
+  };
 }
 
 /// User settings stored locally
@@ -25,7 +55,7 @@ class AppSettings {
   final bool materialYou;
 
   const AppSettings({
-    this.checkboxSize = CheckboxSize.normal,
+    this.checkboxSize = CheckboxSize.medium,
     this.mainListName = 'Aufgaben',
     this.knownTags = const [],
     this.materialYou = false,
@@ -64,10 +94,12 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   }
 
   void _loadSettings() {
-    final sizeIndex = _settingsBox.get(_checkboxSizeKey, defaultValue: 0) as int;
+    // Stored as an index. The old setting only knew normal(0)/large(1), so a
+    // stored 0 becomes medium and a stored 1 stays large.
+    final sizeIndex = _settingsBox.get(_checkboxSizeKey, defaultValue: 1) as int;
     final size = sizeIndex < CheckboxSize.values.length
         ? CheckboxSize.values[sizeIndex]
-        : CheckboxSize.normal;
+        : CheckboxSize.medium;
     final mainListName =
         _settingsBox.get(_mainListNameKey, defaultValue: 'Aufgaben') as String;
     final knownTags = (_settingsBox.get(_knownTagsKey) as List?)

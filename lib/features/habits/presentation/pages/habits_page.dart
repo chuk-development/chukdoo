@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_shapes.dart';
+import '../../../../shared/widgets/app_field.dart';
 import '../../domain/models/habit.dart';
 import '../../providers/habit_provider.dart';
+import '../../../todos/presentation/widgets/quick_add_fab.dart';
+import '../../../../shared/widgets/lifted_fab.dart';
 
 class HabitsPage extends ConsumerWidget {
   final bool embedded;
 
-  const HabitsPage({super.key, this.embedded = false});
+  /// Opens the app drawer. Set by the shell so every tab can reach it.
+  final VoidCallback? onMenu;
+
+  const HabitsPage({super.key, this.embedded = false, this.onMenu});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -23,7 +28,13 @@ class HabitsPage extends ConsumerWidget {
         title: const Text('Habits'),
         automaticallyImplyLeading: false,
         leading: embedded
-            ? null
+            ? (onMenu == null
+                  ? null
+                  : IconButton(
+                      icon: Icon(MdiIcons.menu),
+                      onPressed: onMenu,
+                      tooltip: 'Menu',
+                    ))
             : IconButton(
                 icon: Icon(MdiIcons.chevronLeft),
                 onPressed: () => Navigator.pop(context),
@@ -32,23 +43,25 @@ class HabitsPage extends ConsumerWidget {
       body: habitState.isLoading
           ? const Center(child: CircularProgressIndicator())
           : habits.isEmpty
-              ? _buildEmptyState(context, ref)
-              : Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 680),
-                    child: ListView.builder(
-                      padding: const EdgeInsets.only(bottom: 100, top: 8),
-                      itemCount: habits.length,
-                      itemBuilder: (context, index) {
-                        return _HabitCard(habit: habits[index]);
-                      },
-                    ),
-                  ),
+          ? _buildEmptyState(context, ref)
+          : Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 680),
+                child: ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 100, top: 8),
+                  itemCount: habits.length,
+                  itemBuilder: (context, index) {
+                    return _HabitCard(
+                      habit: habits[index],
+                      isFirst: index == 0,
+                      isLast: index == habits.length - 1,
+                    );
+                  },
                 ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showHabitSheet(context, ref),
-        backgroundColor: AppColors.primary,
-        child: Icon(Icons.add, color: AppColors.onPrimary),
+              ),
+            ),
+      floatingActionButton: LiftedFab(
+        child: QuickAddFab(onPressed: () => _showHabitSheet(context, ref)),
       ),
     );
   }
@@ -60,9 +73,15 @@ class HabitsPage extends ConsumerWidget {
         children: [
           Icon(MdiIcons.target, size: 64, color: AppColors.textTertiary),
           const SizedBox(height: 16),
-          Text('No habits', style: TextStyle(fontSize: 18, color: AppColors.textSecondary)),
+          Text(
+            'No habits',
+            style: TextStyle(fontSize: 18, color: AppColors.textSecondary),
+          ),
           const SizedBox(height: 8),
-          Text('Create your first habit', style: TextStyle(fontSize: 14, color: AppColors.textTertiary)),
+          Text(
+            'Create your first habit',
+            style: TextStyle(fontSize: 14, color: AppColors.textTertiary),
+          ),
           const SizedBox(height: 24),
           FilledButton.icon(
             onPressed: () => _showHabitSheet(context, ref),
@@ -84,15 +103,22 @@ class HabitsPage extends ConsumerWidget {
         habit: habit,
         onSave: (name, description, color, frequency) {
           if (habit != null) {
-            ref.read(habitProvider.notifier).updateHabit(habit.copyWith(
-                  name: name,
-                  description: description,
-                  color: color,
-                  frequency: frequency,
-                  clearDescription: description == null || description.isEmpty,
-                ));
+            ref
+                .read(habitProvider.notifier)
+                .updateHabit(
+                  habit.copyWith(
+                    name: name,
+                    description: description,
+                    color: color,
+                    frequency: frequency,
+                    clearDescription:
+                        description == null || description.isEmpty,
+                  ),
+                );
           } else {
-            ref.read(habitProvider.notifier).addHabit(
+            ref
+                .read(habitProvider.notifier)
+                .addHabit(
                   name: name,
                   color: color,
                   frequency: frequency,
@@ -114,15 +140,26 @@ class HabitsPage extends ConsumerWidget {
 
 class _HabitCard extends ConsumerStatefulWidget {
   final Habit habit;
-  const _HabitCard({required this.habit});
+  final bool isFirst;
+  final bool isLast;
+
+  const _HabitCard({
+    required this.habit,
+    this.isFirst = true,
+    this.isLast = true,
+  });
 
   @override
   ConsumerState<_HabitCard> createState() => _HabitCardState();
 }
 
 class _HabitCardState extends ConsumerState<_HabitCard> {
-  // Week-based by default; the long heatmap is opt-in history.
-  bool _showHistory = false;
+  /// 0 = current week, -1 = last week, ... Swiping left/right moves the week
+  /// so days that were missed earlier can still be ticked off.
+  int _weekOffset = 0;
+
+  /// Direction of the last week change, used for the slide animation.
+  int _slideDir = -1;
 
   static const _weekdayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
@@ -134,17 +171,45 @@ class _HabitCardState extends ConsumerState<_HabitCard> {
       builder: (ctx) => _HabitEditSheet(
         habit: widget.habit,
         onSave: (name, description, color, frequency) {
-          ref.read(habitProvider.notifier).updateHabit(widget.habit.copyWith(
-                name: name,
-                description: description,
-                color: color,
-                frequency: frequency,
-                clearDescription: description == null || description.isEmpty,
-              ));
+          ref
+              .read(habitProvider.notifier)
+              .updateHabit(
+                widget.habit.copyWith(
+                  name: name,
+                  description: description,
+                  color: color,
+                  frequency: frequency,
+                  clearDescription: description == null || description.isEmpty,
+                ),
+              );
         },
-        onDelete: () => ref.read(habitProvider.notifier).deleteHabit(widget.habit.id),
+        onDelete: () =>
+            ref.read(habitProvider.notifier).deleteHabit(widget.habit.id),
       ),
     );
+  }
+
+  void _shiftWeek(int delta) {
+    final next = _weekOffset + delta;
+    if (next > 0) return; // no future weeks
+    setState(() {
+      _slideDir = delta;
+      _weekOffset = next;
+    });
+  }
+
+  void _backToThisWeek() {
+    if (_weekOffset == 0) return;
+    setState(() {
+      _slideDir = 1;
+      _weekOffset = 0;
+    });
+  }
+
+  String _weekLabel(DateTime monday, DateTime sunday) {
+    if (_weekOffset == 0) return 'This week';
+    if (_weekOffset == -1) return 'Last week';
+    return '${monday.day}.${monday.month}. – ${sunday.day}.${sunday.month}.';
   }
 
   @override
@@ -153,147 +218,185 @@ class _HabitCardState extends ConsumerState<_HabitCard> {
     final habitColor = Color(habit.color);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final isCompletedToday = habit.isCompletedOn(today);
     final streak = habit.calculateStreak();
-    // Monday of the current week.
-    final monday = today.subtract(Duration(days: today.weekday - 1));
 
-    return Slidable(
-      key: ValueKey(habit.id),
-      endActionPane: ActionPane(
-        motion: const BehindMotion(),
-        extentRatio: 0.25,
-        children: [
-          SlidableAction(
-            onPressed: (_) => ref.read(habitProvider.notifier).deleteHabit(habit.id),
-            backgroundColor: AppColors.error,
-            foregroundColor: Colors.white,
-            icon: MdiIcons.trashCan,
-            label: 'Delete',
-          ),
-        ],
+    // Monday of the week currently in view.
+    final currentMonday = today.subtract(Duration(days: today.weekday - 1));
+    final monday = currentMonday.add(Duration(days: 7 * _weekOffset));
+    final sunday = monday.add(const Duration(days: 6));
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppShapes.listInset,
+        0,
+        AppShapes.listInset,
+        AppShapes.groupGap,
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: isCompletedToday ? habitColor.withValues(alpha: 0.4) : AppColors.divider,
-            ),
-          ),
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header — tapping the name/area opens edit.
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _openEdit,
-                child: Row(
-                  children: [
-                    Container(
-                      width: 10, height: 10,
-                      decoration: BoxDecoration(color: habitColor, shape: BoxShape.circle),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            habit.name,
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                          ),
-                          if (habit.description != null && habit.description!.isNotEmpty)
-                            Text(
-                              habit.description!,
-                              style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                        ],
-                      ),
-                    ),
-                    if (streak > 0)
+      child: Material(
+        color: AppColors.surface,
+        borderRadius: AppShapes.row(
+          isFirst: widget.isFirst,
+          isLast: widget.isLast,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: GestureDetector(
+          // Swipe left/right = one week forward/back.
+          onHorizontalDragEnd: (details) {
+            final v = details.primaryVelocity ?? 0;
+            if (v > 120) {
+              _shiftWeek(-1);
+            } else if (v < -120) {
+              _shiftWeek(1);
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header — tapping the name opens edit (delete lives there).
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _openEdit,
+                  child: Row(
+                    children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        width: 10,
+                        height: 10,
                         decoration: BoxDecoration(
-                          color: AppColors.orange.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
+                          color: habitColor,
+                          shape: BoxShape.circle,
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(MdiIcons.fire, size: 14, color: AppColors.orange),
-                            const SizedBox(width: 3),
-                            Text('$streak', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.orange)),
+                            Text(
+                              habit.name,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            if (habit.description != null &&
+                                habit.description!.isNotEmpty)
+                              Text(
+                                habit.description!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textTertiary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                           ],
                         ),
                       ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              // Week row — seven big, finger-friendly day toggles.
-              Row(
-                children: List.generate(7, (i) {
-                  final date = monday.add(Duration(days: i));
-                  final isFuture = date.isAfter(today);
-                  return Expanded(
-                    child: _DayToggle(
-                      label: _weekdayLabels[i],
-                      dayNum: date.day,
-                      color: habitColor,
-                      completed: habit.isCompletedOn(date),
-                      isToday: date.isAtSameMomentAs(today),
-                      isFuture: isFuture,
-                      onTap: isFuture
-                          ? null
-                          : () => ref.read(habitProvider.notifier).toggleCompletion(habit.id, date),
-                    ),
-                  );
-                }),
-              ),
-
-              const SizedBox(height: 8),
-
-              // History toggle — heatmap is demoted behind a tap.
-              InkWell(
-                onTap: () => setState(() => _showHistory = !_showHistory),
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _showHistory ? MdiIcons.chevronUp : MdiIcons.chevronDown,
-                        size: 16, color: AppColors.textTertiary,
+                      // Week label — tap it to jump back to the current week.
+                      GestureDetector(
+                        onTap: _backToThisWeek,
+                        behavior: HitTestBehavior.opaque,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Text(
+                            _weekLabel(monday, sunday),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: _weekOffset == 0
+                                  ? FontWeight.w400
+                                  : FontWeight.w600,
+                              color: _weekOffset == 0
+                                  ? AppColors.textTertiary
+                                  : AppColors.primary,
+                            ),
+                          ),
+                        ),
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _showHistory ? 'Hide history' : 'History',
-                        style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
-                      ),
+                      if (streak > 0)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              MdiIcons.fire,
+                              size: 15,
+                              color: AppColors.orange,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              '$streak',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.orange,
+                              ),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),
-              ),
 
-              if (_showHistory) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: 14),
+
+                // Week row — seven finger-friendly day toggles. Swiping the
+                // card slides the whole week in from the side.
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    final incoming = child.key == ValueKey(_weekOffset);
+                    final dx = _slideDir.toDouble();
+                    return SlideTransition(
+                      position: Tween<Offset>(
+                        begin: Offset(incoming ? -dx : dx, 0),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: FadeTransition(opacity: animation, child: child),
+                    );
+                  },
+                  layoutBuilder: (currentChild, previousChildren) => Stack(
+                    alignment: Alignment.center,
+                    children: [...previousChildren, ?currentChild],
+                  ),
+                  child: Row(
+                    key: ValueKey(_weekOffset),
+                    children: List.generate(7, (i) {
+                      final date = monday.add(Duration(days: i));
+                      final isFuture = date.isAfter(today);
+                      return Expanded(
+                        child: _DayToggle(
+                          label: _weekdayLabels[i],
+                          dayNum: date.day,
+                          color: habitColor,
+                          completed: habit.isCompletedOn(date),
+                          isToday: date.isAtSameMomentAs(today),
+                          isFuture: isFuture,
+                          onTap: isFuture
+                              ? null
+                              : () => ref
+                                    .read(habitProvider.notifier)
+                                    .toggleCompletion(habit.id, date),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // History stays visible next to the week — compact heatmap.
                 _HabitHeatmap(
                   habit: habit,
-                  days: 182,
-                  onDayTap: (date) => ref.read(habitProvider.notifier).toggleCompletion(habit.id, date),
+                  onDayTap: (date) => ref
+                      .read(habitProvider.notifier)
+                      .toggleCompletion(habit.id, date),
                 ),
-                const SizedBox(height: 6),
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -348,7 +451,8 @@ class _DayToggle extends StatelessWidget {
               constraints: const BoxConstraints(minWidth: 36),
               alignment: Alignment.center,
               child: Container(
-                width: 40, height: 40,
+                width: 40,
+                height: 40,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
@@ -365,7 +469,9 @@ class _DayToggle extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: isFuture ? AppColors.textTertiary : AppColors.textSecondary,
+                          color: isFuture
+                              ? AppColors.textTertiary
+                              : AppColors.textSecondary,
                         ),
                       ),
               ),
@@ -381,10 +487,14 @@ class _DayToggle extends StatelessWidget {
 
 class _HabitHeatmap extends StatelessWidget {
   final Habit habit;
-  final int days;
+
   final ValueChanged<DateTime>? onDayTap;
 
-  const _HabitHeatmap({required this.habit, this.days = 182, this.onDayTap});
+  /// Preferred cell size; the real one is derived from the width so the grid
+  /// always fills the card exactly — no half column on either side.
+  static const _preferredCell = 15.0;
+
+  const _HabitHeatmap({required this.habit, this.onDayTap});
 
   @override
   Widget build(BuildContext context) {
@@ -393,73 +503,73 @@ class _HabitHeatmap extends StatelessWidget {
     final habitColor = Color(habit.color);
     final completionSet = habit.completions.toSet();
 
-    final endDate = todayDate;
-    final startDate = endDate.subtract(Duration(days: days - 1));
-    final alignedStart = startDate.subtract(Duration(days: (startDate.weekday - 1) % 7));
-    final totalDays = endDate.difference(alignedStart).inDays + 1;
-    final weeks = (totalDays / 7).ceil();
+    // The grid ends with the current week, so the last column is this week and
+    // every row is one weekday (Monday on top).
+    final endOfWeek = todayDate.add(Duration(days: 7 - todayDate.weekday));
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final availableWidth = constraints.maxWidth;
-          // Cap the cell size so the grid stays compact on wide (desktop)
-          // layouts instead of stretching dots across the whole card.
-          final cellSize = (availableWidth / weeks).clamp(10.0, 18.0);
-          final dotSize = (cellSize * 0.74).clamp(4.0, 13.0);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final weeks = (width / _preferredCell).floor().clamp(4, 40);
+        final cellSize = width / weeks;
+        final dotSize = (cellSize * 0.74).clamp(4.0, 14.0);
+        final gridStart = endOfWeek.subtract(Duration(days: weeks * 7 - 1));
 
-          return SizedBox(
-            height: 7 * cellSize,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: List.generate(weeks, (weekIdx) {
-                return SizedBox(
-                  width: cellSize,
-                  child: Column(
-                    children: List.generate(7, (dayIdx) {
-                      final dayOffset = weekIdx * 7 + dayIdx;
-                      final date = alignedStart.add(Duration(days: dayOffset));
-                      final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+        return SizedBox(
+          height: 7 * cellSize,
+          child: Row(
+            children: List.generate(weeks, (weekIdx) {
+              return SizedBox(
+                width: cellSize,
+                child: Column(
+                  children: List.generate(7, (dayIdx) {
+                    final date = gridStart.add(
+                      Duration(days: weekIdx * 7 + dayIdx),
+                    );
+                    final dateStr =
+                        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
-                      final isAfterToday = date.isAfter(todayDate);
-                      final isBeforeStart = date.isBefore(startDate);
-                      final isCompleted = completionSet.contains(dateStr);
-                      final isToday = date.isAtSameMomentAs(todayDate);
+                    final isAfterToday = date.isAfter(todayDate);
+                    final isCompleted = completionSet.contains(dateStr);
+                    final isToday = date.isAtSameMomentAs(todayDate);
 
-                      Color dotColor;
-                      if (isAfterToday || isBeforeStart) {
-                        dotColor = Colors.transparent;
-                      } else if (isCompleted) {
-                        dotColor = habitColor;
-                      } else {
-                        dotColor = AppColors.surfaceLight;
-                      }
+                    final Color dotColor;
+                    if (isCompleted) {
+                      dotColor = habitColor;
+                    } else if (isAfterToday) {
+                      dotColor = AppColors.surfaceLight.withValues(alpha: 0.4);
+                    } else {
+                      dotColor = AppColors.surfaceLight;
+                    }
 
-                      return SizedBox(
-                        height: cellSize,
-                        child: GestureDetector(
-                          onTap: (!isAfterToday && !isBeforeStart && onDayTap != null) ? () => onDayTap!(date) : null,
-                          child: Center(
-                            child: Container(
-                              width: dotSize, height: dotSize,
-                              decoration: BoxDecoration(
-                                color: dotColor,
-                                borderRadius: BorderRadius.circular(dotSize * 0.3),
-                                border: isToday && !isCompleted ? Border.all(color: habitColor, width: 1) : null,
-                              ),
+                    return SizedBox(
+                      height: cellSize,
+                      child: GestureDetector(
+                        onTap: (!isAfterToday && onDayTap != null)
+                            ? () => onDayTap!(date)
+                            : null,
+                        child: Center(
+                          child: Container(
+                            width: dotSize,
+                            height: dotSize,
+                            decoration: BoxDecoration(
+                              color: dotColor,
+                              borderRadius: BorderRadius.circular(dotSize * 0.3),
+                              border: isToday && !isCompleted
+                                  ? Border.all(color: habitColor, width: 1)
+                                  : null,
                             ),
                           ),
                         ),
-                      );
-                    }),
-                  ),
-                );
-              }),
-            ),
-          );
-        },
-      ),
+                      ),
+                    );
+                  }),
+                ),
+              );
+            }),
+          ),
+        );
+      },
     );
   }
 }
@@ -468,7 +578,13 @@ class _HabitHeatmap extends StatelessWidget {
 
 class _HabitEditSheet extends StatefulWidget {
   final Habit? habit;
-  final void Function(String name, String? description, int color, String frequency) onSave;
+  final void Function(
+    String name,
+    String? description,
+    int color,
+    String frequency,
+  )
+  onSave;
   final VoidCallback? onDelete;
 
   const _HabitEditSheet({this.habit, required this.onSave, this.onDelete});
@@ -489,8 +605,11 @@ class _HabitEditSheetState extends State<_HabitEditSheet> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.habit?.name ?? '');
-    _descriptionController = TextEditingController(text: widget.habit?.description ?? '');
-    _selectedColor = widget.habit?.color ?? AppColors.projectColors.first.toARGB32();
+    _descriptionController = TextEditingController(
+      text: widget.habit?.description ?? '',
+    );
+    _selectedColor =
+        widget.habit?.color ?? AppColors.projectColors.first.toARGB32();
     _frequency = widget.habit?.frequency ?? 'daily';
   }
 
@@ -501,15 +620,49 @@ class _HabitEditSheetState extends State<_HabitEditSheet> {
     super.dispose();
   }
 
+  /// One filled field block of the sheet's input group.
+  Widget _fieldBlock({
+    required Widget child,
+    required bool isFirst,
+    required bool isLast,
+    String? label,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppShapes.groupGap),
+      child: AppField(label: label, isFirst: isFirst, isLast: isLast, child: child),
+    );
+  }
+
+  Widget _label(String text) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 0, 0, 8),
+      child: Text(
+        text.toUpperCase(),
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.6,
+          color: AppColors.textTertiary,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Same chrome as the event sheet: handle, title, filled field blocks with
+    // no outlines, and the action pinned at the bottom.
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppShapes.sheetTop)),
+        color: AppColors.background,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppShapes.sheetTop),
+        ),
       ),
       padding: EdgeInsets.only(
-        left: 16, right: 16, top: 16,
+        left: AppShapes.listInset,
+        right: AppShapes.listInset,
+        top: 10,
         bottom: MediaQuery.of(context).viewInsets.bottom + 16,
       ),
       child: SingleChildScrollView(
@@ -517,51 +670,57 @@ class _HabitEditSheetState extends State<_HabitEditSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Handle
             Center(
               child: Container(
-                width: 40, height: 4,
-                decoration: BoxDecoration(color: AppColors.textTertiary, borderRadius: BorderRadius.circular(2)),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceLight,
+                  borderRadius: BorderRadius.circular(999),
+                ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
-            Text(
-              _isEditing ? 'Edit habit' : 'New habit',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 12),
+              child: Text(
+                _isEditing ? 'Edit habit' : 'New habit',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
             ),
-            const SizedBox(height: 16),
 
             // Name
-            TextField(
-              controller: _nameController,
-              autofocus: !_isEditing,
-              decoration: InputDecoration(
-                hintText: 'Name',
-                filled: true,
-                fillColor: AppColors.surfaceLight,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            _fieldBlock(
+              isFirst: true,
+              isLast: false,
+              child: TextField(
+                controller: _nameController,
+                autofocus: !_isEditing,
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                decoration: AppField.decoration('Name'),
               ),
             ),
-            const SizedBox(height: 12),
 
             // Description
-            TextField(
-              controller: _descriptionController,
-              decoration: InputDecoration(
-                hintText: 'Description (optional)',
-                filled: true,
-                fillColor: AppColors.surfaceLight,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            _fieldBlock(
+              isFirst: false,
+              isLast: true,
+              child: TextField(
+                controller: _descriptionController,
+                decoration: AppField.decoration('Description (optional)'),
+                maxLines: 2,
+                minLines: 1,
               ),
-              maxLines: 2,
-              minLines: 1,
             ),
             const SizedBox(height: 16),
 
             // Color
-            Text('Color', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-            const SizedBox(height: 8),
+            _label('Color'),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -570,13 +729,18 @@ class _HabitEditSheetState extends State<_HabitEditSheet> {
                 return GestureDetector(
                   onTap: () => setState(() => _selectedColor = c.toARGB32()),
                   child: Container(
-                    width: 32, height: 32,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
                       color: c,
                       shape: BoxShape.circle,
-                      border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
+                      border: isSelected
+                          ? Border.all(color: Colors.white, width: 2)
+                          : null,
                     ),
-                    child: isSelected ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
+                    child: isSelected
+                        ? const Icon(Icons.check, size: 16, color: Colors.white)
+                        : null,
                   ),
                 );
               }).toList(),
@@ -584,8 +748,7 @@ class _HabitEditSheetState extends State<_HabitEditSheet> {
             const SizedBox(height: 16),
 
             // Frequency
-            Text('Frequency', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-            const SizedBox(height: 8),
+            _label('Frequency'),
             SegmentedButton<String>(
               segments: const [
                 ButtonSegment(value: 'daily', label: Text('Daily')),
@@ -593,32 +756,33 @@ class _HabitEditSheetState extends State<_HabitEditSheet> {
               ],
               selected: {_frequency},
               onSelectionChanged: (v) => setState(() => _frequency = v.first),
-              style: ButtonStyle(
-                backgroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) return AppColors.primary.withValues(alpha: 0.2);
-                  return AppColors.surfaceLight;
-                }),
-              ),
             ),
             const SizedBox(height: 24),
 
             // Save button
             SizedBox(
               width: double.infinity,
+              height: 52,
               child: FilledButton(
                 onPressed: () {
                   final name = _nameController.text.trim();
                   if (name.isEmpty) return;
                   final desc = _descriptionController.text.trim();
-                  widget.onSave(name, desc.isEmpty ? null : desc, _selectedColor, _frequency);
+                  widget.onSave(
+                    name,
+                    desc.isEmpty ? null : desc,
+                    _selectedColor,
+                    _frequency,
+                  );
                   Navigator.pop(context);
                 },
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Text(
+                  _isEditing ? 'Save changes' : 'Create habit',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                child: Text(_isEditing ? 'Save' : 'Create'),
               ),
             ),
 
@@ -633,16 +797,23 @@ class _HabitEditSheetState extends State<_HabitEditSheet> {
                       context: context,
                       builder: (ctx) => AlertDialog(
                         title: const Text('Delete habit?'),
-                        content: const Text('All data for this habit will be deleted.'),
+                        content: const Text(
+                          'All data for this habit will be deleted.',
+                        ),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel'),
+                          ),
                           FilledButton(
                             onPressed: () {
                               widget.onDelete!();
                               Navigator.pop(ctx);
                               Navigator.pop(context);
                             },
-                            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.error,
+                            ),
                             child: const Text('Delete'),
                           ),
                         ],

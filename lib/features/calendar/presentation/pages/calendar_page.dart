@@ -8,9 +8,11 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_shapes.dart';
 import '../../../../core/utils/native_io.dart' as native_io;
 import '../../../../shared/services/supabase_service.dart';
+import '../../../../shared/widgets/picker_sheet.dart';
 import '../../domain/models/calendar_item.dart';
 import '../../domain/models/ics_service.dart';
 import '../../providers/calendar_event_provider.dart';
+import '../widgets/calendar_style.dart';
 import '../widgets/day_view.dart';
 import '../widgets/week_view.dart';
 import '../widgets/month_view.dart';
@@ -18,32 +20,50 @@ import '../widgets/agenda_view.dart';
 import '../widgets/view_mode_selector.dart';
 import '../widgets/event_create_dialog.dart';
 import '../widgets/event_detail_sheet.dart';
+import '../widgets/ics_feeds_sheet.dart';
+import '../../../todos/presentation/widgets/quick_add_fab.dart';
+import '../../../../shared/widgets/lifted_fab.dart';
 
 class CalendarPage extends ConsumerWidget {
   final bool embedded;
 
-  const CalendarPage({super.key, this.embedded = false});
+  /// Opens the app drawer. Set by the shell so every tab can reach it.
+  final VoidCallback? onMenu;
+
+  const CalendarPage({super.key, this.embedded = false, this.onMenu});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final eventState = ref.watch(calendarEventProvider);
 
-    return Scaffold(
+    return PopScope(
+      // Back from a day returns to the month or week it was opened from,
+      // before the shell's own history takes over.
+      canPop: !ref.read(calendarEventProvider.notifier).canGoBack,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) ref.read(calendarEventProvider.notifier).goBack();
+      },
+      child: Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        bottom: false,
+        // Bottom inset carries the nav bar height from the shell, so the grid
+        // stops right above the bar instead of sliding under it.
         child: Column(
           children: [
             _CalendarHeader(
               embedded: embedded,
+              onMenu: onMenu,
               state: eventState,
               onImport: () => _importIcs(context, ref),
               onExport: () => _exportIcs(context),
             ),
             Expanded(
-              child: GestureDetector(
-                // Swipe left/right to move to the next/previous period —
-                // replaces reaching for the small arrows up in the header.
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: GestureDetector(
+                // Swipe left/right to move to the next/previous period. This
+                // is the only period navigation — the header carries no
+                // arrows any more.
                 // Agenda has no period to shift, so skip it there.
                 onHorizontalDragEnd: eventState.viewMode == CalendarViewMode.agenda
                     ? null
@@ -55,53 +75,27 @@ class CalendarPage extends ConsumerWidget {
                             .read(calendarEventProvider.notifier)
                             .setFocusedDate(_shiftFocused(eventState, dir));
                       },
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 280),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  transitionBuilder: (child, animation) {
-                    final fade = CurvedAnimation(
-                      parent: animation,
-                      curve: Curves.easeOut,
-                    );
-                    final scale = Tween<double>(begin: 0.96, end: 1.0)
-                        .animate(CurvedAnimation(
-                      parent: animation,
-                      curve: Curves.easeOutCubic,
-                    ));
-                    return FadeTransition(
-                      opacity: fade,
-                      child: ScaleTransition(scale: scale, child: child),
-                    );
-                  },
-                  layoutBuilder: (currentChild, previousChildren) => Stack(
-                    alignment: Alignment.topCenter,
-                    children: [
-                      ...previousChildren,
-                      ?currentChild,
-                    ],
-                  ),
-                  child: KeyedSubtree(
-                    key: ValueKey(eventState.viewMode),
-                    child: _buildView(context, ref, eventState.viewMode),
-                  ),
+                child: KeyedSubtree(
+                  // Switching between month, week and agenda swaps the view
+                  // outright. Cross-fading two full-screen grids showed both
+                  // at once and read as a glitch.
+                  key: ValueKey(eventState.viewMode),
+                  child: _buildView(context, ref, eventState.viewMode),
+                ),
                 ),
               ),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _createEvent(context),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        elevation: 2,
-        child: const Icon(Icons.add),
+      floatingActionButton: LiftedFab(
+        child: QuickAddFab(onPressed: () => _createEvent(context)),
+      ),
       ),
     );
   }
 
-  /// Period shift for swipe navigation — mirrors the header arrow logic.
+  /// Period shift for swipe navigation.
   DateTime _shiftFocused(CalendarEventState state, int dir) {
     final f = state.focusedDate;
     switch (state.viewMode) {
@@ -141,6 +135,7 @@ class CalendarPage extends ConsumerWidget {
       case CalendarViewMode.agenda:
         return AgendaView(
           onItemTap: (item) => _showItemDetail(context, item),
+          onSubscribe: () => IcsFeedsSheet.show(context),
         );
     }
   }
@@ -149,13 +144,10 @@ class CalendarPage extends ConsumerWidget {
     EventCreateDialog.show(context, initialDate: date, initialTime: time);
   }
 
+  /// The detail card flies in like every other surface in the app.
   void _showItemDetail(BuildContext context, CalendarItem item) {
-    showModalBottomSheet(
+    showAppPicker<void>(
       context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppShapes.sheetTop)),
-      ),
       builder: (_) => EventDetailSheet(item: item),
     );
   }
@@ -177,7 +169,8 @@ class CalendarPage extends ConsumerWidget {
     String? content;
 
     if (file.bytes != null) {
-      content = String.fromCharCodes(file.bytes!);
+      // ICS is UTF-8 by RFC 5545 — decode as such so umlauts survive.
+      content = IcsService.decodeBytes(file.bytes!);
     } else if (file.path != null) {
       content = await native_io.readFileAsString(file.path!);
     }
@@ -218,124 +211,190 @@ class CalendarPage extends ConsumerWidget {
   }
 }
 
-/// Google-Calendar-style top bar: period title + navigation on top,
-/// Today button + view switcher below.
-class _CalendarHeader extends ConsumerWidget {
+/// Top bar: the period title opens the month picker, the calendar-sync button
+/// opens the subscribed feeds, the rest lives in the overflow.
+///
+/// There are no previous/next arrows: swiping the view left or right moves a
+/// period, and the month picker jumps anywhere else.
+class _CalendarHeader extends ConsumerStatefulWidget {
   final bool embedded;
+  final VoidCallback? onMenu;
   final CalendarEventState state;
   final VoidCallback onImport;
   final VoidCallback onExport;
 
   const _CalendarHeader({
     required this.embedded,
+    required this.onMenu,
     required this.state,
     required this.onImport,
     required this.onExport,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_CalendarHeader> createState() => _CalendarHeaderState();
+}
+
+class _CalendarHeaderState extends ConsumerState<_CalendarHeader> {
+  /// Whether the month picker under the title is open.
+  bool _monthStripOpen = false;
+
+  @override
+  Widget build(BuildContext context) {
     final notifier = ref.read(calendarEventProvider.notifier);
-    final showNav = state.viewMode != CalendarViewMode.agenda;
+    final state = widget.state;
 
     return Container(
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        border: Border(bottom: BorderSide(color: AppColors.divider, width: 1)),
-      ),
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+      color: AppColors.background,
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
       child: Column(
         children: [
           // Title row
           Row(
             children: [
-              if (!embedded)
+              if (!widget.embedded)
                 IconButton(
                   icon: Icon(MdiIcons.chevronLeft),
                   color: AppColors.textPrimary,
                   onPressed: () => Navigator.pop(context),
                 )
+              else if (widget.onMenu != null)
+                IconButton(
+                  icon: Icon(MdiIcons.menu),
+                  color: AppColors.textPrimary,
+                  onPressed: widget.onMenu,
+                  tooltip: 'Menu',
+                )
               else
                 const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  _periodTitle(),
-                  style: TextStyle(
-                    fontSize: 21,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () =>
+                      setState(() => _monthStripOpen = !_monthStripOpen),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _periodTitle(),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.2,
+                            color: AppColors.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      AnimatedRotation(
+                        turns: _monthStripOpen ? 0.5 : 0,
+                        duration: CalendarStyle.motion,
+                        curve: Curves.easeOutCubic,
+                        child: Icon(
+                          MdiIcons.menuDown,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (showNav) ...[
-                _NavButton(
-                  icon: Icons.chevron_left,
-                  onTap: () => notifier.setFocusedDate(_shift(-1)),
-                ),
-                _NavButton(
-                  icon: Icons.chevron_right,
-                  onTap: () => notifier.setFocusedDate(_shift(1)),
-                ),
-              ],
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, color: AppColors.textSecondary),
-                color: AppColors.surface,
-                onSelected: (value) {
-                  switch (value) {
-                    case 'import':
-                      onImport();
-                    case 'export':
-                      onExport();
-                  }
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'import', child: Text('ICS importieren')),
-                  PopupMenuItem(value: 'export', child: Text('ICS exportieren')),
-                ],
+              // Subscribing to a calendar URL is a first-class action, not a
+              // menu entry buried three taps deep.
+              IconButton(
+                icon: Icon(MdiIcons.calendarSync),
+                color: AppColors.textSecondary,
+                onPressed: () => IcsFeedsSheet.show(context),
+                tooltip: 'Subscribed calendars',
+              ),
+              IconButton(
+                icon: Icon(MdiIcons.dotsVertical),
+                color: AppColors.textSecondary,
+                onPressed: _openOverflow,
+                tooltip: 'More',
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          // Controls row
-          Row(
-            children: [
-              _TodayButton(onTap: notifier.goToToday),
-              const Spacer(),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                reverse: true,
-                child: ViewModeSelector(
-                  currentMode: state.viewMode,
-                  onChanged: notifier.setViewMode,
-                ),
-              ),
-            ],
+          // The month picker opens under the title.
+          AnimatedSize(
+            duration: CalendarStyle.motion,
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: _monthStripOpen
+                ? _MonthPicker(
+                    focused: state.focusedDate,
+                    onPick: (month) {
+                      notifier.setFocusedDate(month);
+                      setState(() => _monthStripOpen = false);
+                    },
+                  )
+                : const SizedBox(width: double.infinity),
+          ),
+          const SizedBox(height: 4),
+          // Controls row. The switcher gets the full width so no segment can
+          // be pushed off screen; Today sits on its own line above it.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 2),
+            child: Row(
+              children: [
+                _TodayButton(onTap: notifier.goToToday),
+                const Spacer(),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 4, 4, 2),
+            child: ViewModeSelector(
+              currentMode: state.viewMode,
+              onChanged: notifier.setViewMode,
+            ),
           ),
         ],
       ),
     );
   }
 
-  DateTime _shift(int dir) {
-    final f = state.focusedDate;
-    switch (state.viewMode) {
-      case CalendarViewMode.day:
-        return f.add(Duration(days: dir));
-      case CalendarViewMode.week:
-        return f.add(Duration(days: 7 * dir));
-      case CalendarViewMode.month:
-        return DateTime(f.year, f.month + dir, 1);
-      case CalendarViewMode.agenda:
-        return f.add(Duration(days: 30 * dir));
+  Future<void> _openOverflow() async {
+    final choice = await showPickerSheet<String>(
+      context: context,
+      title: 'Calendar',
+      options: [
+        PickerOption(
+          value: 'subscribe',
+          label: 'Subscribed calendars',
+          icon: MdiIcons.calendarSync,
+        ),
+        PickerOption(
+          value: 'import',
+          label: 'Import a .ics file',
+          icon: MdiIcons.calendarImport,
+        ),
+        PickerOption(
+          value: 'export',
+          label: 'Export as .ics',
+          icon: MdiIcons.calendarExport,
+        ),
+      ],
+    );
+    if (choice == null || !mounted) return;
+
+    switch (choice) {
+      case 'subscribe':
+        IcsFeedsSheet.show(context);
+      case 'import':
+        widget.onImport();
+      case 'export':
+        widget.onExport();
     }
   }
 
   String _periodTitle() {
-    final f = state.focusedDate;
-    switch (state.viewMode) {
+    final f = widget.state.focusedDate;
+    switch (widget.state.viewMode) {
       case CalendarViewMode.day:
-        return DateFormat('EEEE, d. MMM', 'en_US').format(f);
+        return DateFormat('EEEE, d MMM', 'en_US').format(f);
       case CalendarViewMode.week:
         final start = DateTime(f.year, f.month, f.day)
             .subtract(Duration(days: f.weekday - 1));
@@ -343,7 +402,7 @@ class _CalendarHeader extends ConsumerWidget {
         if (start.month == end.month) {
           return DateFormat('MMMM yyyy', 'en_US').format(start);
         }
-        return '${DateFormat('MMM', 'en_US').format(start)} – '
+        return '${DateFormat('MMM', 'en_US').format(start)} to '
             '${DateFormat('MMM yyyy', 'en_US').format(end)}';
       case CalendarViewMode.month:
         return DateFormat('MMMM yyyy', 'en_US').format(f);
@@ -353,20 +412,115 @@ class _CalendarHeader extends ConsumerWidget {
   }
 }
 
-class _NavButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
+/// The month picker under the title: a strip of month pills, three years
+/// wide, scrolled to the focused month.
+///
+/// Each pill carries the month over its year, so a month is never mistaken
+/// for another year's. The strip is anchored on a fixed base year, so the
+/// scroll position keeps its meaning while the user browses.
+class _MonthPicker extends StatefulWidget {
+  final DateTime focused;
+  final ValueChanged<DateTime> onPick;
 
-  const _NavButton({required this.icon, required this.onTap});
+  const _MonthPicker({required this.focused, required this.onPick});
+
+  @override
+  State<_MonthPicker> createState() => _MonthPickerState();
+}
+
+class _MonthPickerState extends State<_MonthPicker> {
+  /// Years before and after the year the picker was opened in.
+  static const _yearRange = 1;
+  static const _pillWidth = 72.0;
+  static const _pillGap = AppShapes.groupGap;
+  static const _extent = _pillWidth + _pillGap * 2;
+
+  /// Fixed base so a scroll offset means the same month the whole time.
+  late final int _baseYear = widget.focused.year - _yearRange;
+
+  late final ScrollController _controller = ScrollController(
+    initialScrollOffset: _offsetFor(widget.focused),
+  );
+
+  int _indexOf(DateTime month) =>
+      (month.year - _baseYear) * 12 + (month.month - 1);
+
+  /// Scroll offset that puts [month] roughly in the middle of the strip.
+  double _offsetFor(DateTime month) {
+    final centred = _indexOf(month) * _extent - _extent * 1.5;
+    return centred < 0 ? 0 : centred;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Padding(
-        padding: const EdgeInsets.all(6),
-        child: Icon(icon, size: 26, color: AppColors.textPrimary),
+    final focusedIndex = _indexOf(widget.focused);
+    final count = (_yearRange * 2 + 1) * 12;
+
+    return SizedBox(
+      height: 64,
+      child: ListView.builder(
+        controller: _controller,
+        scrollDirection: Axis.horizontal,
+        itemExtent: _extent,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppShapes.listInset - _pillGap,
+          vertical: 4,
+        ),
+        itemCount: count,
+        itemBuilder: (context, i) {
+          final month = DateTime(_baseYear, i + 1, 1);
+          final selected = i == focusedIndex;
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: _pillGap),
+            child: GestureDetector(
+              onTap: () => widget.onPick(month),
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedContainer(
+                duration: CalendarStyle.motion,
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.primary : AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppShapes.groupOuter),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      DateFormat('MMM', 'en_US').format(month),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: selected
+                            ? AppColors.onPrimary
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      DateFormat('yyyy', 'en_US').format(month),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.4,
+                        color: selected
+                            ? AppColors.onPrimary.withValues(alpha: 0.7)
+                            : AppColors.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -379,13 +533,15 @@ class _TodayButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton(
+    // Filled tonal pill instead of an outlined box — same language as the
+    // rest of the app, which has no hairline frames around controls.
+    return TextButton(
       onPressed: onTap,
-      style: OutlinedButton.styleFrom(
+      style: TextButton.styleFrom(
         foregroundColor: AppColors.textPrimary,
-        side: BorderSide(color: AppColors.divider),
+        backgroundColor: AppColors.surface,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: const StadiumBorder(),
         visualDensity: VisualDensity.compact,
       ),
       child: const Text('Today', style: TextStyle(fontWeight: FontWeight.w600)),

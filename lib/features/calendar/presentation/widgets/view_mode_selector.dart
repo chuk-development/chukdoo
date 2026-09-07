@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/connected_group.dart';
 import '../../providers/calendar_event_provider.dart';
 
-/// Google-Calendar-style view switcher: a compact rounded pill row.
+/// Day / Week / Month / Agenda as one connected group — the app's segmented
+/// control, slim, with the same corner grading as every other group.
 class ViewModeSelector extends StatelessWidget {
   final CalendarViewMode currentMode;
   final ValueChanged<CalendarViewMode> onChanged;
@@ -15,47 +17,24 @@ class ViewModeSelector extends StatelessWidget {
   });
 
   static const _modes = [
-    (CalendarViewMode.day, 'Tag'),
-    (CalendarViewMode.week, 'Woche'),
-    (CalendarViewMode.month, 'Monat'),
-    (CalendarViewMode.agenda, 'Agenda'),
+    CalendarViewMode.day,
+    CalendarViewMode.week,
+    CalendarViewMode.month,
+    CalendarViewMode.agenda,
   ];
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: _modes.map((m) {
-          final selected = m.$1 == currentMode;
-          return GestureDetector(
-            onTap: () => onChanged(m.$1),
-            behavior: HitTestBehavior.opaque,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              curve: Curves.easeOut,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              decoration: BoxDecoration(
-                color: selected ? AppColors.primary : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                m.$2,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                  color: selected ? AppColors.onPrimary : AppColors.textSecondary,
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
+    return ConnectedButtonGroup(
+      height: 38,
+      selectedIndex: _modes.indexOf(currentMode),
+      onSelected: (index) => onChanged(_modes[index]),
+      items: [
+        ConnectedItem(label: 'Day', icon: MdiIcons.calendarToday),
+        ConnectedItem(label: 'Week', icon: MdiIcons.calendarWeek),
+        ConnectedItem(label: 'Month', icon: MdiIcons.calendarMonth),
+        ConnectedItem(label: 'Agenda', icon: MdiIcons.formatListBulleted),
+      ],
     );
   }
 }

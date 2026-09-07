@@ -7,6 +7,8 @@ import '../../domain/models/note.dart';
 import '../../providers/note_provider.dart';
 import '../widgets/note_card.dart';
 import 'note_editor_page.dart';
+import '../../../../shared/widgets/lifted_fab.dart';
+import '../../../todos/presentation/widgets/quick_add_fab.dart';
 
 /// The Notes grid — a 2-column masonry of note cards with long-press drag
 /// reordering. Cards keep their intrinsic height, so the two columns stagger.
@@ -78,15 +80,9 @@ class _NotesPageState extends ConsumerState<NotesPage> {
           : notes.isEmpty
               ? _buildEmpty()
               : _buildGrid(notes),
-      floatingActionButton: _searching
+      floatingActionButton: LiftedFab(child: _searching
           ? null
-          : FloatingActionButton(
-              onPressed: _createNote,
-              backgroundColor: AppColors.primary,
-              elevation: 3,
-              shape: const CircleBorder(),
-              child: Icon(Icons.add, color: AppColors.onPrimary, size: 30),
-            ),
+          : QuickAddFab(onPressed: _createNote)),
     );
   }
 

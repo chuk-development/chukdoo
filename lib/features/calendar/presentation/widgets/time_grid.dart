@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_shapes.dart';
 import '../../domain/models/calendar_item.dart';
 import '../../domain/models/event_layout.dart';
+import 'calendar_style.dart';
 import 'event_block.dart';
 
 /// Shared hourly time grid used by DayView and WeekView. Google-Calendar style.
@@ -42,6 +44,11 @@ class TimeGrid extends StatefulWidget {
   @override
   State<TimeGrid> createState() => _TimeGridState();
 }
+
+/// Big radius only on the four corners of the whole grid.
+Radius _corner(bool isGridCorner) => Radius.circular(
+  isGridCorner ? AppShapes.groupOuter : AppShapes.groupInner,
+);
 
 class _TimeGridState extends State<TimeGrid> {
   late ScrollController _scrollController;
@@ -92,7 +99,10 @@ class _TimeGridState extends State<TimeGrid> {
               height: totalHeight,
               child: Stack(
                 children: [
-                  // Hour lines + labels
+                  // The grid is built from rounded tiles — one per day and
+                  // hour — with a small gap, the way Google Calendar draws it.
+                  // Only the four corners of the whole grid are strongly
+                  // rounded, everything inside stays slightly rounded.
                   ...List.generate(hours, (i) {
                     final hour = widget.startHour + i;
                     return Positioned(
@@ -105,33 +115,54 @@ class _TimeGridState extends State<TimeGrid> {
                           SizedBox(
                             width: widget.timeColumnWidth,
                             child: Transform.translate(
-                              offset: const Offset(0, -6),
+                              offset: const Offset(0, -7),
                               child: Padding(
-                                padding: const EdgeInsets.only(right: 8),
+                                padding: const EdgeInsets.only(left: 6, right: 8),
                                 child: Text(
-                                  i == 0 ? '' : '${hour.toString().padLeft(2, '0')}:00',
+                                  i == 0
+                                      ? ''
+                                      : '${hour.toString().padLeft(2, '0')}:00',
                                   style: TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textTertiary,
-                                  ),
-                                  textAlign: TextAlign.right,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Container(
-                              height: widget.hourHeight,
-                              decoration: BoxDecoration(
-                                border: Border(
-                                  top: BorderSide(
-                                    color: AppColors.divider.withValues(alpha: 0.6),
-                                    width: 1,
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
                                   ),
                                 ),
                               ),
                             ),
                           ),
+                          for (var col = 0; col < widget.columnCount; col++)
+                            Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                  right: col == widget.columnCount - 1
+                                      ? 0
+                                      : AppShapes.groupGap,
+                                ),
+                                child: Container(
+                                  height:
+                                      widget.hourHeight - AppShapes.groupGap,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surface,
+                                    borderRadius: BorderRadius.only(
+                                      topLeft: _corner(
+                                        i == 0 && col == 0,
+                                      ),
+                                      topRight: _corner(
+                                        i == 0 &&
+                                            col == widget.columnCount - 1,
+                                      ),
+                                      bottomLeft: _corner(
+                                        i == hours - 1 && col == 0,
+                                      ),
+                                      bottomRight: _corner(
+                                        i == hours - 1 &&
+                                            col == widget.columnCount - 1,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     );
@@ -231,17 +262,14 @@ class _TimeGridState extends State<TimeGrid> {
             ));
           },
           child: Container(
-            decoration: BoxDecoration(
-              color: isToday ? AppColors.blue.withValues(alpha: 0.05) : Colors.transparent,
-              border: Border(
-                left: BorderSide(color: AppColors.divider.withValues(alpha: 0.6), width: 1),
-              ),
-            ),
+            color: Colors.transparent,
             child: Stack(
               children: [
                 if (candidateData.isNotEmpty)
                   Positioned.fill(
-                    child: Container(color: AppColors.blue.withValues(alpha: 0.1)),
+                    child: Container(
+                      color: CalendarStyle.accent.withValues(alpha: 0.10),
+                    ),
                   ),
 
                 ...layoutInfos.map((info) {
@@ -293,12 +321,12 @@ class _TimeGridState extends State<TimeGrid> {
                   width: 10,
                   height: 10,
                   decoration: const BoxDecoration(
-                    color: Color(0xFFEA4335),
+                    color: AppColors.error,
                     shape: BoxShape.circle,
                   ),
                 ),
                 Expanded(
-                  child: Container(height: 2, color: const Color(0xFFEA4335)),
+                  child: Container(height: 2, color: AppColors.error),
                 ),
               ],
             ),
@@ -316,11 +344,8 @@ class _TimeGridState extends State<TimeGrid> {
     final hasAny = allDayItems.any((list) => list.isNotEmpty);
     if (!hasAny) return const SizedBox.shrink();
 
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.divider, width: 1)),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 4),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 2, 4, 6),
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -343,25 +368,28 @@ class _TimeGridState extends State<TimeGrid> {
                   padding: const EdgeInsets.symmetric(horizontal: 1),
                   child: Column(
                     children: items.take(3).map((item) {
-                      final color = item.color != 0 ? Color(item.color) : AppColors.blue;
+                      final color = CalendarStyle.colorOf(item.color);
                       return GestureDetector(
                         onTap: () => widget.onItemTap?.call(item),
                         child: Container(
                           width: double.infinity,
-                          margin: const EdgeInsets.symmetric(vertical: 1),
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                          margin: const EdgeInsets.symmetric(vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
                           decoration: BoxDecoration(
                             color: color,
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: BorderRadius.circular(
+                              AppShapes.dockChip,
+                            ),
                           ),
                           child: Text(
                             item.title,
                             style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              color: color.computeLuminance() > 0.6
-                                  ? const Color(0xFF1A1A22)
-                                  : Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: CalendarStyle.onEventColor(color),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,

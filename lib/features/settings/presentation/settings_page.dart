@@ -8,6 +8,7 @@ import '../../../core/config/env_config.dart';
 import '../../../core/utils/native_io.dart' as native_io;
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/rounded_group.dart';
 import '../../../shared/services/encryption_service.dart';
 import '../../../shared/services/supabase_service.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -22,6 +23,7 @@ import '../providers/settings_provider.dart';
 import '../services/export_service.dart';
 import '../../integrations/sunrise_export_service.dart';
 import 'import_preview_page.dart';
+import 'licenses_page.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -35,147 +37,145 @@ class SettingsPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
+        padding: const EdgeInsets.only(bottom: 96),
         children: [
           // Account section
           _buildSectionHeader('Account'),
-          if (isInLocalMode) ...[
-            // User is in local mode - show connect option
-            _buildInfoTile(
-              icon: MdiIcons.cellphone,
-              label: 'Mode',
-              value: 'Local only',
-            ),
-            ListTile(
-              leading: Icon(
-                MdiIcons.cloudUploadOutline,
-                color: AppColors.primary,
-              ),
-              title: const Text('Connect to cloud'),
-              subtitle: const Text('Sign in to sync your data across devices'),
-              trailing: Icon(
-                MdiIcons.chevronRight,
-                color: AppColors.textSecondary,
-              ),
-              onTap: () => _connectToCloud(context, ref),
-            ),
-          ] else if (!isLocalOnlyMode && authState.user != null) ...[
-            _buildInfoTile(
-              icon: MdiIcons.emailOutline,
-              label: 'Email',
-              value: authState.user!.email ?? 'No email',
-            ),
-          ] else if (isLocalOnlyMode) ...[
-            _buildInfoTile(
-              icon: MdiIcons.cellphone,
-              label: 'Mode',
-              value: 'Local only (offline)',
-            ),
-          ],
-
-          const Divider(height: 32),
+          RoundedGroup(
+            children: [
+              if (isInLocalMode) ...[
+                _buildInfoTile(
+                  icon: MdiIcons.cellphone,
+                  label: 'Mode',
+                  value: 'Local only',
+                ),
+                ListTile(
+                  leading: Icon(
+                    MdiIcons.cloudUploadOutline,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text('Connect to cloud'),
+                  subtitle: const Text('Sign in to sync your data across devices'),
+                  trailing: Icon(
+                    MdiIcons.chevronRight,
+                    color: AppColors.textSecondary,
+                  ),
+                  onTap: () => _connectToCloud(context, ref),
+                ),
+              ] else if (!isLocalOnlyMode && authState.user != null)
+                _buildInfoTile(
+                  icon: MdiIcons.emailOutline,
+                  label: 'Email',
+                  value: authState.user!.email ?? 'No email',
+                )
+              else if (isLocalOnlyMode)
+                _buildInfoTile(
+                  icon: MdiIcons.cellphone,
+                  label: 'Mode',
+                  value: 'Local only (offline)',
+                ),
+            ],
+          ),
 
           // Support section — the app is free, donations are optional.
           if (ref.watch(canDonateProvider)) ...[
             _buildSectionHeader('Support'),
-            _buildDonationTile(context, ref),
-
-            const Divider(height: 32),
+            RoundedGroup(children: [_buildDonationTile(context, ref)]),
           ],
 
           // Sync section
           if (!isLocalOnlyMode) ...[
             _buildSectionHeader('Sync'),
-            _buildSyncTile(context, ref),
-
-            const Divider(height: 32),
+            RoundedGroup(children: _buildSyncTiles(context, ref)),
 
             // Security section (only for cloud users)
             if (!isInLocalMode) ...[
               _buildSectionHeader('Security'),
-              _buildBackupCodesTile(context, ref),
-              const Divider(height: 32),
+              RoundedGroup(children: [_buildBackupCodesTile(context, ref)]),
             ],
           ],
 
           // Appearance section
           _buildSectionHeader('Appearance'),
-          _buildMaterialYouTile(ref),
-
-          const Divider(height: 32),
+          RoundedGroup(children: [_buildMaterialYouTile(ref)]),
 
           // Behavior section
           _buildSectionHeader('Behavior'),
-          _buildCheckboxSizeTile(ref),
-
-          const Divider(height: 32),
+          RoundedGroup(children: [_buildCheckboxSizeTile(ref)]),
 
           // Integrations section
           _buildSectionHeader('Integrations'),
-          const _SunriseToggleTile(),
-
-          const Divider(height: 32),
+          const RoundedGroup(children: [_SunriseToggleTile()]),
 
           // Data section - Export/Import
           _buildSectionHeader('Data'),
-          ListTile(
-            leading: Icon(MdiIcons.export, color: AppColors.textPrimary),
-            title: const Text('Export data'),
-            subtitle: const Text('Save all tasks and projects as JSON'),
-            trailing: Icon(
-              MdiIcons.chevronRight,
-              color: AppColors.textSecondary,
-            ),
-            onTap: () => _exportData(context),
+          RoundedGroup(
+            children: [
+              ListTile(
+                leading: Icon(MdiIcons.export, color: AppColors.textPrimary),
+                title: const Text('Export data'),
+                subtitle: const Text('Save all tasks and projects as JSON'),
+                trailing: Icon(
+                  MdiIcons.chevronRight,
+                  color: AppColors.textSecondary,
+                ),
+                onTap: () => _exportData(context),
+              ),
+              ListTile(
+                leading: Icon(MdiIcons.import, color: AppColors.textPrimary),
+                title: const Text('Import data'),
+                subtitle: const Text('Import data from a JSON file'),
+                trailing: Icon(
+                  MdiIcons.chevronRight,
+                  color: AppColors.textSecondary,
+                ),
+                onTap: () => _importData(context),
+              ),
+            ],
           ),
-          ListTile(
-            leading: Icon(MdiIcons.import, color: AppColors.textPrimary),
-            title: const Text('Import data'),
-            subtitle: const Text('Import data from a JSON file'),
-            trailing: Icon(
-              MdiIcons.chevronRight,
-              color: AppColors.textSecondary,
-            ),
-            onTap: () => _importData(context),
-          ),
-
-          const Divider(height: 32),
 
           // About section
           _buildSectionHeader('About'),
-          _buildInfoTile(
-            icon: MdiIcons.informationOutline,
-            label: 'Version',
-            value: AppConstants.appVersion,
+          RoundedGroup(
+            children: [
+              _buildInfoTile(
+                icon: MdiIcons.informationOutline,
+                label: 'Version',
+                value: AppConstants.appVersion,
+              ),
+              ListTile(
+                leading: Icon(
+                  MdiIcons.fileDocumentOutline,
+                  color: AppColors.textPrimary,
+                ),
+                title: const Text('Licenses'),
+                trailing: Icon(
+                  MdiIcons.chevronRight,
+                  color: AppColors.textSecondary,
+                ),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LicensesPage()),
+                ),
+              ),
+            ],
           ),
-          ListTile(
-            leading: Icon(
-              MdiIcons.fileDocumentOutline,
-              color: AppColors.textPrimary,
-            ),
-            title: const Text('Licenses'),
-            trailing: Icon(
-              MdiIcons.chevronRight,
-              color: AppColors.textSecondary,
-            ),
-            onTap: () {
-              showLicensePage(
-                context: context,
-                applicationName: AppConstants.appName,
-                applicationVersion: AppConstants.appVersion,
-              );
-            },
-          ),
-
-          const Divider(height: 32),
 
           // Sign out (show for authenticated cloud users)
           if (!isLocalOnlyMode && !isInLocalMode) ...[
-            ListTile(
-              leading: Icon(MdiIcons.logout, color: AppColors.error),
-              title: Text('Sign out', style: TextStyle(color: AppColors.error)),
-              onTap: () => _signOut(context, ref),
+            const SizedBox(height: 8),
+            RoundedGroup(
+              children: [
+                ListTile(
+                  leading: Icon(MdiIcons.logout, color: AppColors.error),
+                  title: Text(
+                    'Sign out',
+                    style: TextStyle(color: AppColors.error),
+                  ),
+                  onTap: () => _signOut(context, ref),
+                ),
+              ],
             ),
-            const SizedBox(height: 32),
           ],
         ],
       ),
@@ -225,31 +225,51 @@ class SettingsPage extends ConsumerWidget {
       onChanged: (value) {
         ref.read(settingsProvider.notifier).setMaterialYou(value);
       },
-      activeThumbColor: AppColors.primary,
     );
   }
 
   Widget _buildCheckboxSizeTile(WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
-    final isLarge = settings.checkboxSize == CheckboxSize.large;
+    final size = settings.checkboxSize;
 
-    return SwitchListTile(
-      secondary: Icon(
-        MdiIcons.checkCircleOutline,
-        color: AppColors.textPrimary,
+    // A three-step slider instead of a yes/no switch: small fits more tasks on
+    // screen, large gives a bigger tap target, medium is the default look.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                MdiIcons.checkCircleOutline,
+                color: AppColors.textPrimary,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'Task row size',
+                  style: TextStyle(fontSize: 16, color: AppColors.textPrimary),
+                ),
+              ),
+              Text(
+                size.label,
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+          Slider(
+            value: size.index.toDouble(),
+            min: 0,
+            max: 2,
+            divisions: 2,
+            label: size.label,
+            onChanged: (value) => ref
+                .read(settingsProvider.notifier)
+                .setCheckboxSize(CheckboxSize.values[value.round()]),
+          ),
+        ],
       ),
-      title: const Text('Large checkbox'),
-      subtitle: Text(
-        isLarge ? 'Bigger circle for easier tapping' : 'Normal circle',
-        style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-      ),
-      value: isLarge,
-      onChanged: (value) {
-        ref
-            .read(settingsProvider.notifier)
-            .setCheckboxSize(value ? CheckboxSize.large : CheckboxSize.normal);
-      },
-      activeThumbColor: AppColors.primary,
     );
   }
 
@@ -273,28 +293,33 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildSyncTile(BuildContext context, WidgetRef ref) {
-    return Column(
-      children: [
-        ListTile(
-          leading: Icon(MdiIcons.cloudCheckOutline, color: AppColors.success),
-          title: const Text('Cloud sync'),
-          subtitle: const Text('Enabled'),
-          trailing: const SyncStatusIndicator(),
+  List<Widget> _buildSyncTiles(BuildContext context, WidgetRef ref) {
+    // Read the same session the sync layer uses, so the two can never tell the
+    // user different stories.
+    final hasSession = SupabaseService.isAuthenticated;
+
+    return [
+      ListTile(
+        leading: Icon(
+          hasSession ? MdiIcons.cloudCheckOutline : MdiIcons.cloudClockOutline,
+          color: hasSession ? AppColors.success : AppColors.textSecondary,
         ),
-        ListTile(
-          leading: Icon(MdiIcons.refresh, color: AppColors.textPrimary),
-          title: const Text('Sync now'),
-          subtitle: Text(
-            SyncService.lastSyncTime != null
-                ? 'Last: ${_formatDateTime(SyncService.lastSyncTime!)}'
-                : 'Never synced',
-          ),
-          trailing: Icon(MdiIcons.chevronRight, color: AppColors.textSecondary),
-          onTap: () => _manualSync(context, ref),
+        title: const Text('Cloud sync'),
+        subtitle: Text(hasSession ? 'Enabled' : 'Waiting for session'),
+        trailing: const SyncStatusIndicator(),
+      ),
+      ListTile(
+        leading: Icon(MdiIcons.refresh, color: AppColors.textPrimary),
+        title: const Text('Sync now'),
+        subtitle: Text(
+          SyncService.lastSyncTime != null
+              ? 'Last: ${_formatDateTime(SyncService.lastSyncTime!)}'
+              : 'Never synced',
         ),
-      ],
-    );
+        trailing: Icon(MdiIcons.chevronRight, color: AppColors.textSecondary),
+        onTap: () => _manualSync(context, ref),
+      ),
+    ];
   }
 
   Widget _buildBackupCodesTile(BuildContext context, WidgetRef ref) {
@@ -566,6 +591,13 @@ class SettingsPage extends ConsumerWidget {
           SnackBar(
             content: Text('Sync error: ${SyncService.lastError}'),
             backgroundColor: AppColors.error,
+          ),
+        );
+      } else if (status == SyncStatus.offline) {
+        // No usable session or no network - say so instead of claiming success.
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Offline - changes stay queued and sync later'),
           ),
         );
       } else {
@@ -900,8 +932,12 @@ class _SunriseToggleTile extends StatefulWidget {
 }
 
 class _SunriseToggleTileState extends State<_SunriseToggleTile> {
-  bool _enabled = false;
-  bool _loading = true;
+  /// Remembered across rebuilds so re-opening settings does not show the
+  /// switch as off for a frame and then flip it on.
+  static bool? _lastKnown;
+
+  late bool _enabled = _lastKnown ?? false;
+  late bool _loading = _lastKnown == null;
 
   @override
   void initState() {
@@ -911,6 +947,7 @@ class _SunriseToggleTileState extends State<_SunriseToggleTile> {
 
   Future<void> _load() async {
     final v = await SunriseExportService.isEnabled();
+    _lastKnown = v;
     if (mounted) {
       setState(() {
         _enabled = v;
@@ -921,6 +958,7 @@ class _SunriseToggleTileState extends State<_SunriseToggleTile> {
 
   Future<void> _toggle(bool v) async {
     setState(() => _enabled = v);
+    _lastKnown = v;
     await SunriseExportService.setEnabled(v);
   }
 
@@ -932,7 +970,7 @@ class _SunriseToggleTileState extends State<_SunriseToggleTile> {
       subtitle: const Text(
         'Show today\'s tasks in the Sunrise app (this device only, unencrypted).',
       ),
-      value: _loading ? false : _enabled,
+      value: _enabled,
       onChanged: _loading ? null : _toggle,
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
@@ -5,6 +7,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../notifications/reminder_scheduler.dart';
+import '../../../sync/services/sync_service.dart';
 import '../../../../core/utils/native_io.dart' as native_io;
 import 'calendar_event.dart';
 
@@ -12,6 +16,13 @@ const _uuid = Uuid();
 
 class IcsService {
   const IcsService._();
+
+  /// Decode the bytes of a picked .ics file.
+  ///
+  /// RFC 5545 requires UTF-8, so decode it as such — reading the bytes as
+  /// code units turned every umlaut into two broken characters.
+  static String decodeBytes(Uint8List bytes) =>
+      utf8.decode(bytes, allowMalformed: true);
 
   /// Export all calendar events as .ics file
   static Future<IcsExportResult> exportIcs() async {
@@ -54,13 +65,25 @@ class IcsService {
 
       for (final event in events) {
         final existing = box.get(event.id);
+        await box.put(event.id, event.toJson());
         if (existing != null) {
-          await box.put(event.id, event.toJson());
           updated++;
         } else {
-          await box.put(event.id, event.toJson());
           added++;
         }
+
+        // Imported events belong to the account like any other event, so they
+        // go through the sync queue instead of staying on this device.
+        await SyncService.queueOperation(
+          entityType: SyncEntityType.calendarEvent,
+          operation: existing != null
+              ? SyncOperation.update
+              : SyncOperation.create,
+          entityId: event.id,
+          data: event.toJson(),
+        );
+
+        await ReminderScheduler.instance.scheduleForEvent(event);
       }
 
       return IcsImportResult(success: true, added: added, updated: updated);
@@ -160,6 +183,11 @@ class IcsService {
   }
 
   // ---- ICS Parsing ----
+
+  /// Parse an ICS document into events. Used by the file import and by the
+  /// subscribed feeds.
+  static List<CalendarEvent> parseEvents(String ics, String userId) =>
+      _parseIcsString(ics, userId);
 
   static List<CalendarEvent> _parseIcsString(String ics, String userId) {
     final events = <CalendarEvent>[];
@@ -267,24 +295,27 @@ class IcsService {
     final created = _parseIcsDateTime(props['CREATED'] ?? '') ?? now;
     final lastModified = _parseIcsDateTime(props['LAST-MODIFIED'] ?? '') ?? now;
 
-    // Recurrence exception
+    // Recurrence exception. RFC 5545 gives an exception the same UID as its
+    // series, so it needs its own local id — otherwise importing a series
+    // with exceptions overwrites the series itself.
     String? recurrenceId;
     String? originalStartTime;
-    if (props.containsKey('RECURRENCE-ID') || props.keys.any((k) => k.startsWith('RECURRENCE-ID'))) {
-      final recIdKey = props.keys.firstWhere(
-        (k) => k.startsWith('RECURRENCE-ID'),
-        orElse: () => '',
-      );
-      if (recIdKey.isNotEmpty) {
-        final origDt = _parseIcsDateTime(props[recIdKey] ?? '');
-        if (origDt != null) {
-          originalStartTime = origDt.toIso8601String();
-        }
+    var localId = uid;
+    final recIdKey = props.keys.firstWhere(
+      (k) => k.startsWith('RECURRENCE-ID'),
+      orElse: () => '',
+    );
+    if (recIdKey.isNotEmpty) {
+      final origDt = _parseIcsDateTime(props[recIdKey] ?? '');
+      if (origDt != null) {
+        originalStartTime = origDt.toIso8601String();
+        recurrenceId = uid;
+        localId = '$uid#${_formatIcsDateTime(origDt)}';
       }
     }
 
     return CalendarEvent(
-      id: uid,
+      id: localId,
       userId: userId,
       title: summary,
       description: description.isNotEmpty ? description : null,

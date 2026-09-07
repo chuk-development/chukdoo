@@ -49,9 +49,27 @@ class AppColors {
     primaryLight = s.primaryContainer;
     primaryDark = s.primary;
     onPrimary = s.onPrimary;
-    background = s.surface;
+
+    // The whole UI is built from filled blocks on a darker ground, so the
+    // dynamic palette must keep a visible step between the two. Wallpaper
+    // schemes sometimes put surface and surfaceContainerHigh almost on top of
+    // each other, which made every card disappear.
+    background = s.surfaceContainerLowest;
     surface = s.surfaceContainerHigh;
     surfaceLight = s.surfaceContainerHighest;
+
+    const minStep = 0.035;
+    if ((surface.computeLuminance() - background.computeLuminance()).abs() <
+        minStep) {
+      surface = Color.alphaBlend(
+        Colors.white.withValues(alpha: 0.08),
+        background,
+      );
+      surfaceLight = Color.alphaBlend(
+        Colors.white.withValues(alpha: 0.14),
+        background,
+      );
+    }
     textPrimary = s.onSurface;
     textSecondary = s.onSurfaceVariant;
     textTertiary = s.outline;

@@ -12,6 +12,7 @@ import '../../../todos/presentation/widgets/quick_add_fab.dart';
 import '../../domain/models/project.dart';
 import '../../providers/project_provider.dart';
 import '../widgets/project_edit_dialog.dart';
+import '../../../../shared/widgets/lifted_fab.dart';
 
 enum _SortMode { manual, priority, dueDate, name }
 
@@ -111,7 +112,7 @@ class _ProjectPageState extends ConsumerState<ProjectPage> {
         .toList();
 
     final sortedTodos = _sortTodos(projectTodos);
-    final largeCheckbox = settings.checkboxSize == CheckboxSize.large;
+    final size = settings.checkboxSize;
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -162,11 +163,11 @@ class _ProjectPageState extends ConsumerState<ProjectPage> {
           : TodoSectionedList(
               active: sortedTodos,
               completed: completedTodos,
-              large: largeCheckbox,
+              size: size,
             ),
-      floatingActionButton: QuickAddFab(
+      floatingActionButton: LiftedFab(child: QuickAddFab(
         onPressed: () => _showAddTodoSheet(context),
-      ),
+      )),
     );
   }
 

@@ -11,6 +11,9 @@ class CalendarEventSyncRepository {
   /// Upload a calendar event to Supabase (encrypted)
   static Future<void> uploadEvent(CalendarEvent event) async {
     if (!SupabaseService.isAvailable) return;
+    // Events from a subscribed ICS feed live only on this device — they are
+    // re-fetched from their URL and must never be pushed to the account.
+    if (event.userId.startsWith('feed:')) return;
 
     try {
       final sensitiveData = event.toEncryptedPayload();

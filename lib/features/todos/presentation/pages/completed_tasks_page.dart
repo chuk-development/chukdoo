@@ -54,7 +54,7 @@ class CompletedTasksPage extends ConsumerWidget {
           ? _buildEmptyState()
           : SlidableAutoCloseBehavior(
               child: ListView(
-                padding: const EdgeInsets.only(bottom: 32),
+                padding: const EdgeInsets.only(bottom: 96),
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -68,7 +68,7 @@ class CompletedTasksPage extends ConsumerWidget {
                     ),
                   ),
                   for (var i = 0; i < completedTodos.length; i++)
-                    _buildTodoItem(context, ref, completedTodos[i], settings.checkboxSize == CheckboxSize.large,
+                    _buildTodoItem(context, ref, completedTodos[i], settings.checkboxSize,
                         isFirst: i == 0, isLast: i == completedTodos.length - 1),
                 ],
               ),
@@ -105,12 +105,12 @@ class CompletedTasksPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox,
+  Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, CheckboxSize size,
       {bool isFirst = true, bool isLast = true}) {
     return TodoSwipeTile(
       key: ValueKey(todo.id),
       todo: todo,
-      largeCheckbox: largeCheckbox,
+      size: size,
       isCompleted: true,
       isFirst: isFirst,
       isLast: isLast,

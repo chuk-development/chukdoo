@@ -4,7 +4,9 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../settings/providers/settings_provider.dart';
 import '../../../../core/theme/app_shapes.dart';
+import '../../../../shared/widgets/picker_sheet.dart';
 import '../../../projects/providers/project_provider.dart';
 import '../../domain/models/todo.dart';
 import '../../providers/todo_provider.dart';
@@ -29,7 +31,7 @@ Route<T> instantRoute<T>(Widget page) {
 class TodoSwipeTile extends ConsumerWidget {
   final Todo todo;
   final bool isCompleted;
-  final bool largeCheckbox;
+  final CheckboxSize size;
   final String? projectName;
 
   /// Position inside the surrounding list group. The first and last row get
@@ -40,7 +42,7 @@ class TodoSwipeTile extends ConsumerWidget {
   const TodoSwipeTile({
     super.key,
     required this.todo,
-    required this.largeCheckbox,
+    required this.size,
     this.isCompleted = false,
     this.projectName,
     this.isFirst = true,
@@ -70,11 +72,11 @@ class TodoSwipeTile extends ConsumerWidget {
             extentRatio: 0.28,
             dismissible: DismissiblePane(
               dismissThreshold: 0.5,
-              onDismissed: () => notifier.toggleComplete(todo.id),
+              onDismissed: () => _completeWithUndo(context, ref),
             ),
             children: [
               SlidableAction(
-                onPressed: (_) => notifier.toggleComplete(todo.id),
+                onPressed: (ctx) => _completeWithUndo(ctx, ref),
                 backgroundColor: AppColors.green,
                 foregroundColor: Colors.white,
                 icon: isCompleted ? MdiIcons.refresh : MdiIcons.checkCircle,
@@ -164,7 +166,7 @@ class TodoSwipeTile extends ConsumerWidget {
       projectName: projectName,
       isPinned: todo.isPinned,
       isCompleted: isCompleted,
-      largeCheckbox: largeCheckbox,
+      size: size,
       onTap: () {
         // Desktop → fill the right detail panel; mobile → full-screen push.
         if (MediaQuery.of(context).size.width >= 768) {
@@ -173,7 +175,7 @@ class TodoSwipeTile extends ConsumerWidget {
           Navigator.push(context, instantRoute(TodoDetailPage(todo: todo)));
         }
       },
-      onComplete: () => notifier.toggleComplete(todo.id),
+      onComplete: () => _completeWithUndo(context, ref),
     );
   }
 
@@ -191,95 +193,67 @@ class TodoSwipeTile extends ConsumerWidget {
       return d;
     }
 
-    await showDialog<void>(
+    // The quick dates use the same sheet as every other picker; "Pick a date"
+    // hands over to the shared calendar sheet.
+    final picked = await showPickerSheet<String>(
       context: context,
-      barrierColor: Colors.black54,
-      builder: (ctx) {
-        final cells = <Widget>[
-          _DateCell(
-            icon: MdiIcons.calendar,
-            label: 'Today',
-            color: AppColors.blue,
-            onTap: () {
-              notifier.setDueDate(todo.id, today);
-              Navigator.pop(ctx);
-            },
-          ),
-          _DateCell(
-            icon: MdiIcons.weatherSunsetUp,
-            label: 'Tomorrow',
-            color: AppColors.blue,
-            onTap: () {
-              notifier.setDueDate(todo.id, today.add(const Duration(days: 1)));
-              Navigator.pop(ctx);
-            },
-          ),
-          _DateCell(
-            icon: MdiIcons.calendarCheck,
-            label: 'In 2 days',
-            color: AppColors.blue,
-            onTap: () {
-              notifier.setDueDate(todo.id, today.add(const Duration(days: 2)));
-              Navigator.pop(ctx);
-            },
-          ),
-          _DateCell(
-            icon: MdiIcons.calendarCheck,
-            label: 'Next\nMonday',
-            color: AppColors.blue,
-            onTap: () {
-              notifier.setDueDate(todo.id, nextMonday());
-              Navigator.pop(ctx);
-            },
-          ),
-          _DateCell(
-            icon: MdiIcons.calendarBlankOutline,
-            label: 'Pick\ndate',
-            color: AppColors.blue,
-            onTap: () async {
-              Navigator.pop(ctx);
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: todo.dueDate ?? today,
-                firstDate: today.subtract(const Duration(days: 365)),
-                lastDate: today.add(const Duration(days: 365 * 5)),
-              );
-              if (picked != null) notifier.setDueDate(todo.id, picked);
-            },
-          ),
-          _DateCell(
-            icon: MdiIcons.closeBoxOutline,
-            label: 'Clear',
-            color: AppColors.textSecondary,
-            onTap: () {
-              notifier.setDueDate(todo.id, null);
-              Navigator.pop(ctx);
-            },
-          ),
-        ];
-
-        return Dialog(
-          backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 4,
-                  runSpacing: 16,
-                  children: cells,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      title: 'Due date',
+      options: [
+        PickerOption(
+          value: 'today',
+          label: 'Today',
+          icon: MdiIcons.calendar,
+        ),
+        PickerOption(
+          value: 'tomorrow',
+          label: 'Tomorrow',
+          icon: MdiIcons.weatherSunsetUp,
+        ),
+        PickerOption(
+          value: 'in2',
+          label: 'In 2 days',
+          icon: MdiIcons.calendarCheck,
+        ),
+        PickerOption(
+          value: 'monday',
+          label: 'Next Monday',
+          icon: MdiIcons.calendarCheck,
+        ),
+        PickerOption(
+          value: 'pick',
+          label: 'Pick a date…',
+          icon: MdiIcons.calendarBlankOutline,
+        ),
+        PickerOption(
+          value: 'clear',
+          label: 'No date',
+          icon: MdiIcons.closeBoxOutline,
+        ),
+      ],
     );
+
+    if (picked == null || !context.mounted) return;
+
+    switch (picked) {
+      case 'today':
+        notifier.setDueDate(todo.id, today);
+      case 'tomorrow':
+        notifier.setDueDate(todo.id, today.add(const Duration(days: 1)));
+      case 'in2':
+        notifier.setDueDate(todo.id, today.add(const Duration(days: 2)));
+      case 'monday':
+        notifier.setDueDate(todo.id, nextMonday());
+      case 'clear':
+        notifier.setDueDate(todo.id, null);
+      case 'pick':
+        final choice = await showDateTimeSheet(
+          context: context,
+          title: 'Due date',
+          date: todo.dueDate ?? today,
+          allowTime: false,
+        );
+        if (choice != null) notifier.setDueDate(todo.id, choice.date);
+    }
   }
 
   // ── Move-to-project sheet ──
@@ -287,66 +261,60 @@ class TodoSwipeTile extends ConsumerWidget {
     final notifier = ref.read(todoProvider.notifier);
     final projects = ref.read(projectProvider).sortedProjects;
 
-    await showModalBottomSheet(
+    // Same picker surface as everywhere else in the app.
+    final picked = await showPickerSheet<String>(
       context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppShapes.sheetTop),
+      title: 'Move to',
+      options: [
+        PickerOption(
+          value: '',
+          label: 'None',
+          icon: MdiIcons.inboxOutline,
+          selected: todo.projectId == null,
         ),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 12),
-            const Text(
-              'Move to',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            ListTile(
-              leading: Icon(
-                MdiIcons.inboxOutline,
-                color: AppColors.textSecondary,
-              ),
-              title: const Text('Inbox'),
-              trailing: todo.projectId == null
-                  ? Icon(MdiIcons.checkCircle, color: AppColors.primary)
-                  : null,
-              onTap: () {
-                notifier.moveToProject(todo.id, null);
-                Navigator.pop(ctx);
-              },
-            ),
-            ...projects.map(
-              (p) => ListTile(
-                leading: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: Color(p.color),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-                title: Text(p.name, overflow: TextOverflow.ellipsis),
-                trailing: todo.projectId == p.id
-                    ? Icon(MdiIcons.checkCircle, color: AppColors.primary)
-                    : null,
-                onTap: () {
-                  notifier.moveToProject(todo.id, p.id);
-                  Navigator.pop(ctx);
-                },
+        for (final p in projects)
+          PickerOption(
+            value: p.id,
+            label: p.name,
+            leading: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                color: Color(p.color),
+                borderRadius: BorderRadius.circular(4),
               ),
             ),
-            const SizedBox(height: 8),
-          ],
+            selected: todo.projectId == p.id,
+          ),
+      ],
+    );
+
+    if (picked == null) return;
+    notifier.moveToProject(todo.id, picked.isEmpty ? null : picked);
+  }
+
+  // ── Delete with undo ──
+  /// Complete (or reopen) the todo and offer an undo, same as delete does.
+  void _completeWithUndo(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(todoProvider.notifier);
+    final id = todo.id;
+    notifier.toggleComplete(id);
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(isCompleted ? 'Task reopened' : 'Task completed'),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () => notifier.toggleComplete(id),
         ),
       ),
     );
   }
 
-  // ── Delete with undo ──
   void _deleteWithUndo(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(todoProvider.notifier);
     final snapshot = todo;
@@ -356,7 +324,7 @@ class TodoSwipeTile extends ConsumerWidget {
     messenger.showSnackBar(
       SnackBar(
         content: const Text('Task deleted'),
-        duration: const Duration(seconds: 4),
+        duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
         action: SnackBarAction(
           label: 'Undo',
@@ -368,63 +336,6 @@ class TodoSwipeTile extends ConsumerWidget {
 }
 
 /// One icon-tile in the quick date grid popup.
-class _DateCell extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _DateCell({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 92,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 32,
-                child: Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textPrimary,
-                    height: 1.2,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Floating chip shown under the cursor while dragging a todo onto a project.
 class _TodoDragFeedback extends StatelessWidget {
   final Todo todo;
 

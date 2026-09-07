@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_shapes.dart';
 import '../../../todos/domain/models/todo.dart';
 import '../../../todos/providers/todo_provider.dart';
 import '../../../todos/presentation/pages/todo_detail_page.dart';
@@ -97,8 +98,6 @@ class _KanbanPageState extends ConsumerState<KanbanPage> {
                       onSelected: (_) => setState(() => _filterProjectId = null),
                       selectedColor: AppColors.primary,
                       backgroundColor: AppColors.surface,
-                      side: BorderSide(color: _showAll ? AppColors.primary : AppColors.divider),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                       showCheckmark: false,
                     ),
                   ),
@@ -126,8 +125,6 @@ class _KanbanPageState extends ConsumerState<KanbanPage> {
                         onSelected: (_) => setState(() => _filterProjectId = project.id),
                         selectedColor: projColor,
                         backgroundColor: AppColors.surface,
-                        side: BorderSide(color: isSelected ? projColor : AppColors.divider),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                         showCheckmark: false,
                       ),
                     );
@@ -141,7 +138,14 @@ class _KanbanPageState extends ConsumerState<KanbanPage> {
             child: !hasAnyTodos && _filterProjectId != null
                 ? _buildEmptyProjectState(filterProjectName!)
                 : Padding(
-                    padding: const EdgeInsets.all(12),
+                    // Inside the shell the floating nav bar would cover the
+                    // bottom of the columns.
+                    padding: EdgeInsets.fromLTRB(
+                      AppShapes.listInset,
+                      AppShapes.listInset,
+                      AppShapes.listInset,
+                      AppShapes.listInset,
+                    ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -235,6 +239,8 @@ class _KanbanPageState extends ConsumerState<KanbanPage> {
   }
 }
 
+/// One board column: a header block and a card block, separated by the same
+/// 3px gap every grouped list in the app uses.
 class _KanbanColumn extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -243,6 +249,8 @@ class _KanbanColumn extends StatelessWidget {
   final TodoStatus status;
   final void Function(Todo, TodoStatus) onStatusChange;
   final void Function(Todo) onTap;
+
+  static const Duration _highlight = Duration(milliseconds: 220);
 
   const _KanbanColumn({
     required this.title,
@@ -265,44 +273,52 @@ class _KanbanColumn extends StatelessWidget {
         },
         builder: (context, candidateData, rejectedData) {
           final isHovering = candidateData.isNotEmpty;
+          // Drag-over is shown by tinting the blocks, not by an outline.
+          final blockColor = isHovering
+              ? Color.alphaBlend(color.withValues(alpha: 0.16), AppColors.surface)
+              : AppColors.surface;
 
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            decoration: BoxDecoration(
-              color: isHovering ? color.withValues(alpha: 0.08) : AppColors.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isHovering ? color.withValues(alpha: 0.4) : AppColors.divider,
-                width: isHovering ? 2 : 1,
-              ),
-            ),
-            child: Column(
-              children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  child: Row(
-                    children: [
-                      Icon(icon, size: 18, color: color),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text('${todos.length}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
-                      ),
-                    ],
-                  ),
+          return Column(
+            children: [
+              // Header block
+              AnimatedContainer(
+                duration: _highlight,
+                curve: Curves.easeOutCubic,
+                decoration: BoxDecoration(
+                  color: blockColor,
+                  borderRadius: AppShapes.row(isFirst: true, isLast: false),
                 ),
-                Divider(height: 1, color: AppColors.divider),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
+                  children: [
+                    Icon(icon, size: 18, color: color),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(AppShapes.dockChip),
+                      ),
+                      child: Text('${todos.length}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppShapes.groupGap),
 
-                // Cards
-                Expanded(
+              // Card block
+              Expanded(
+                child: AnimatedContainer(
+                  duration: _highlight,
+                  curve: Curves.easeOutCubic,
+                  decoration: BoxDecoration(
+                    color: blockColor,
+                    borderRadius: AppShapes.row(isFirst: false, isLast: true),
+                  ),
+                  clipBehavior: Clip.antiAlias,
                   child: todos.isEmpty
                       ? Center(
                           child: Padding(
@@ -317,14 +333,19 @@ class _KanbanColumn extends StatelessWidget {
                       : ListView.builder(
                           padding: const EdgeInsets.all(8),
                           itemCount: todos.length,
-                          itemBuilder: (context, index) => _KanbanCard(
-                            todo: todos[index],
-                            onTap: () => onTap(todos[index]),
+                          itemBuilder: (context, index) => Padding(
+                            padding: const EdgeInsets.only(bottom: AppShapes.groupGap),
+                            child: _KanbanCard(
+                              todo: todos[index],
+                              isFirst: index == 0,
+                              isLast: index == todos.length - 1,
+                              onTap: () => onTap(todos[index]),
+                            ),
                           ),
                         ),
                 ),
-              ],
-            ),
+              ),
+            ],
           );
         },
       ),
@@ -334,9 +355,16 @@ class _KanbanColumn extends StatelessWidget {
 
 class _KanbanCard extends ConsumerWidget {
   final Todo todo;
+  final bool isFirst;
+  final bool isLast;
   final VoidCallback onTap;
 
-  const _KanbanCard({required this.todo, required this.onTap});
+  const _KanbanCard({
+    required this.todo,
+    required this.isFirst,
+    required this.isLast,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -348,12 +376,10 @@ class _KanbanCard extends ConsumerWidget {
     final card = GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(10),
-          border: Border(left: BorderSide(color: priorityColor, width: 3)),
+          borderRadius: AppShapes.row(isFirst: isFirst, isLast: isLast),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -364,7 +390,7 @@ class _KanbanCard extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: projectColor!.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(AppShapes.dockChip),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -416,10 +442,10 @@ class _KanbanCard extends ConsumerWidget {
                   const Spacer(),
                   if (todo.priority.value < 4)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
                         color: priorityColor.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(AppShapes.dockChip),
                       ),
                       child: Text(
                         'P${todo.priority.value}',
@@ -434,18 +460,34 @@ class _KanbanCard extends ConsumerWidget {
       ),
     );
 
+    // A dragged card leaves its group, so it gets the full outer radius.
+    final feedback = Material(
+      elevation: 8,
+      borderRadius: BorderRadius.circular(AppShapes.groupOuter),
+      color: Colors.transparent,
+      child: SizedBox(
+        width: 200,
+        child: Opacity(
+          opacity: 0.9,
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLight,
+              borderRadius: BorderRadius.circular(AppShapes.groupOuter),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: card,
+          ),
+        ),
+      ),
+    );
+
     // Use Draggable on desktop (click-drag), LongPressDraggable on mobile (avoids scroll conflict)
     final isDesktop = MediaQuery.of(context).size.width >= 768;
 
     if (isDesktop) {
       return Draggable<Todo>(
         data: todo,
-        feedback: Material(
-          elevation: 8,
-          borderRadius: BorderRadius.circular(10),
-          color: Colors.transparent,
-          child: SizedBox(width: 200, child: Opacity(opacity: 0.9, child: card)),
-        ),
+        feedback: feedback,
         childWhenDragging: Opacity(opacity: 0.3, child: card),
         child: card,
       );
@@ -454,12 +496,7 @@ class _KanbanCard extends ConsumerWidget {
     return LongPressDraggable<Todo>(
       data: todo,
       delay: const Duration(milliseconds: 200),
-      feedback: Material(
-        elevation: 8,
-        borderRadius: BorderRadius.circular(10),
-        color: Colors.transparent,
-        child: SizedBox(width: 200, child: Opacity(opacity: 0.9, child: card)),
-      ),
+      feedback: feedback,
       childWhenDragging: Opacity(opacity: 0.3, child: card),
       onDragStarted: () => HapticFeedback.lightImpact(),
       child: card,

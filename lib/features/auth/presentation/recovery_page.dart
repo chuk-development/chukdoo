@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_shapes.dart';
 import '../providers/auth_provider.dart';
 
 class RecoveryPage extends ConsumerStatefulWidget {
@@ -28,6 +29,9 @@ class _RecoveryPageState extends ConsumerState<RecoveryPage> {
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+
+  /// One duration for every state change on this page.
+  static const Duration _motion = Duration(milliseconds: 220);
 
   @override
   void dispose() {
@@ -75,12 +79,12 @@ class _RecoveryPageState extends ConsumerState<RecoveryPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Header
+                  // Header block
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
-                      borderRadius: BorderRadius.circular(12),
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(AppShapes.groupOuter),
                     ),
                     child: Column(
                       children: [
@@ -225,54 +229,64 @@ class _RecoveryPageState extends ConsumerState<RecoveryPage> {
                     onFieldSubmitted: (_) => _handleRecovery(),
                   ),
 
-                  // Error message
-                  if (authState.error != null) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppColors.error.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            MdiIcons.alertOutline,
-                            size: 20,
-                            color: AppColors.error,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              authState.error!,
-                              style: const TextStyle(
-                                color: AppColors.error,
-                                fontSize: 13,
+                  // Error message grows in when recovery fails.
+                  AnimatedSize(
+                    duration: _motion,
+                    curve: Curves.easeOutCubic,
+                    alignment: Alignment.topCenter,
+                    child: authState.error == null
+                        ? const SizedBox(width: double.infinity)
+                        : Padding(
+                            padding: const EdgeInsets.only(top: 16),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(
+                                  AppShapes.dockField,
+                                ),
+                                // The tint border belongs to the notice itself.
+                                border: Border.all(
+                                  color: AppColors.error.withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    MdiIcons.alertOutline,
+                                    size: 20,
+                                    color: AppColors.error,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      authState.error!,
+                                      style: const TextStyle(
+                                        color: AppColors.error,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
 
                   const SizedBox(height: 24),
 
                   // Recovery button
                   SizedBox(
                     height: 48,
-                    child: ElevatedButton(
+                    child: FilledButton(
                       onPressed: authState.isLoading ? null : _handleRecovery,
                       child: authState.isLoading
-                          ? const SizedBox(
+                          ? SizedBox(
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: AppColors.onPrimary,
                               ),
                             )
                           : const Text('Reset password'),

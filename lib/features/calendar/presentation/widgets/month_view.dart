@@ -2,19 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_shapes.dart';
 import '../../domain/models/calendar_item.dart';
 import '../../providers/calendar_event_provider.dart';
 import '../../providers/calendar_items_provider.dart';
+import 'calendar_style.dart';
 
-/// Google-Calendar-style month grid. Navigation is handled by the page header.
+/// The month grid: one filled tile per day on the darker ground, a small gap
+/// between them, and a strong radius only on the four corners of the grid.
+///
+/// Navigation is handled by the page header and by swiping.
 class MonthView extends ConsumerWidget {
   final ValueChanged<DateTime>? onDayTap;
   final ValueChanged<CalendarItem>? onItemTap;
 
   const MonthView({super.key, this.onDayTap, this.onItemTap});
-
-  static const _accent = AppColors.blue;
-  static const _weekdays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,133 +30,165 @@ class MonthView extends ConsumerWidget {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    return Column(
-      children: [
-        // Weekday header
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: AppColors.divider, width: 1)),
-          ),
-          child: Row(
-            children: _weekdays.map((d) {
-              final isWeekend = d == 'Sa' || d == 'So';
-              return Expanded(
-                child: Center(
-                  child: Text(
-                    d.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                      color: isWeekend
-                          ? AppColors.textTertiary
-                          : AppColors.textSecondary,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppShapes.listInset),
+      child: Column(
+        children: [
+          // Weekday header — the same labels the week view uses.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 2, 0, 8),
+            child: Row(
+              children: [
+                for (var i = 0; i < 7; i++)
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        CalendarStyle.weekdays[i].toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.6,
+                          color: i >= 5
+                              ? AppColors.textTertiary
+                              : AppColors.textSecondary,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              );
-            }).toList(),
+              ],
+            ),
           ),
-        ),
 
-        // 6-week grid
-        Expanded(
-          child: Column(
-            children: List.generate(6, (week) {
-              return Expanded(
-                child: Row(
-                  children: List.generate(7, (dayOfWeek) {
-                    final date = gridStart.add(Duration(days: week * 7 + dayOfWeek));
-                    final isCurrentMonth = date.month == focused.month;
-                    final isToday = date.isAtSameMomentAs(today);
-                    final dayItems = calendarItems.itemsForDay(date);
+          // 6-week grid
+          Expanded(
+            child: Column(
+              children: List.generate(6, (week) {
+                return Expanded(
+                  child: Row(
+                    children: List.generate(7, (dayOfWeek) {
+                      final date = gridStart.add(Duration(days: week * 7 + dayOfWeek));
+                      final isCurrentMonth = date.month == focused.month;
+                      final isToday = date.isAtSameMomentAs(today);
+                      final dayItems = calendarItems.itemsForDay(date);
 
-                    return Expanded(
-                      child: _MonthCell(
-                        date: date,
-                        isCurrentMonth: isCurrentMonth,
-                        isToday: isToday,
-                        items: dayItems,
-                        onTap: () => onDayTap?.call(date),
-                        onItemTap: onItemTap,
-                        accent: _accent,
-                      ),
-                    );
-                  }),
-                ),
-              );
-            }),
+                      return Expanded(
+                        child: _MonthCell(
+                          date: date,
+                          isCurrentMonth: isCurrentMonth,
+                          isToday: isToday,
+                          items: dayItems,
+                          onTap: () => onDayTap?.call(date),
+                          onItemTap: onItemTap,
+                          row: week,
+                          col: dayOfWeek,
+                          rowCount: 6,
+                          colCount: 7,
+                        ),
+                      );
+                    }),
+                  ),
+                );
+              }),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
 class _MonthCell extends StatelessWidget {
   final DateTime date;
+  final int row;
+  final int col;
+  final int rowCount;
+  final int colCount;
   final bool isCurrentMonth;
   final bool isToday;
   final List<CalendarItem> items;
   final VoidCallback onTap;
   final ValueChanged<CalendarItem>? onItemTap;
-  final Color accent;
 
   const _MonthCell({
     required this.date,
+    required this.row,
+    required this.col,
+    required this.rowCount,
+    required this.colCount,
     required this.isCurrentMonth,
     required this.isToday,
     required this.items,
     required this.onTap,
     required this.onItemTap,
-    required this.accent,
   });
+
+  /// Only the four corners of the whole grid are strongly rounded. Every
+  /// other corner — including the ones along an edge — stays slightly
+  /// rounded, like the corners between two rows of a task list.
+  Radius _corner({required bool vertical, required bool horizontal}) {
+    if (vertical && horizontal) {
+      return const Radius.circular(AppShapes.groupOuter);
+    }
+    return const Radius.circular(AppShapes.groupInner);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final isWeekend = date.weekday >= 6;
+    final top = row == 0;
+    final bottom = row == rowCount - 1;
+    final left = col == 0;
+    final right = col == colCount - 1;
 
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
+        margin: const EdgeInsets.all(AppShapes.groupGap / 2),
         decoration: BoxDecoration(
+          // A day out of the focused month sits a step further back instead
+          // of being framed off.
           color: isCurrentMonth
-              ? Colors.transparent
-              : Colors.black.withValues(alpha: 0.12),
-          border: Border(
-            top: BorderSide(color: AppColors.divider, width: 0.5),
-            right: BorderSide(color: AppColors.divider, width: 0.5),
+              ? AppColors.surface
+              : Color.alphaBlend(
+                  AppColors.surface.withValues(alpha: 0.45),
+                  AppColors.background,
+                ),
+          borderRadius: BorderRadius.only(
+            topLeft: _corner(vertical: top, horizontal: left),
+            topRight: _corner(vertical: top, horizontal: right),
+            bottomLeft: _corner(vertical: bottom, horizontal: left),
+            bottomRight: _corner(vertical: bottom, horizontal: right),
           ),
         ),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Day number
+            // Day number — today is a filled circle, the way every view in
+            // the app marks today.
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Center(
                 child: Container(
-                  width: 24,
-                  height: 24,
+                  width: 22,
+                  height: 22,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: isToday ? accent : Colors.transparent,
+                    color: isToday
+                        ? CalendarStyle.accent
+                        : Colors.transparent,
                     shape: BoxShape.circle,
                   ),
                   child: Text(
                     '${date.day}',
                     style: TextStyle(
                       fontSize: 12.5,
-                      fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: FontWeight.w700,
                       color: isToday
-                          ? Colors.white
-                          : !isCurrentMonth
-                              ? AppColors.textTertiary
-                              : isWeekend
-                                  ? AppColors.textSecondary
-                                  : AppColors.textPrimary,
+                          ? AppColors.onPrimary
+                          : isCurrentMonth
+                          ? AppColors.textPrimary
+                          : AppColors.textTertiary,
                     ),
                   ),
                 ),
@@ -175,16 +209,16 @@ class _MonthCell extends StatelessWidget {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        ...visible.map((item) => _chip(item)),
+                        ...visible.map(_chip),
                         if (overflow > 0)
                           Padding(
-                            padding: const EdgeInsets.only(left: 4, top: 1),
+                            padding: const EdgeInsets.only(left: 6, top: 1),
                             child: Text(
-                              '+$overflow',
+                              '+$overflow more',
                               style: TextStyle(
                                 fontSize: 9.5,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.textSecondary,
+                                color: AppColors.textTertiary,
                               ),
                             ),
                           ),
@@ -200,16 +234,18 @@ class _MonthCell extends StatelessWidget {
     );
   }
 
+  /// One event inside a day tile: an all-day event is a solid pill, a timed
+  /// event a soft tint with a dot — the same pair the week grid uses.
   Widget _chip(CalendarItem item) {
-    final color = item.color != 0 ? Color(item.color) : accent;
+    final color = CalendarStyle.colorOf(item.color);
     return GestureDetector(
       onTap: () => onItemTap?.call(item),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+        margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: item.isAllDay ? color : color.withValues(alpha: 0.18),
-          borderRadius: BorderRadius.circular(4),
+          color: item.isAllDay ? color : color.withValues(alpha: 0.28),
+          borderRadius: BorderRadius.circular(AppShapes.groupInner),
         ),
         child: Row(
           children: [
@@ -228,10 +264,12 @@ class _MonthCell extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 10,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                   color: item.isAllDay
-                      ? _onColor(color)
-                      : (isCurrentMonth ? AppColors.textPrimary : AppColors.textSecondary),
+                      ? CalendarStyle.onEventColor(color)
+                      : (isCurrentMonth
+                            ? AppColors.textPrimary
+                            : AppColors.textSecondary),
                 ),
               ),
             ),
@@ -239,9 +277,5 @@ class _MonthCell extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Color _onColor(Color bg) {
-    return bg.computeLuminance() > 0.6 ? const Color(0xFF1A1A22) : Colors.white;
   }
 }

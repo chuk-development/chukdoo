@@ -3,6 +3,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../settings/providers/settings_provider.dart';
 import '../../domain/models/todo.dart';
 import 'todo_swipe_tile.dart';
 
@@ -12,15 +13,15 @@ import 'todo_swipe_tile.dart';
 class TodoSectionedList extends StatelessWidget {
   final List<Todo> active;
   final List<Todo> completed;
-  final bool large;
+  final CheckboxSize size;
   final EdgeInsets padding;
 
   const TodoSectionedList({
     super.key,
     required this.active,
     required this.completed,
-    required this.large,
-    this.padding = const EdgeInsets.only(bottom: 100),
+    required this.size,
+    this.padding = const EdgeInsets.only(bottom: 96),
   });
 
   @override
@@ -35,7 +36,7 @@ class TodoSectionedList extends StatelessWidget {
         TodoSwipeTile(
           key: ValueKey(items[i].id),
           todo: items[i],
-          largeCheckbox: large,
+          size: size,
           isCompleted: isCompleted,
           isFirst: i == 0,
           isLast: i == items.length - 1,

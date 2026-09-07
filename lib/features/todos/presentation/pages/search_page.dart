@@ -93,11 +93,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               ? _buildNoResults()
               : SlidableAutoCloseBehavior(
                   child: ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 32),
+                    padding: const EdgeInsets.only(bottom: 96),
                     itemCount: filteredTodos.length,
                     itemBuilder: (context, index) {
                       final todo = filteredTodos[index];
-                      return _buildTodoItem(context, ref, todo, settings.checkboxSize == CheckboxSize.large,
+                      return _buildTodoItem(context, ref, todo, settings.checkboxSize,
                           isFirst: index == 0, isLast: index == filteredTodos.length - 1);
                     },
                   ),
@@ -105,12 +105,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
-  Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox,
+  Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, CheckboxSize size,
       {bool isFirst = true, bool isLast = true}) {
     return TodoSwipeTile(
       key: ValueKey(todo.id),
       todo: todo,
-      largeCheckbox: largeCheckbox,
+      size: size,
       isCompleted: todo.isCompleted,
       isFirst: isFirst,
       isLast: isLast,

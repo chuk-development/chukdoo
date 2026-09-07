@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -6,6 +8,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../shared/services/supabase_service.dart';
 import '../../sync/services/sync_service.dart';
 import '../domain/models/calendar_event.dart';
+import '../../notifications/reminder_scheduler.dart';
 
 enum CalendarViewMode { day, week, month, agenda }
 
@@ -19,7 +22,7 @@ class CalendarEventState {
 
   CalendarEventState({
     this.events = const [],
-    this.viewMode = CalendarViewMode.week,
+    this.viewMode = CalendarViewMode.month,
     DateTime? focusedDate,
     this.selectedDate,
     this.isLoading = false,
@@ -71,10 +74,43 @@ class CalendarEventState {
 class CalendarEventNotifier extends StateNotifier<CalendarEventState> {
   CalendarEventNotifier() : super(CalendarEventState()) {
     _loadEvents();
+    // A subscribed ICS feed and an .ics import write straight into the box,
+    // from outside this notifier. Watching the box makes those events appear
+    // without the user having to reopen the calendar.
+    _boxSub = _eventsBox.watch().listen((_) {
+      _reloadDebounce?.cancel();
+      _reloadDebounce = Timer(
+        const Duration(milliseconds: 300),
+        _loadEvents,
+      );
+    });
   }
 
   Box<Map>? _box;
   final _uuid = const Uuid();
+
+  StreamSubscription<BoxEvent>? _boxSub;
+  Timer? _reloadDebounce;
+
+  @override
+  void dispose() {
+    _reloadDebounce?.cancel();
+    _boxSub?.cancel();
+    super.dispose();
+  }
+
+  /// View modes visited before the current one, so the back gesture can walk
+  /// back from a day into the month or week it was opened from.
+  final List<CalendarViewMode> _viewHistory = [];
+
+  bool get canGoBack => _viewHistory.isNotEmpty;
+
+  /// Returns to the previous view mode. False when there is none.
+  bool goBack() {
+    if (_viewHistory.isEmpty) return false;
+    state = state.copyWith(viewMode: _viewHistory.removeLast());
+    return true;
+  }
 
   Box<Map> get _eventsBox {
     _box ??= Hive.box<Map>(AppConstants.hiveCalendarEventsBox);
@@ -145,6 +181,9 @@ class CalendarEventNotifier extends StateNotifier<CalendarEventState> {
       data: event.toJson(),
     );
 
+    // Reminders are notifications, not just data.
+    await ReminderScheduler.instance.scheduleForEvent(event);
+
     state = state.copyWith(
       events: [...state.events, event]..sort((a, b) => a.startTime.compareTo(b.startTime)),
     );
@@ -162,6 +201,8 @@ class CalendarEventNotifier extends StateNotifier<CalendarEventState> {
       data: updated.toJson(),
     );
 
+    await ReminderScheduler.instance.scheduleForEvent(updated);
+
     final events = state.events.map((e) {
       return e.id == updated.id ? updated : e;
     }).toList();
@@ -170,6 +211,11 @@ class CalendarEventNotifier extends StateNotifier<CalendarEventState> {
   }
 
   Future<void> deleteEvent(String eventId) async {
+    final existing = state.events.where((e) => e.id == eventId).firstOrNull;
+    if (existing != null) {
+      await ReminderScheduler.instance.cancelForEvent(existing);
+    }
+
     await _eventsBox.delete(eventId);
 
     await SyncService.queueOperation(
@@ -299,6 +345,10 @@ class CalendarEventNotifier extends StateNotifier<CalendarEventState> {
 
   // View state management
   void setViewMode(CalendarViewMode mode) {
+    if (mode != state.viewMode) {
+      _viewHistory.add(state.viewMode);
+      if (_viewHistory.length > 10) _viewHistory.removeAt(0);
+    }
     state = state.copyWith(viewMode: mode);
   }
 

@@ -143,6 +143,20 @@ Syntax:
 - `#projectname` = Project
 - `@label` = Labels
 
+### Sync coverage
+Synced entities: todos, projects, calendars, calendar events, habits and notes.
+Each has a repository in `lib/features/sync/repositories/` and a
+`SyncEntityType`. Sensitive fields are encrypted; only ordering and
+presentation metadata stay in clear columns.
+
+Subscribed ICS feeds are the exception: their events live only on the device
+(`user_id` starts with `feed:`), are refreshed from their URL on app start and
+are never uploaded.
+
+Server side lives in `supabase/migrations/`. After adding an entity, run
+`supabase db push` — the table plus its RLS policy must exist before the first
+sync, otherwise the queue keeps failing silently.
+
 ### Sync Strategy
 - Queue-based with Hive persistence
 - Operations queued locally, processed when online

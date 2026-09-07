@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_shapes.dart';
 import '../../domain/models/calendar_item.dart';
 import '../../providers/calendar_event_provider.dart';
 import '../../providers/calendar_items_provider.dart';
+import 'calendar_style.dart';
 import 'time_grid.dart';
 
 /// Google-Calendar-style day view. Navigation is handled by the page header.
@@ -21,7 +23,6 @@ class DayView extends ConsumerWidget {
     this.onItemDrop,
   });
 
-  static const _accent = AppColors.blue;
   static const _timeColumnWidth = 52.0;
 
   @override
@@ -36,13 +37,12 @@ class DayView extends ConsumerWidget {
     final timedItems = dayItems.where((i) => !i.isAllDay).toList();
     final allDayItems = dayItems.where((i) => i.isAllDay).toList();
 
-    return Column(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppShapes.listInset),
+      child: Column(
       children: [
         // Compact day strip aligned over the time gutter
-        Container(
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: AppColors.divider, width: 1)),
-          ),
+        Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(
             children: [
@@ -56,7 +56,9 @@ class DayView extends ConsumerWidget {
                         fontSize: 10,
                         letterSpacing: 0.4,
                         fontWeight: FontWeight.w600,
-                        color: isToday ? _accent : AppColors.textSecondary,
+                        color: isToday
+                            ? CalendarStyle.accent
+                            : AppColors.textTertiary,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -64,7 +66,9 @@ class DayView extends ConsumerWidget {
                       width: 30,
                       height: 30,
                       decoration: BoxDecoration(
-                        color: isToday ? _accent : Colors.transparent,
+                        color: isToday
+                            ? CalendarStyle.accent
+                            : Colors.transparent,
                         shape: BoxShape.circle,
                       ),
                       child: Center(
@@ -73,7 +77,7 @@ class DayView extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
-                            color: isToday ? Colors.white : AppColors.textPrimary,
+                            color: isToday ? AppColors.onPrimary : AppColors.textPrimary,
                           ),
                         ),
                       ),
@@ -109,6 +113,7 @@ class DayView extends ConsumerWidget {
           ),
         ),
       ],
+      ),
     );
   }
 

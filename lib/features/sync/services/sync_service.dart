@@ -14,14 +14,16 @@ import '../repositories/project_sync_repository.dart';
 import '../repositories/calendar_sync_repository.dart';
 import '../repositories/calendar_event_sync_repository.dart';
 import '../repositories/habit_sync_repository.dart';
+import '../repositories/note_sync_repository.dart';
 import '../../calendar/domain/models/calendar_event.dart';
 import '../../habits/domain/models/habit.dart';
+import '../../notes/domain/models/note.dart';
 
 /// Operation types for sync queue
 enum SyncOperation { create, update, delete }
 
 /// Entity types for sync
-enum SyncEntityType { todo, project, calendar, calendarEvent, habit }
+enum SyncEntityType { todo, project, calendar, calendarEvent, habit, note }
 
 /// A queued sync operation
 class SyncQueueItem {
@@ -154,7 +156,10 @@ class SyncService {
 
   /// Process the sync queue
   static Future<void> processQueue() async {
-    if (!SupabaseService.isAvailable) {
+    // Same source of truth as the UI: a session must exist and its access
+    // token must be fresh. Refreshes here so an expired JWT never reaches
+    // PostgREST as "not authenticated".
+    if (!await SupabaseService.ensureSyncSession()) {
       _status = SyncStatus.offline;
       _statusController.add(_status);
       return;
@@ -205,7 +210,26 @@ class SyncService {
       SyncEntityType.calendar => 'calendars',
       SyncEntityType.calendarEvent => 'calendar_events',
       SyncEntityType.habit => 'habits',
+      SyncEntityType.note => 'notes',
     };
+
+    // Notes carry presentation columns (colour, order, pin) next to the
+    // encrypted blob, so they go through their repository instead of the
+    // generic payload-only upsert.
+    if (item.entityType == SyncEntityType.note) {
+      switch (item.operation) {
+        case SyncOperation.create:
+        case SyncOperation.update:
+          if (item.data != null) {
+            await NoteSyncRepository.uploadNote(
+              Note.fromJson(Map<String, dynamic>.from(item.data!)),
+            );
+          }
+        case SyncOperation.delete:
+          await NoteSyncRepository.deleteNote(item.entityId);
+      }
+      return;
+    }
 
     switch (item.operation) {
       case SyncOperation.create:
@@ -236,7 +260,8 @@ class SyncService {
 
   /// Perform a full sync (upload pending + download from server)
   static Future<void> fullSync() async {
-    if (!SupabaseService.isAvailable) {
+    // See processQueue(): refresh the token before any request goes out.
+    if (!await SupabaseService.ensureSyncSession()) {
       _status = SyncStatus.offline;
       _statusController.add(_status);
       return;
@@ -393,6 +418,30 @@ class SyncService {
       }
     } catch (e) {
       debugPrint('SyncService: Error downloading habits: $e');
+    }
+
+    // Download notes
+    try {
+      final notesBox = Hive.box<Map>(AppConstants.hiveNotesBox);
+      final serverNotes = await NoteSyncRepository.downloadNotes();
+      debugPrint('SyncService: Downloaded ${serverNotes.length} notes from server');
+
+      for (final serverNote in serverNotes) {
+        final localData = notesBox.get(serverNote.id);
+
+        if (localData == null) {
+          await notesBox.put(serverNote.id, serverNote.toJson());
+        } else {
+          final localNote = Note.fromJson(Map<String, dynamic>.from(localData));
+          if (serverNote.version > localNote.version ||
+              (serverNote.version == localNote.version &&
+                  serverNote.updatedAt.isAfter(localNote.updatedAt))) {
+            await notesBox.put(serverNote.id, serverNote.toJson());
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('SyncService: Error downloading notes: $e');
     }
 
     // Download projects

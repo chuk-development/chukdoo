@@ -52,4 +52,5 @@ class AppConstants {
   static const String hiveCalendarEventsBox = 'calendar_events';
   static const String hiveHabitsBox = 'habits';
   static const String hiveNotesBox = 'notes';
+  static const String hiveIcsFeedsBox = 'ics_feeds';
 }

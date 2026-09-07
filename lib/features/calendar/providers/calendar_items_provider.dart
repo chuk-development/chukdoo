@@ -14,6 +14,10 @@ final calendarItemsProvider = Provider<CalendarItemsState>((ref) {
   final calendarState = ref.watch(calendarContainerProvider);
 
   final visibleCalendarIds = calendarState.visibleCalendars.map((c) => c.id).toSet();
+  // Events of a subscribed ICS feed carry the feed's id, which is not one of
+  // the user's own calendars. Only a known calendar can be hidden — otherwise
+  // every subscribed feed would be filtered away and never appear.
+  final knownCalendarIds = calendarState.calendars.map((c) => c.id).toSet();
 
   // Determine visible date range based on view mode
   final focused = eventState.focusedDate;
@@ -33,8 +37,10 @@ final calendarItemsProvider = Provider<CalendarItemsState>((ref) {
       rangeStart = DateTime(focused.year, focused.month, 1);
       rangeEnd = DateTime(focused.year, focused.month + 1, 1);
     case CalendarViewMode.agenda:
+      // Agenda is the running list of what is coming: everything with a date
+      // in the next three months, events and dated tasks alike.
       rangeStart = DateTime(focused.year, focused.month, focused.day);
-      rangeEnd = rangeStart.add(const Duration(days: 30));
+      rangeEnd = rangeStart.add(const Duration(days: 90));
   }
 
   final items = <CalendarItem>[];
@@ -57,7 +63,9 @@ final calendarItemsProvider = Provider<CalendarItemsState>((ref) {
   // Add calendar events
   for (final event in eventState.events) {
     // Filter by visible calendars
-    if (event.calendarId != null && !visibleCalendarIds.contains(event.calendarId)) {
+    if (event.calendarId != null &&
+        knownCalendarIds.contains(event.calendarId) &&
+        !visibleCalendarIds.contains(event.calendarId)) {
       continue;
     }
 

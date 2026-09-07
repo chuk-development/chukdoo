@@ -21,8 +21,16 @@ class AppShapes {
   /// Horizontal inset of a list group from the screen edge.
   static const double listInset = 12;
 
+  /// Footprint of the floating nav bar: its 64 height plus the 8 gap under
+  /// it. Content scrolls *under* the bar, so every scrollable adds this much
+  /// bottom padding to keep its last row reachable.
+  static const double navBarHeight = 72;
+
   /// Top corners of bottom sheets and the quick-add input dock.
   static const double sheetTop = 28;
+
+  /// Gap between the floating input dock and the screen edge / keyboard.
+  static const double dockMargin = 8;
 
   /// Controls inside a dock/sheet (fields, chips, menus).
   static const double dockField = 20;

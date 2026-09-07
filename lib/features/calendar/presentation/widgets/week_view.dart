@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_shapes.dart';
 import '../../domain/models/calendar_item.dart';
 import '../../providers/calendar_event_provider.dart';
 import '../../providers/calendar_items_provider.dart';
+import 'calendar_style.dart';
 import 'time_grid.dart';
 
-/// Google-Calendar-style week view. Navigation is handled by the page header.
+/// Week view: the weekday strip on top, then the tiled time grid — the same
+/// build Google Calendar uses for a week.
 class WeekView extends ConsumerWidget {
   final ValueChanged<({DateTime date, TimeOfDay time})>? onSlotTap;
   final ValueChanged<CalendarItem>? onItemTap;
@@ -20,8 +23,6 @@ class WeekView extends ConsumerWidget {
     this.onItemDrop,
   });
 
-  static const _accent = AppColors.blue;
-  static const _dayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
   static const _timeColumnWidth = 52.0;
 
   @override
@@ -39,74 +40,85 @@ class WeekView extends ConsumerWidget {
     final dates = List.generate(7, (i) => weekStart.add(Duration(days: i)));
     final itemsByColumn = dates.map(calendarItems.timedItemsForDay).toList();
     final allDayByColumn = dates
-        .map((d) => calendarItems.itemsForDay(d).where((i) => i.isAllDay).toList())
+        .map(
+          (d) => calendarItems.itemsForDay(d).where((i) => i.isAllDay).toList(),
+        )
         .toList();
 
-    return Column(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppShapes.listInset),
+      child: Column(
       children: [
         // Day headers
-        Container(
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: AppColors.divider, width: 1)),
+        Padding(
+          padding: const EdgeInsets.only(
+            left: _timeColumnWidth,
+            top: 4,
+            bottom: 6,
           ),
-          child: Padding(
-            padding: const EdgeInsets.only(left: _timeColumnWidth, top: 6, bottom: 6),
-            child: Row(
-              children: List.generate(7, (i) {
-                final day = dates[i];
-                final isToday = day.isAtSameMomentAs(today);
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      ref.read(calendarEventProvider.notifier).setFocusedDate(day);
-                      ref
-                          .read(calendarEventProvider.notifier)
-                          .setViewMode(CalendarViewMode.day);
-                    },
-                    behavior: HitTestBehavior.opaque,
-                    child: Column(
-                      children: [
-                        Text(
-                          _dayLabels[i].toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 10,
-                            letterSpacing: 0.4,
-                            color: isToday ? _accent : AppColors.textSecondary,
-                            fontWeight: FontWeight.w600,
-                          ),
+          child: Row(
+            children: List.generate(7, (i) {
+              final day = dates[i];
+              final isToday = day.isAtSameMomentAs(today);
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    ref
+                        .read(calendarEventProvider.notifier)
+                        .setFocusedDate(day);
+                    ref
+                        .read(calendarEventProvider.notifier)
+                        .setViewMode(CalendarViewMode.day);
+                  },
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    children: [
+                      Text(
+                        CalendarStyle.weekdays[i].toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          letterSpacing: 0.6,
+                          color: i >= 5
+                              ? AppColors.textTertiary
+                              : AppColors.textSecondary,
+                          fontWeight: FontWeight.w700,
                         ),
-                        const SizedBox(height: 3),
-                        Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            color: isToday ? _accent : Colors.transparent,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              '${day.day}',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
-                                color: isToday ? Colors.white : AppColors.textPrimary,
-                              ),
+                      ),
+                      const SizedBox(height: 3),
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: isToday
+                              ? CalendarStyle.accent
+                              : Colors.transparent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${day.day}',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: isToday
+                                  ? AppColors.onPrimary
+                                  : AppColors.textPrimary,
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                );
-              }),
-            ),
+                ),
+              );
+            }),
           ),
         ),
 
         Expanded(
           child: TimeGrid(
             columnCount: 7,
-            columnHeaders: _dayLabels,
+            columnHeaders: CalendarStyle.weekdays,
             columnDates: dates,
             itemsByColumn: itemsByColumn,
             allDayItemsByColumn: allDayByColumn,
@@ -117,6 +129,7 @@ class WeekView extends ConsumerWidget {
           ),
         ),
       ],
+      ),
     );
   }
 }

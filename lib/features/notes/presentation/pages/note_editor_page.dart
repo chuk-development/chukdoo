@@ -4,6 +4,7 @@ import 'package:material_design_icons_flutter/material_design_icons_flutter.dart
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_shapes.dart';
+import '../../../../shared/widgets/app_field.dart';
 import '../../domain/models/note.dart';
 import '../../providers/note_provider.dart';
 
@@ -203,50 +204,58 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
         ),
         body: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.fromLTRB(
+              AppShapes.listInset,
+              0,
+              AppShapes.listInset,
+              AppShapes.listInset,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextField(
-                  controller: _titleController,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                  maxLines: null,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: InputDecoration(
-                    hintText: 'Title',
-                    hintStyle: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textTertiary,
-                    ),
-                    border: InputBorder.none,
-                  ),
-                ),
-                Expanded(
+                // Title and body are two filled blocks of one group — no
+                // outlines anywhere, same language as the task detail page.
+                AppField(
+                  isFirst: true,
+                  isLast: false,
                   child: TextField(
-                    controller: _contentController,
-                    autofocus: (_note?.isEmpty ?? true),
+                    controller: _titleController,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
-                      height: 1.4,
                     ),
                     maxLines: null,
-                    expands: true,
-                    textAlignVertical: TextAlignVertical.top,
-                    keyboardType: TextInputType.multiline,
                     textCapitalization: TextCapitalization.sentences,
-                    decoration: InputDecoration(
-                      hintText: 'Note…',
+                    decoration: AppField.decoration(
+                      'Title',
                       hintStyle: TextStyle(
-                        fontSize: 16,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
                         color: AppColors.textTertiary,
                       ),
-                      border: InputBorder.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppShapes.groupGap),
+                Expanded(
+                  child: AppField(
+                    isFirst: false,
+                    isLast: true,
+                    child: TextField(
+                      controller: _contentController,
+                      autofocus: (_note?.isEmpty ?? true),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: AppColors.textPrimary,
+                        height: 1.45,
+                      ),
+                      maxLines: null,
+                      expands: true,
+                      textAlignVertical: TextAlignVertical.top,
+                      keyboardType: TextInputType.multiline,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: AppField.decoration('Note…'),
                     ),
                   ),
                 ),

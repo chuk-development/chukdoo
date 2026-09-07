@@ -1,8 +1,7 @@
 /// A free-form note (Google-Keep / Xiaomi-Notes style).
 ///
-/// Local-first: persisted in the `notes` Hive box. Sensitive fields are kept
-/// on-device only (no Supabase sync yet), so [toJson]/[fromJson] round-trip the
-/// full object.
+/// Local-first: persisted in the `notes` Hive box and synced to Supabase with
+/// the title and content encrypted end-to-end, like every other entity.
 class Note {
   final String id;
   final String userId;
@@ -34,6 +33,49 @@ class Note {
     required this.updatedAt,
     this.version = 1,
   });
+
+  /// Sensitive data to encrypt before sync.
+  Map<String, dynamic> toEncryptedPayload() {
+    return {'title': title, 'content': content};
+  }
+
+  /// Non-sensitive metadata for Supabase (with the encrypted blob).
+  Map<String, dynamic> toSupabaseRow(String encryptedPayload) {
+    return {
+      'id': id,
+      'user_id': userId,
+      'encrypted_payload': encryptedPayload,
+      'color': color == null
+          ? null
+          : '#${color!.toRadixString(16).padLeft(8, '0')}',
+      'sort_order': sortOrder,
+      'is_pinned': isPinned,
+      'version': version,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+    };
+  }
+
+  factory Note.fromSupabaseRow(
+    Map<String, dynamic> row,
+    Map<String, dynamic> decryptedPayload,
+  ) {
+    final colorStr = row['color'] as String?;
+    return Note(
+      id: row['id'] as String,
+      userId: row['user_id'] as String,
+      title: decryptedPayload['title'] as String? ?? '',
+      content: decryptedPayload['content'] as String? ?? '',
+      color: colorStr == null
+          ? null
+          : int.tryParse(colorStr.replaceFirst('#', ''), radix: 16),
+      sortOrder: row['sort_order'] as int? ?? 0,
+      isPinned: row['is_pinned'] as bool? ?? false,
+      createdAt: DateTime.parse(row['created_at'] as String),
+      updatedAt: DateTime.parse(row['updated_at'] as String),
+      version: row['version'] as int? ?? 1,
+    );
+  }
 
   /// True when there is nothing worth keeping (used to auto-discard on close).
   bool get isEmpty => title.trim().isEmpty && content.trim().isEmpty;

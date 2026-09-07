@@ -26,11 +26,14 @@ void callbackDispatcher() {
         return true;
       }
 
-      // Initialize Supabase
+      // Initialize Supabase. This restores the persisted session; the token
+      // is then refreshed if it is stale, so a background run never uploads
+      // with an expired JWT.
       await SupabaseService.initialize();
 
-      if (!SupabaseService.isAvailable || !SupabaseService.isAuthenticated) {
-        debugPrint('BackgroundSync: Not authenticated, skipping');
+      if (!await SupabaseService.ensureSyncSession()) {
+        debugPrint('BackgroundSync: No usable session, skipping');
+        // Not an error: retry on the next scheduled run.
         return true;
       }
 

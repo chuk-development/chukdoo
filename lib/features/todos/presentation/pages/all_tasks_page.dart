@@ -16,18 +16,20 @@ class AllTasksPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final todoState = ref.watch(todoProvider);
     final settings = ref.watch(settingsProvider);
-    final activeTodos = todoState.todos.where((t) => !t.isCompleted).toList();
-    final completedTodos = todoState.todos.where((t) => t.isCompleted).toList();
+    // "Main" is the list without a project — tasks that live inside a project
+    // stay there and are not mixed in here.
+    final activeTodos = todoState.inboxTodos;
+    final completedTodos = todoState.completedInboxTodos;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('All Tasks'),
+        title: const Text('Main'),
       ),
       body: (activeTodos.isEmpty && completedTodos.isEmpty)
           ? _buildEmptyState()
           : SlidableAutoCloseBehavior(
               child: ListView(
-                padding: const EdgeInsets.only(bottom: 32),
+                padding: const EdgeInsets.only(bottom: 96),
                 children: [
                   if (activeTodos.isNotEmpty) ...[
                     Padding(
@@ -42,7 +44,7 @@ class AllTasksPage extends ConsumerWidget {
                       ),
                     ),
                     for (var i = 0; i < activeTodos.length; i++)
-                      _buildTodoItem(context, ref, activeTodos[i], settings.checkboxSize == CheckboxSize.large,
+                      _buildTodoItem(context, ref, activeTodos[i], settings.checkboxSize,
                           isFirst: i == 0, isLast: i == activeTodos.length - 1),
                   ],
                   if (completedTodos.isNotEmpty) ...[
@@ -58,7 +60,7 @@ class AllTasksPage extends ConsumerWidget {
                       ),
                     ),
                     for (var i = 0; i < completedTodos.length; i++)
-                      _buildTodoItem(context, ref, completedTodos[i], settings.checkboxSize == CheckboxSize.large,
+                      _buildTodoItem(context, ref, completedTodos[i], settings.checkboxSize,
                           isCompleted: true, isFirst: i == 0, isLast: i == completedTodos.length - 1),
                   ],
                 ],
@@ -67,12 +69,12 @@ class AllTasksPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox,
+  Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, CheckboxSize size,
       {bool isCompleted = false, bool isFirst = true, bool isLast = true}) {
     return TodoSwipeTile(
       key: ValueKey(todo.id),
       todo: todo,
-      largeCheckbox: largeCheckbox,
+      size: size,
       isCompleted: isCompleted,
       isFirst: isFirst,
       isLast: isLast,

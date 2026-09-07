@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_shapes.dart';
 import '../../domain/models/calendar_item.dart';
+import 'calendar_style.dart';
 
 /// Google-Calendar-style timed event block: solid color fill, white text.
 class EventBlock extends StatelessWidget {
@@ -18,7 +20,7 @@ class EventBlock extends StatelessWidget {
     required this.height,
     this.onTap,
     this.onDragStarted,
-    this.calendarColor = 0xFF4285F4,
+    this.calendarColor = 0,
   });
 
   Color get _color {
@@ -27,13 +29,12 @@ class EventBlock extends StatelessWidget {
       final todo = (item as TodoItem).todo;
       return AppColors.getPriorityColor(todo.priority.value);
     }
-    return Color(calendarColor);
+    return CalendarStyle.colorOf(calendarColor);
   }
 
   bool get _isTodo => item is TodoItem;
 
-  Color _onColor(Color bg) =>
-      bg.computeLuminance() > 0.6 ? const Color(0xFF1A1A22) : Colors.white;
+  Color _onColor(Color bg) => CalendarStyle.onEventColor(bg);
 
   @override
   Widget build(BuildContext context) {
@@ -48,9 +49,9 @@ class EventBlock extends StatelessWidget {
         height: displayHeight,
         padding: EdgeInsets.symmetric(horizontal: 6, vertical: isCompact ? 1 : 3),
         decoration: BoxDecoration(
-          color: _isTodo ? blockColor.withValues(alpha: 0.22) : blockColor,
-          borderRadius: BorderRadius.circular(6),
-          border: _isTodo ? Border.all(color: blockColor, width: 1.2) : null,
+          // No outline — a task reads as a softer tint of the same color.
+          color: _isTodo ? blockColor.withValues(alpha: 0.3) : blockColor,
+          borderRadius: BorderRadius.circular(AppShapes.dockChip),
         ),
         child: DefaultTextStyle(
           style: TextStyle(color: _isTodo ? AppColors.textPrimary : fg),
@@ -88,7 +89,7 @@ class EventBlock extends StatelessWidget {
                     Text(
                       _isTodo
                           ? 'Task · ${_formatTime(item.startTime)}'
-                          : '${_formatTime(item.startTime)} – ${_formatTime(item.endTime)}',
+                          : '${_formatTime(item.startTime)} to ${_formatTime(item.endTime)}',
                       style: TextStyle(
                         fontSize: 9.5,
                         color: (_isTodo ? AppColors.textSecondary : fg)
@@ -110,7 +111,7 @@ class EventBlock extends StatelessWidget {
         feedback: Material(
           color: Colors.transparent,
           elevation: 6,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(AppShapes.dockChip),
           child: SizedBox(
             width: 140,
             child: Opacity(opacity: 0.9, child: child),

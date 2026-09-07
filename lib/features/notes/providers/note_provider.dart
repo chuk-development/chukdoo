@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../shared/services/supabase_service.dart';
 import '../domain/models/note.dart';
+import '../../sync/services/sync_service.dart';
 
 class NoteState {
   final List<Note> notes;
@@ -96,6 +97,13 @@ class NoteNotifier extends StateNotifier<NoteState> {
     final notes = [note, ...state.notes];
     _sort(notes);
     state = state.copyWith(notes: notes);
+
+    await SyncService.queueOperation(
+      entityType: SyncEntityType.note,
+      operation: SyncOperation.create,
+      entityId: note.id,
+      data: note.toJson(),
+    );
     return note;
   }
 
@@ -109,6 +117,13 @@ class NoteNotifier extends StateNotifier<NoteState> {
         state.notes.map((n) => n.id == updated.id ? updated : n).toList();
     _sort(notes);
     state = state.copyWith(notes: notes);
+
+    await SyncService.queueOperation(
+      entityType: SyncEntityType.note,
+      operation: SyncOperation.update,
+      entityId: updated.id,
+      data: updated.toJson(),
+    );
   }
 
   Future<void> togglePin(String noteId) async {
@@ -129,6 +144,12 @@ class NoteNotifier extends StateNotifier<NoteState> {
     await _notesBox.delete(noteId);
     final notes = state.notes.where((n) => n.id != noteId).toList();
     state = state.copyWith(notes: notes);
+
+    await SyncService.queueOperation(
+      entityType: SyncEntityType.note,
+      operation: SyncOperation.delete,
+      entityId: noteId,
+    );
   }
 
   /// Re-insert a deleted note (swipe-to-delete undo).
@@ -137,6 +158,13 @@ class NoteNotifier extends StateNotifier<NoteState> {
     final notes = [note, ...state.notes.where((n) => n.id != note.id)];
     _sort(notes);
     state = state.copyWith(notes: notes);
+
+    await SyncService.queueOperation(
+      entityType: SyncEntityType.note,
+      operation: SyncOperation.create,
+      entityId: note.id,
+      data: note.toJson(),
+    );
   }
 
   /// Move [noteId] so it sits at [targetIndex] in the current visual order,

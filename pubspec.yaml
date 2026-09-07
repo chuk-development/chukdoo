@@ -54,6 +54,9 @@ dependencies:
   # Date/Time & i18n
   intl: ^0.20.2
 
+  # Networking (subscribed ICS calendar feeds)
+  http: ^1.2.2
+
   # Utilities
   uuid: ^4.5.1
   connectivity_plus: ^7.1.1
@@ -63,7 +66,7 @@ dependencies:
   tray_manager: ^0.5.3
   window_manager: ^0.5.1
 
-  # Subscriptions (RevenueCat)
+  # Donations (RevenueCat)
   purchases_flutter: ^10.2.3
 
 # Upstream material_design_icons_flutter does not build on Flutter 3.47

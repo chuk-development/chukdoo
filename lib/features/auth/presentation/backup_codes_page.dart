@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_shapes.dart';
+import '../../../shared/widgets/rounded_group.dart';
 import '../providers/auth_provider.dart';
 
 class BackupCodesPage extends ConsumerStatefulWidget {
@@ -53,147 +55,152 @@ class _BackupCodesPageState extends ConsumerState<BackupCodesPage> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header with icon
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        MdiIcons.keyOutline,
-                        size: 40,
-                        color: AppColors.primary,
-                      ),
+              // Header block
+              RoundedGroup(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            MdiIcons.keyOutline,
+                            size: 40,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Save your backup codes',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'These codes let you access your data if you forget your password. Each code can only be used once.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Save your backup codes',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'These codes let you access your data if you forget your password. Each code can only be used once.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 24),
 
-              // Codes list
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.divider),
-                ),
-                child: Column(
-                  children: [
-                    ...codes.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final code = entry.value;
-                      return _buildCodeRow(index + 1, code);
-                    }),
-                  ],
-                ),
+              // Codes as one rounded group
+              RoundedGroup(
+                children: [
+                  for (var i = 0; i < codes.length; i++)
+                    _buildCodeRow(i + 1, codes[i]),
+                ],
               ),
 
               const SizedBox(height: 16),
 
               // Copy all button
-              OutlinedButton.icon(
-                onPressed: codes.isEmpty ? null : () => _copyAllCodes(codes),
-                icon: Icon(MdiIcons.contentCopy),
-                label: const Text('Copy all'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppShapes.listInset,
+                ),
+                child: OutlinedButton.icon(
+                  onPressed: codes.isEmpty ? null : () => _copyAllCodes(codes),
+                  icon: Icon(MdiIcons.contentCopy),
+                  label: const Text('Copy all'),
                 ),
               ),
 
               const SizedBox(height: 24),
 
               // Warning
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.warning.withValues(alpha: 0.3),
-                  ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppShapes.listInset,
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      MdiIcons.alertOutline,
-                      size: 20,
-                      color: AppColors.warning,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppShapes.dockField),
+                    // The tint border belongs to the warning itself.
+                    border: Border.all(
+                      color: AppColors.warning.withValues(alpha: 0.3),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Store these codes somewhere safe. This is the only time you will see them!',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.warning,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        MdiIcons.alertOutline,
+                        size: 20,
+                        color: AppColors.warning,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Store these codes somewhere safe. This is the only time you will see them!',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.warning,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
 
               const SizedBox(height: 24),
 
-              // Checkbox
-              CheckboxListTile(
-                value: _hasSavedCodes,
-                onChanged: (value) {
-                  setState(() {
-                    _hasSavedCodes = value ?? false;
-                  });
-                },
-                title: const Text(
-                  'I have saved the codes somewhere safe',
-                  style: TextStyle(fontSize: 14),
-                ),
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
+              // Confirmation row
+              RoundedGroup(
+                children: [
+                  CheckboxListTile(
+                    value: _hasSavedCodes,
+                    onChanged: (value) {
+                      setState(() {
+                        _hasSavedCodes = value ?? false;
+                      });
+                    },
+                    title: const Text(
+                      'I have saved the codes somewhere safe',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ],
               ),
 
               const SizedBox(height: 16),
 
               // Continue button
-              SizedBox(
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _hasSavedCodes ? _handleContinue : null,
-                  child: const Text('Continue'),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppShapes.listInset,
+                ),
+                child: SizedBox(
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: _hasSavedCodes ? _handleContinue : null,
+                    child: const Text('Continue'),
+                  ),
                 ),
               ),
             ],
@@ -205,7 +212,7 @@ class _BackupCodesPageState extends ConsumerState<BackupCodesPage> {
 
   Widget _buildCodeRow(int index, String code) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
       child: Row(
         children: [
           SizedBox(

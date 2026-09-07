@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/rounded_group.dart';
 import '../../../settings/presentation/settings_page.dart';
 import '../../../todos/presentation/pages/all_tasks_page.dart';
 import '../../../todos/presentation/pages/completed_tasks_page.dart';
@@ -48,76 +49,87 @@ class BrowsePage extends ConsumerWidget {
         ],
       ),
       body: ListView(
+        padding: const EdgeInsets.only(bottom: 96),
         children: [
           // Projects section
           _buildSectionHeader('Projects'),
-          _buildMenuItem(
-            icon: MdiIcons.inboxOutline,
-            label: 'Inbox',
-            color: AppColors.blue,
-            onTap: () {
-              // Navigate to inbox (already accessible from bottom nav)
-            },
+          RoundedGroup(
+            children: [
+              _buildMenuItem(
+                icon: MdiIcons.inboxOutline,
+                label: 'Inbox',
+                color: AppColors.blue,
+                onTap: () {
+                  // Navigate to inbox (already accessible from bottom nav)
+                },
+              ),
+              ...projects.map((project) {
+                final count = _incompleteCount(todoState, project.id);
+                return _buildProjectItem(
+                  context: context,
+                  ref: ref,
+                  project: project,
+                  taskCount: count,
+                );
+              }),
+              ListTile(
+                leading: Icon(
+                  MdiIcons.plusCircleOutline,
+                  color: AppColors.textSecondary,
+                ),
+                title: Text(
+                  'Add project',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+                onTap: () => ProjectEditDialog.show(context),
+              ),
+            ],
           ),
-          // User-created projects
-          ...projects.map((project) {
-            final count = _incompleteCount(todoState, project.id);
-            return _buildProjectItem(
-              context: context,
-              ref: ref,
-              project: project,
-              taskCount: count,
-            );
-          }),
-          // Add project button
-          ListTile(
-            leading: Icon(MdiIcons.plusCircleOutline,
-                color: AppColors.textSecondary),
-            title: Text(
-              'Add project',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-            onTap: () => ProjectEditDialog.show(context),
-          ),
-
-          const Divider(height: 32),
 
           // Quick access section
           _buildSectionHeader('Quick access'),
-          _buildMenuItem(
-            icon: MdiIcons.clipboardListOutline,
-            label: 'All tasks',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AllTasksPage()),
-              );
-            },
+          RoundedGroup(
+            children: [
+              _buildMenuItem(
+                icon: MdiIcons.clipboardListOutline,
+                label: 'Main',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AllTasksPage()),
+                  );
+                },
+              ),
+              _buildMenuItem(
+                icon: MdiIcons.checkCircleOutline,
+                label: 'Completed',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CompletedTasksPage(),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
-          _buildMenuItem(
-            icon: MdiIcons.checkCircleOutline,
-            label: 'Completed',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CompletedTasksPage()),
-              );
-            },
-          ),
-
-          const Divider(height: 32),
 
           // Settings section
           _buildSectionHeader('Settings'),
-          _buildMenuItem(
-            icon: MdiIcons.cogOutline,
-            label: 'Settings',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsPage()),
-              );
-            },
+          RoundedGroup(
+            children: [
+              _buildMenuItem(
+                icon: MdiIcons.cogOutline,
+                label: 'Settings',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SettingsPage()),
+                  );
+                },
+              ),
+            ],
           ),
         ],
       ),

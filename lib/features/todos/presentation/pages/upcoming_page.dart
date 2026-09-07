@@ -11,6 +11,7 @@ import '../../providers/todo_provider.dart';
 import '../widgets/todo_input_sheet.dart';
 import '../widgets/todo_swipe_tile.dart';
 import '../widgets/quick_add_fab.dart';
+import '../../../../shared/widgets/lifted_fab.dart';
 
 class UpcomingPage extends ConsumerStatefulWidget {
   final VoidCallback? onMenu;
@@ -159,20 +160,20 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
           Expanded(
             child: SlidableAutoCloseBehavior(
               child: ListView.builder(
-                padding: const EdgeInsets.only(bottom: 100),
+                padding: const EdgeInsets.only(bottom: 96),
                 itemCount: 14, // Show 2 weeks
                 itemBuilder: (context, index) {
                   final date = _listStartDate.add(Duration(days: index));
-                  return _buildDateSection(date, todoState, settings.checkboxSize == CheckboxSize.large);
+                  return _buildDateSection(date, todoState, settings.checkboxSize);
                 },
               ),
             ),
           ),
         ],
       ),
-      floatingActionButton: QuickAddFab(
+      floatingActionButton: LiftedFab(child: QuickAddFab(
         onPressed: () => _showAddTodoSheet(),
-      ),
+      )),
     );
   }
 
@@ -248,7 +249,7 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
     );
   }
 
-  Widget _buildDateSection(DateTime date, TodoState todoState, bool largeCheckbox) {
+  Widget _buildDateSection(DateTime date, TodoState todoState, CheckboxSize size) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final tomorrow = today.add(const Duration(days: 1));
@@ -315,12 +316,12 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
         ),
         // Todos for this date — one rounded group per day.
         for (var i = 0; i < todosForDate.length; i++)
-          _buildTodoTile(todosForDate[i], largeCheckbox,
+          _buildTodoTile(todosForDate[i], size,
               isFirst: i == 0, isLast: i == todosForDate.length - 1),
         // Completed todos for this date
         if (showCompleted && completedTodosForDate.isNotEmpty)
           for (var i = 0; i < completedTodosForDate.length; i++)
-            _buildTodoTile(completedTodosForDate[i], largeCheckbox,
+            _buildTodoTile(completedTodosForDate[i], size,
                 isCompleted: true,
                 isFirst: i == 0,
                 isLast: i == completedTodosForDate.length - 1),
@@ -329,12 +330,12 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
     );
   }
 
-  Widget _buildTodoTile(Todo todo, bool largeCheckbox,
+  Widget _buildTodoTile(Todo todo, CheckboxSize size,
       {bool isCompleted = false, bool isFirst = true, bool isLast = true}) {
     return TodoSwipeTile(
       key: ValueKey(todo.id),
       todo: todo,
-      largeCheckbox: largeCheckbox,
+      size: size,
       isCompleted: isCompleted,
       isFirst: isFirst,
       isLast: isLast,

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_shapes.dart';
+import '../../../shared/widgets/rounded_group.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class OnboardingPage extends ConsumerStatefulWidget {
@@ -15,6 +17,9 @@ class OnboardingPage extends ConsumerStatefulWidget {
 class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
+
+  /// One duration for every state change on this page.
+  static const Duration _motion = Duration(milliseconds: 220);
 
   @override
   void dispose() {
@@ -43,6 +48,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isLastPage = _currentPage == 2;
+
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -74,14 +81,16 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
               ),
             ),
 
-            // Page indicator
+            // Page indicator — the active dot grows into a pill.
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
                   3,
-                  (index) => Container(
+                  (index) => AnimatedContainer(
+                    duration: _motion,
+                    curve: Curves.easeOutCubic,
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     width: _currentPage == index ? 24 : 8,
                     height: 8,
@@ -89,7 +98,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                       color: _currentPage == index
                           ? AppColors.primary
                           : AppColors.surfaceLight,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(999),
                     ),
                   ),
                 ),
@@ -105,13 +114,17 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                   onPressed: _nextPage,
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: AppColors.primary,
                   ),
-                  child: Text(
-                    _currentPage == 2 ? 'Get started' : 'Continue',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                  child: AnimatedSwitcher(
+                    duration: _motion,
+                    switchInCurve: Curves.easeOutCubic,
+                    child: Text(
+                      isLastPage ? 'Get started' : 'Continue',
+                      key: ValueKey(isLastPage),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -139,7 +152,7 @@ class _WelcomeScreen extends StatelessWidget {
             height: 120,
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(30),
+              borderRadius: BorderRadius.circular(AppShapes.groupOuter),
             ),
             child: Icon(
               MdiIcons.formatListChecks,
@@ -188,7 +201,7 @@ class _NLPSyntaxScreen extends StatelessWidget {
             height: 120,
             decoration: BoxDecoration(
               color: AppColors.purple.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(30),
+              borderRadius: BorderRadius.circular(AppShapes.groupOuter),
             ),
             child: Icon(
               MdiIcons.pencil,
@@ -216,44 +229,49 @@ class _NLPSyntaxScreen extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
-          // Example card
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.divider),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Example:',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textTertiary,
-                    fontWeight: FontWeight.w500,
-                  ),
+          // Example + syntax legend: two blocks of one group, so the gap
+          // separates them instead of a rule.
+          RoundedGroup(
+            inset: 0,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Example:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textTertiary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Milch kaufen mi 15:00 !!2 #einkauf',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: AppColors.primary,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Milch kaufen mi 15:00 !!2 #einkauf',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: AppColors.primary,
-                    fontFamily: 'monospace',
-                  ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSyntaxItem('mi', 'Wednesday', MdiIcons.calendarOutline),
+                    _buildSyntaxItem('15:00', 'Time', MdiIcons.clockOutline),
+                    _buildSyntaxItem('!!2', 'Priority 2', MdiIcons.flagOutline),
+                    _buildSyntaxItem('#einkauf', 'Project', MdiIcons.folderOutline),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                Divider(color: AppColors.divider),
-                const SizedBox(height: 12),
-                _buildSyntaxItem('mi', 'Wednesday', MdiIcons.calendarOutline),
-                _buildSyntaxItem('15:00', 'Time', MdiIcons.clockOutline),
-                _buildSyntaxItem('!!2', 'Priority 2', MdiIcons.flagOutline),
-                _buildSyntaxItem('#einkauf', 'Project', MdiIcons.folderOutline),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
@@ -271,7 +289,7 @@ class _NLPSyntaxScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
               color: AppColors.surfaceLight,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppShapes.dockChip),
             ),
             child: Text(
               syntax,
@@ -311,7 +329,7 @@ class _OfflineFirstScreen extends StatelessWidget {
             height: 120,
             decoration: BoxDecoration(
               color: AppColors.success.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(30),
+              borderRadius: BorderRadius.circular(AppShapes.groupOuter),
             ),
             child: Icon(
               MdiIcons.shieldCheck,
@@ -340,21 +358,26 @@ class _OfflineFirstScreen extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
-          // Features list
-          _buildFeatureItem(
-            MdiIcons.cellphone,
-            'Stored locally',
-            'Everything stays on your device',
-          ),
-          _buildFeatureItem(
-            MdiIcons.cloudOffOutline,
-            'No internet needed',
-            'Works offline too',
-          ),
-          _buildFeatureItem(
-            MdiIcons.cloudUploadOutline,
-            'Optional: Cloud sync',
-            'Connect an account later',
+          // Features list as one rounded group
+          RoundedGroup(
+            inset: 0,
+            children: [
+              _buildFeatureItem(
+                MdiIcons.cellphone,
+                'Stored locally',
+                'Everything stays on your device',
+              ),
+              _buildFeatureItem(
+                MdiIcons.cloudOffOutline,
+                'No internet needed',
+                'Works offline too',
+              ),
+              _buildFeatureItem(
+                MdiIcons.cloudUploadOutline,
+                'Optional: Cloud sync',
+                'Connect an account later',
+              ),
+            ],
           ),
         ],
       ),
@@ -363,18 +386,10 @@ class _OfflineFirstScreen extends StatelessWidget {
 
   Widget _buildFeatureItem(IconData icon, String title, String subtitle) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, size: 22, color: AppColors.textSecondary),
-          ),
+          Icon(icon, size: 22, color: AppColors.textSecondary),
           const SizedBox(width: 16),
           Expanded(
             child: Column(

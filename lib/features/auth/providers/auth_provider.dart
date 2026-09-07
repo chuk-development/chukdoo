@@ -79,10 +79,17 @@ const _localUserIdKey = 'local_user_id';
 
 class AuthNotifier extends StateNotifier<AppAuthState> {
   AuthNotifier() : super(const AppAuthState()) {
+    // Listen before anything else: the stream is alive even while Supabase is
+    // still initializing, so a late session restore is never missed.
+    _setupAuthListener();
     _init();
   }
 
   StreamSubscription<supabase.AuthState>? _authSubscription;
+
+  /// True while an interactive auth flow owns the state (sign in, sign up,
+  /// unlock, recovery). The auth listener stays out of the way meanwhile.
+  bool _authFlowInProgress = false;
 
   /// INSTANT startup - local only, no network
   /// New users go directly to local mode (offline-first default)
@@ -125,7 +132,9 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
           debugPrint('AuthProvider: Instant auth from local cache');
           state = const AppAuthState(status: AuthStatus.authenticated);
 
-          // Background sync (non-blocking)
+          // Background sync (non-blocking). It also adopts the Supabase
+          // session once the SDK has restored it, so the UI and the sync layer
+          // report the same user instead of drifting apart.
           _startBackgroundSync(lastUserId);
           return;
         }
@@ -153,8 +162,9 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
         return;
       }
 
-      // Check Supabase session
-      final session = SupabaseService.client.auth.currentSession;
+      // Check Supabase session. An expired access token still counts as a
+      // session - it only needs a refresh, which happens in the background.
+      final session = SupabaseService.currentSession;
       if (session != null) {
         // Save userId for next instant startup
         await _saveLastUserId(session.user.id);
@@ -183,9 +193,6 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
           hasCompletedOnboarding: onboardingCompleted,
         );
       }
-
-      // Set up auth listener for future changes
-      _setupAuthListener();
     } catch (e) {
       debugPrint('AuthProvider: Init error: $e');
       // On error, default to local mode instead of login
@@ -193,9 +200,11 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
     }
   }
 
-  /// Wait for Supabase to initialize, but don't block forever
-  Future<void> _waitForSupabaseOrTimeout() async {
-    const maxWait = Duration(milliseconds: 500);
+  /// Wait for Supabase to initialize, but don't block forever.
+  /// Only ever awaited off the startup path or from background work.
+  Future<void> _waitForSupabaseOrTimeout([
+    Duration maxWait = const Duration(milliseconds: 500),
+  ]) async {
     const checkInterval = Duration(milliseconds: 50);
     var elapsed = Duration.zero;
 
@@ -222,10 +231,33 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
     // Fire and forget - sync happens in background
     Future(() async {
       try {
-        // Wait for Supabase if not ready yet
-        await _waitForSupabaseOrTimeout();
+        // Supabase initializes in parallel with the app start and may retry
+        // after a slow first attempt, so give it real time here. Nothing on
+        // screen waits for this.
+        await _waitForSupabaseOrTimeout(const Duration(seconds: 30));
 
         if (SupabaseService.isAvailable) {
+          // Adopt the restored session and refresh the token if it is stale,
+          // so the UI user matches the user the sync layer uses.
+          await SupabaseService.ensureFreshSession();
+          _adoptSupabaseUser();
+
+          if (SupabaseService.currentSession == null &&
+              state.status == AuthStatus.authenticated &&
+              !_authFlowInProgress) {
+            // The SDK is up but holds no session: the refresh token was
+            // revoked or the stored session is gone. Sync could never work in
+            // this state, so ask for a sign-in instead of showing a signed-in
+            // UI that silently fails. Session presence is a local fact, so
+            // being offline cannot land us here.
+            debugPrint('AuthProvider: Cloud session gone - sign-in required');
+            state = const AppAuthState(
+              status: AuthStatus.unauthenticated,
+              error: 'Your session expired. Please sign in again.',
+            );
+            return;
+          }
+
           // Sync encryption metadata
           await EncryptionService.syncKeyMetadata();
 
@@ -240,33 +272,99 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
     });
   }
 
-  /// Set up listener for auth state changes (login/logout from other sources)
+  /// Attach the Supabase user to an authenticated state that was opened from
+  /// the local cache. Never changes the status - an unreachable backend must
+  /// not flip the UI to "signed out".
+  void _adoptSupabaseUser() {
+    if (state.status != AuthStatus.authenticated) return;
+    if (state.user != null) return;
+
+    final user = SupabaseService.currentUser;
+    if (user == null) return;
+
+    debugPrint('AuthProvider: Adopted Supabase user ${user.id}');
+    state = state.copyWith(user: user);
+  }
+
+  /// Refresh the access token when the app comes back to the foreground.
+  /// Safe to call often: it is a no-op while the token is still valid.
+  Future<void> onAppResumed() async {
+    if (!SupabaseService.isAvailable) return;
+    await SupabaseService.ensureFreshSession();
+    _adoptSupabaseUser();
+  }
+
+  /// Set up listener for auth state changes (login/logout from other sources).
+  ///
+  /// Only an explicit sign-out signs the user out here. A missing session in
+  /// any other event means "not restored yet" or "offline", never "signed out":
+  /// wiping the local state there is what made the UI and the sync layer
+  /// disagree.
   void _setupAuthListener() {
-    final authStream = SupabaseService.authStateChanges;
-    if (authStream != null) {
-      _authSubscription = authStream.listen((data) async {
-        final session = data.session;
-        if (session != null) {
-          await _saveLastUserId(session.user.id);
-          final hasKey = await EncryptionService.tryLoadKeyLocal(session.user.id);
-          if (hasKey) {
-            RevenueCatService.login(session.user.id);
-            state = AppAuthState(
-              status: AuthStatus.authenticated,
-              user: session.user,
-            );
-          } else {
-            state = AppAuthState(
-              status: AuthStatus.needsPassword,
-              user: session.user,
-            );
-          }
-        } else {
-          await _clearLastUserId();
-          state = const AppAuthState(status: AuthStatus.unauthenticated);
+    _authSubscription?.cancel();
+    _authSubscription = SupabaseService.authStateChanges.listen((data) async {
+      final event = data.event;
+      final session = data.session;
+
+      if (session != null) {
+        await _saveLastUserId(session.user.id);
+
+        // An interactive flow (sign in, sign up, unlock, recovery) owns the
+        // state until it finishes. Otherwise the SIGNED_IN event would bounce
+        // the user through /unlock before the key is set up.
+        if (_authFlowInProgress) return;
+
+        // Token refreshes must not restart the unlock flow or pull the user
+        // out of a screen they still have to finish - just keep the user
+        // object current.
+        switch (state.status) {
+          case AuthStatus.authenticated:
+          case AuthStatus.needsEmailConfirmation:
+          case AuthStatus.needsBackupCodesConfirmation:
+            state = state.copyWith(user: session.user);
+            return;
+          case AuthStatus.localMode:
+            // Local mode is a deliberate choice. "Connect to cloud" is the way
+            // out of it, not a background token refresh.
+            return;
+          case AuthStatus.initial:
+          case AuthStatus.unauthenticated:
+          case AuthStatus.needsPassword:
+            break;
         }
-      });
-    }
+
+        final hasKey = await EncryptionService.tryLoadKeyLocal(session.user.id);
+        if (hasKey) {
+          RevenueCatService.login(session.user.id);
+          state = AppAuthState(
+            status: AuthStatus.authenticated,
+            user: session.user,
+          );
+        } else {
+          state = AppAuthState(
+            status: AuthStatus.needsPassword,
+            user: session.user,
+          );
+        }
+        return;
+      }
+
+      // No session in the event.
+      final signedOut = event == supabase.AuthChangeEvent.signedOut;
+      if (!signedOut) {
+        debugPrint('AuthProvider: ${event.name} without session - keeping state');
+        return;
+      }
+
+      // Local-mode users have no cloud session to lose.
+      if (state.status == AuthStatus.localMode) return;
+
+      // Real sign-out: either the user pressed it or the refresh token was
+      // revoked server-side.
+      debugPrint('AuthProvider: Signed out by Supabase');
+      await _clearLastUserId();
+      state = const AppAuthState(status: AuthStatus.unauthenticated);
+    });
   }
 
   Future<void> signUp({
@@ -275,6 +373,7 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
     String? displayName,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
+    _authFlowInProgress = true;
 
     try {
       final response = await SupabaseService.auth.signUp(
@@ -330,6 +429,8 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
       state = state.copyWith(isLoading: false, error: e.message);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+    } finally {
+      _authFlowInProgress = false;
     }
   }
 
@@ -338,6 +439,7 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
     required String password,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
+    _authFlowInProgress = true;
 
     try {
       final response = await SupabaseService.auth.signInWithPassword(
@@ -366,12 +468,15 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
       state = state.copyWith(isLoading: false, error: e.message);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+    } finally {
+      _authFlowInProgress = false;
     }
   }
 
   /// Called when user is logged in but needs to enter password for encryption
   Future<void> unlockWithPassword(String password) async {
     state = state.copyWith(isLoading: true, clearError: true);
+    _authFlowInProgress = true;
 
     try {
       await EncryptionService.initializeForPassword(password);
@@ -391,6 +496,8 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
         isLoading: false,
         error: 'Incorrect password. Please try again.',
       );
+    } finally {
+      _authFlowInProgress = false;
     }
   }
 
@@ -407,7 +514,10 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
       }
       state = const AppAuthState(status: AuthStatus.unauthenticated);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      // The SDK drops the local session before it calls the server, so a
+      // failing network call must still leave the user signed out here.
+      debugPrint('AuthProvider: Sign out error: $e');
+      state = const AppAuthState(status: AuthStatus.unauthenticated);
     }
   }
 
@@ -441,6 +551,7 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
     required String newPassword,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
+    _authFlowInProgress = true;
 
     try {
       final user = SupabaseService.currentUser;
@@ -489,6 +600,8 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
       }
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+    } finally {
+      _authFlowInProgress = false;
     }
   }
 

@@ -94,6 +94,8 @@ class SyncManager {
 
   /// Perform a full sync and notify listeners
   Future<void> _performSync() async {
+    // SyncService.fullSync() refreshes the token itself; this only avoids the
+    // needless call while Supabase is unavailable.
     if (!SupabaseService.isAvailable) {
       debugPrint('SyncManager: Supabase not available, skipping sync');
       return;

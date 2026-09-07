@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_shapes.dart';
+import '../../../shared/widgets/rounded_group.dart';
 import '../services/export_service.dart';
 
 class ImportPreviewPage extends ConsumerStatefulWidget {
@@ -17,6 +19,9 @@ class ImportPreviewPage extends ConsumerStatefulWidget {
 class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
   bool _replaceExisting = false;
   bool _isImporting = false;
+
+  /// One duration for every state change on this page.
+  static const Duration _motion = Duration(milliseconds: 220);
 
   Future<void> _import() async {
     setState(() => _isImporting = true);
@@ -53,168 +58,146 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
   @override
   Widget build(BuildContext context) {
     final preview = widget.preview;
+    final previewTodos = preview.todos.take(5).toList();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Import preview'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         children: [
-          // Summary card
-          Card(
-            color: AppColors.surface,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          MdiIcons.import,
-                          color: AppColors.primary,
-                          size: 28,
-                        ),
+          // Summary: header row and the two stat rows are one group.
+          RoundedGroup(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(AppShapes.dockField),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Chukdoo Export',
+                      child: Icon(
+                        MdiIcons.import,
+                        color: AppColors.primary,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Chukdoo Export',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (preview.exportedAt != null)
+                            Text(
+                              'Exported on ${_formatDate(preview.exportedAt!)}',
                               style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
                               ),
                             ),
-                            if (preview.exportedAt != null)
-                              Text(
-                                'Exported on ${_formatDate(preview.exportedAt!)}',
-                                style: TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 13,
-                                ),
-                              ),
-                          ],
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  const Divider(),
-                  const SizedBox(height: 12),
-                  // Stats
-                  _buildStatRow(
-                    MdiIcons.formatListChecks,
-                    'Tasks',
-                    preview.todoCount.toString(),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildStatRow(
-                    MdiIcons.folderOutline,
-                    'Projects',
-                    preview.projectCount.toString(),
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
-            ),
+              _buildStatRow(
+                MdiIcons.formatListChecks,
+                'Tasks',
+                preview.todoCount.toString(),
+              ),
+              _buildStatRow(
+                MdiIcons.folderOutline,
+                'Projects',
+                preview.projectCount.toString(),
+              ),
+            ],
           ),
-          const SizedBox(height: 24),
 
           // Import options
-          Text(
-            'Import options',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            color: AppColors.surface,
-            child: Column(
-              children: [
-                SwitchListTile(
-                  value: _replaceExisting,
-                  onChanged: (value) {
-                    setState(() => _replaceExisting = value);
-                  },
-                  title: const Text('Replace existing data'),
-                  subtitle: Text(
-                    _replaceExisting
-                        ? 'All local data will be deleted'
-                        : 'New data will be added',
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
-                  secondary: Icon(
-                    _replaceExisting
-                        ? MdiIcons.trashCanOutline
-                        : MdiIcons.plusCircleOutline,
-                    color: _replaceExisting ? AppColors.warning : AppColors.textSecondary,
-                  ),
+          _buildSectionHeader('Import options'),
+          RoundedGroup(
+            children: [
+              SwitchListTile(
+                value: _replaceExisting,
+                onChanged: (value) {
+                  setState(() => _replaceExisting = value);
+                },
+                title: const Text('Replace existing data'),
+                subtitle: Text(
+                  _replaceExisting
+                      ? 'All local data will be deleted'
+                      : 'New data will be added',
+                  style: TextStyle(color: AppColors.textSecondary),
                 ),
-              ],
-            ),
+                secondary: Icon(
+                  _replaceExisting
+                      ? MdiIcons.trashCanOutline
+                      : MdiIcons.plusCircleOutline,
+                  color: _replaceExisting ? AppColors.warning : AppColors.textSecondary,
+                ),
+              ),
+            ],
           ),
 
-          if (_replaceExisting) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.warning.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(MdiIcons.alertOutline, color: AppColors.warning, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Warning: all existing tasks and projects will be deleted!',
-                      style: TextStyle(color: AppColors.warning, fontSize: 13),
+          // Warning grows in when the switch is turned on.
+          AnimatedSize(
+            duration: _motion,
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: !_replaceExisting
+                ? const SizedBox(width: double.infinity)
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppShapes.listInset,
+                      12,
+                      AppShapes.listInset,
+                      0,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(AppShapes.dockField),
+                        // The tint border belongs to the warning itself.
+                        border: Border.all(
+                          color: AppColors.warning.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(MdiIcons.alertOutline, color: AppColors.warning, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Warning: all existing tasks and projects will be deleted!',
+                              style: TextStyle(color: AppColors.warning, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ],
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 24),
+          ),
 
           // Todo preview
-          if (preview.todos.isNotEmpty) ...[
-            Text(
-              'Task preview',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-                letterSpacing: 0.5,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Card(
-              color: AppColors.surface,
-              child: ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: preview.todos.take(5).length,
-                separatorBuilder: (_, _) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final todo = preview.todos[index];
-                  return ListTile(
+          if (previewTodos.isNotEmpty) ...[
+            _buildSectionHeader('Task preview'),
+            RoundedGroup(
+              children: [
+                for (final todo in previewTodos)
+                  ListTile(
                     leading: Icon(
                       MdiIcons.checkCircleOutline,
                       color: AppColors.textSecondary,
@@ -230,9 +213,8 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
                             style: TextStyle(color: AppColors.textSecondary),
                           )
                         : null,
-                  );
-                },
-              ),
+                  ),
+              ],
             ),
             if (preview.todos.length > 5)
               Padding(
@@ -248,30 +230,32 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
           const SizedBox(height: 32),
 
           // Import button
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _isImporting ? null : _import,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: AppColors.primary,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppShapes.listInset),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _isImporting ? null : _import,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: _isImporting
+                    ? SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.onPrimary,
+                        ),
+                      )
+                    : const Text(
+                        'Import',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
               ),
-              child: _isImporting
-                  ? SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.onPrimary,
-                      ),
-                    )
-                  : const Text(
-                      'Import',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
             ),
           ),
           const SizedBox(height: 16),
@@ -280,21 +264,39 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
     );
   }
 
-  Widget _buildStatRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: AppColors.textSecondary),
-        const SizedBox(width: 12),
-        Text(label, style: TextStyle(color: AppColors.textSecondary)),
-        const Spacer(),
-        Text(
-          value,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-          ),
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textSecondary,
+          letterSpacing: 0.5,
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildStatRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: AppColors.textSecondary),
+          const SizedBox(width: 12),
+          Text(label, style: TextStyle(color: AppColors.textSecondary)),
+          const Spacer(),
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

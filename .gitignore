@@ -56,3 +56,7 @@ passwords.txt
 session.txt
 chukdoo_export.json
 .playwright-mcp/
+
+# Session screenshots / scratch captures
+_s_*.png
+_scratch*

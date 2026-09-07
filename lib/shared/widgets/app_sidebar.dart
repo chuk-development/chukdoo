@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_shapes.dart';
 import '../../features/projects/domain/models/project.dart';
 import '../../features/projects/domain/project_icons.dart';
 import '../../features/projects/providers/project_provider.dart';
@@ -211,19 +212,35 @@ class _RailIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The active pill grows a little wider than the resting icon — the
+    // Material 3 rail indicator.
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
-      child: IconButton(
-        icon: Icon(
-          isActive ? activeIcon : icon,
-          size: 24,
-          color: isActive ? AppColors.primary : AppColors.textSecondary,
-        ),
-        onPressed: onTap,
-        style: IconButton.styleFrom(
-          backgroundColor: isActive ? AppColors.primary.withValues(alpha: 0.12) : Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          fixedSize: const Size(46, 46),
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          width: 52,
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isActive
+                ? AppColors.primary.withValues(alpha: 0.16)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: AnimatedScale(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutBack,
+            scale: isActive ? 1.06 : 1.0,
+            child: Icon(
+              isActive ? activeIcon : icon,
+              size: 24,
+              color: isActive ? AppColors.primary : AppColors.textSecondary,
+            ),
+          ),
         ),
       ),
     );
@@ -265,7 +282,7 @@ class _SyncRailIcon extends StatelessWidget {
             onPressed: () => SyncService.fullSync(),
             style: IconButton.styleFrom(
               fixedSize: const Size(46, 46),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+              shape: const StadiumBorder(),
             ),
             tooltip: status == SyncStatus.syncing ? 'Syncing…' : 'Sync',
           ),
@@ -353,7 +370,8 @@ class _TasksSubPanel extends ConsumerWidget {
     final todoState = ref.watch(todoProvider);
     final projectState = ref.watch(projectProvider);
     final projects = projectState.sortedProjects;
-    final allCount = todoState.todos.where((t) => !t.isCompleted).length;
+    // "Main" counts only tasks outside any project.
+    final allCount = todoState.inboxTodos.length;
 
     return Column(
       children: [
@@ -376,9 +394,11 @@ class _TasksSubPanel extends ConsumerWidget {
         // Smart views
         _SubNavItem(
           icon: MdiIcons.inboxOutline,
-          label: 'All',
+          label: 'Main',
           count: allCount,
           isSelected: currentView == 'all',
+          isFirst: true,
+          isLast: false,
           onTap: () => onViewSelected('all'),
           // Drop a task here to pull it out of its project (back to no-project).
           onAcceptTodo: (todo) {
@@ -391,6 +411,8 @@ class _TasksSubPanel extends ConsumerWidget {
           label: 'Today',
           count: todoState.todayTodos.length,
           isSelected: currentView == 'today',
+          isFirst: false,
+          isLast: false,
           onTap: () => onViewSelected('today'),
           iconColor: AppColors.green,
         ),
@@ -398,12 +420,14 @@ class _TasksSubPanel extends ConsumerWidget {
           icon: MdiIcons.calendarCheckOutline,
           label: 'Next 7 Days',
           isSelected: currentView == 'upcoming',
+          isFirst: false,
+          isLast: true,
           onTap: () => onViewSelected('upcoming'),
           iconColor: AppColors.blue,
         ),
 
         const SizedBox(height: 4),
-        Divider(color: AppColors.divider, height: 1),
+        const SizedBox(height: 10),
 
         // Projects section
         Padding(
@@ -445,6 +469,8 @@ class _TasksSubPanel extends ConsumerWidget {
               return _ProjectItem(
                 project: project,
                 count: count,
+                isFirst: index == 0,
+                isLast: index == projects.length - 1,
                 onTap: () => onProjectTap(project),
                 onAcceptTodo: (todo) {
                   if (todo.projectId == project.id) return;
@@ -455,19 +481,23 @@ class _TasksSubPanel extends ConsumerWidget {
           ),
         ),
 
-        Divider(color: AppColors.divider, height: 1),
+        const SizedBox(height: 10),
 
         // Bottom items
         _SubNavItem(
           icon: MdiIcons.checkCircleOutline,
           label: 'Completed',
           isSelected: currentView == 'completed',
+          isFirst: true,
+          isLast: false,
           onTap: () => onViewSelected('completed'),
         ),
         _SubNavItem(
           icon: MdiIcons.cogOutline,
           label: 'Settings',
           isSelected: currentView == 'settings',
+          isFirst: false,
+          isLast: true,
           onTap: () => onViewSelected('settings'),
         ),
         const SizedBox(height: 8),
@@ -582,7 +612,7 @@ class _SimpleSubPanel extends StatelessWidget {
             ],
           ),
         ),
-        Divider(color: AppColors.divider, height: 1),
+        const SizedBox(height: 10),
         const SizedBox(height: 8),
 
         // Section-specific sub-navigation
@@ -590,7 +620,7 @@ class _SimpleSubPanel extends StatelessWidget {
 
         // Settings always at bottom
         const Spacer(),
-        Divider(color: AppColors.divider, height: 1),
+        const SizedBox(height: 10),
         _SubNavItem(
           icon: MdiIcons.cogOutline,
           label: 'Settings',
@@ -616,6 +646,10 @@ class _SubNavItem extends StatefulWidget {
   final Color? iconColor;
   final void Function(Todo todo)? onAcceptTodo;
 
+  /// Position inside a [RoundedGroup]; null renders the standalone pill.
+  final bool? isFirst;
+  final bool? isLast;
+
   const _SubNavItem({
     required this.icon,
     required this.label,
@@ -624,6 +658,8 @@ class _SubNavItem extends StatefulWidget {
     required this.onTap,
     this.iconColor,
     this.onAcceptTodo,
+    this.isFirst,
+    this.isLast,
   });
 
   @override
@@ -644,20 +680,36 @@ class _SubNavItemState extends State<_SubNavItem> {
     // Margin lives OUTSIDE the ink area and the Material is clipped to the
     // rounded shape, so the hover/selected highlight matches the tile exactly
     // (the InkWell hover overlay no longer overflows into the side margins).
+    // Rows sit in a rounded group (like settings) when a position is given,
+    // otherwise they stay standalone pills.
+    final grouped = widget.isFirst != null;
+    final radius = grouped
+        ? AppShapes.row(isFirst: widget.isFirst!, isLast: widget.isLast!)
+        : BorderRadius.circular(999);
     final tile = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
+      padding: EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: grouped ? AppShapes.groupGap / 2 : 2,
+      ),
       child: Material(
-        color: _hovering
-            ? AppColors.primary.withValues(alpha: 0.18)
-            : isSelected
-                ? AppColors.primary.withValues(alpha: 0.12)
-                : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
+        color: grouped ? AppColors.surface : Colors.transparent,
+        borderRadius: radius,
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: widget.onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          borderRadius: radius,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              color: _hovering
+                  ? AppColors.primary.withValues(alpha: 0.22)
+                  : isSelected
+                  ? AppColors.primary.withValues(alpha: 0.16)
+                  : Colors.transparent,
+              borderRadius: radius,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             child: Row(
               children: [
                 Icon(
@@ -714,12 +766,16 @@ class _ProjectItem extends StatefulWidget {
   final int count;
   final VoidCallback onTap;
   final void Function(Todo todo)? onAcceptTodo;
+  final bool isFirst;
+  final bool isLast;
 
   const _ProjectItem({
     required this.project,
     required this.count,
     required this.onTap,
     this.onAcceptTodo,
+    this.isFirst = true,
+    this.isLast = true,
   });
 
   @override
@@ -735,16 +791,32 @@ class _ProjectItemState extends State<_ProjectItem> {
     final count = widget.count;
     final projectColor = Color(project.color);
 
+    final radius = AppShapes.row(
+      isFirst: widget.isFirst,
+      isLast: widget.isLast,
+    );
     final tile = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: AppShapes.groupGap / 2,
+      ),
       child: Material(
-        color: _hovering ? AppColors.primary.withValues(alpha: 0.18) : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
+        color: AppColors.surface,
+        borderRadius: radius,
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: widget.onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          borderRadius: radius,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              color: _hovering
+                  ? AppColors.primary.withValues(alpha: 0.22)
+                  : Colors.transparent,
+              borderRadius: radius,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
                 Icon(projectIconFor(project.icon), size: 18, color: projectColor),

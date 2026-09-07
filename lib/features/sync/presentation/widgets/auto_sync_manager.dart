@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../shared/services/supabase_service.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../../projects/providers/project_provider.dart';
 import '../../../todos/providers/todo_provider.dart';
 import '../../../integrations/sunrise_export_service.dart';
@@ -30,7 +31,13 @@ class _AutoSyncManagerState extends ConsumerState<AutoSyncManager>
     with WidgetsBindingObserver {
   StreamSubscription<void>? _dataChangedSubscription;
   StreamSubscription<void>? _sunriseObserverSubscription;
+  Timer? _startRetryTimer;
   bool _applyingSunrise = false;
+
+  /// How long to keep retrying the start while Supabase is still initializing.
+  static const _startRetryInterval = Duration(seconds: 5);
+  static const _maxStartRetries = 12;
+  int _startRetries = 0;
 
   @override
   void initState() {
@@ -69,6 +76,7 @@ class _AutoSyncManagerState extends ConsumerState<AutoSyncManager>
     WidgetsBinding.instance.removeObserver(this);
     _dataChangedSubscription?.cancel();
     _sunriseObserverSubscription?.cancel();
+    _startRetryTimer?.cancel();
     AdaptiveSyncManager.instance.stop();
     super.dispose();
   }
@@ -79,15 +87,11 @@ class _AutoSyncManagerState extends ConsumerState<AutoSyncManager>
 
     switch (state) {
       case AppLifecycleState.resumed:
-        // App came to foreground - start sync
-        debugPrint('AutoSyncManager: App resumed, starting sync');
-        _startSyncManager();
-        // Do an immediate sync when coming back
-        AdaptiveSyncManager.instance.syncNow();
-        // Process any todos that Sunrise marked complete while we were away
-        SunriseExportService.processPending().then((_) {
-          if (mounted) ref.read(todoProvider.notifier).refresh();
-        });
+        // App came to foreground - refresh the token first, then sync.
+        // The SDK auto-refresh ticker may not have run yet, and a sync with a
+        // stale JWT is exactly what looks like "not authenticated".
+        debugPrint('AutoSyncManager: App resumed, refreshing session');
+        _resumeSync();
         break;
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
@@ -100,11 +104,31 @@ class _AutoSyncManagerState extends ConsumerState<AutoSyncManager>
     }
   }
 
+  /// Resume path: refresh the access token, then sync.
+  Future<void> _resumeSync() async {
+    await ref.read(authProvider.notifier).onAppResumed();
+    if (!mounted) return;
+    _startSyncManager();
+    await AdaptiveSyncManager.instance.syncNow();
+    if (!mounted) return;
+    // Process any todos that Sunrise marked complete while we were away
+    await SunriseExportService.processPending();
+    if (!mounted) return;
+    await ref.read(todoProvider.notifier).refresh();
+  }
+
   void _startSyncManager() {
     if (!SupabaseService.isAvailable || !SupabaseService.isAuthenticated) {
-      debugPrint('AutoSyncManager: Supabase not available or not authenticated');
+      // Supabase may still be initializing, or the session is not restored
+      // yet. Keep retrying instead of disabling sync for the whole app run.
+      debugPrint('AutoSyncManager: No session yet, will retry');
+      _scheduleStartRetry();
       return;
     }
+
+    _startRetryTimer?.cancel();
+    _startRetryTimer = null;
+    _startRetries = 0;
 
     // Subscribe to data changes
     _dataChangedSubscription?.cancel();
@@ -114,6 +138,18 @@ class _AutoSyncManagerState extends ConsumerState<AutoSyncManager>
 
     // Start the adaptive sync manager
     AdaptiveSyncManager.instance.start();
+  }
+
+  void _scheduleStartRetry() {
+    if (_startRetryTimer != null) return;
+    if (_startRetries >= _maxStartRetries) return;
+
+    _startRetryTimer = Timer(_startRetryInterval, () {
+      _startRetryTimer = null;
+      _startRetries++;
+      if (!mounted) return;
+      _startSyncManager();
+    });
   }
 
   void _refreshProviders() {
@@ -136,6 +172,17 @@ class _AutoSyncManagerState extends ConsumerState<AutoSyncManager>
 
   @override
   Widget build(BuildContext context) {
+    // Start or stop sync the moment the auth state changes, so the sync layer
+    // follows the same source of truth the UI shows.
+    ref.listen(authProvider, (previous, next) {
+      if (previous?.status == next.status) return;
+      if (next.status == AuthStatus.authenticated) {
+        _startSyncManager();
+      } else if (next.status == AuthStatus.unauthenticated) {
+        AdaptiveSyncManager.instance.stop();
+      }
+    });
+
     // Record user activity on any interaction
     return GestureDetector(
       behavior: HitTestBehavior.translucent,

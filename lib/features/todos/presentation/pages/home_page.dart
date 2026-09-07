@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_shapes.dart';
 import '../../../../shared/widgets/bottom_nav_bar.dart';
 import '../../../../shared/widgets/sync_error_banner.dart';
 import '../../../../shared/widgets/app_sidebar.dart';
@@ -34,8 +36,22 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
+  /// True while the user scrolls down: the nav bar folds its labels away.
+  bool _navCollapsed = false;
+
+  /// +1 when the next tab lies to the right, -1 when it lies to the left.
+  int _pageDir = 1;
+
+  /// Only the bottom nav animates. Picking a view in the drawer swaps the page
+  /// instantly — an animation there just delays the result.
+  bool _animatePage = true;
+
   String _currentView = 'all';
   Project? _selectedProject;
+
+  /// Views visited before the current one. The system back gesture walks this
+  /// stack instead of closing the app on the first swipe.
+  final List<({String view, Project? project})> _viewHistory = [];
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   // Map NavTab to view string for mobile
@@ -60,7 +76,32 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
   }
 
+  /// Remember the current view so back can return to it.
+  void _pushHistory() {
+    _viewHistory.add((view: _currentView, project: _selectedProject));
+    // A tab loop must not grow without bound.
+    if (_viewHistory.length > 20) _viewHistory.removeAt(0);
+  }
+
+  /// Step back to the previous view. Returns false when there is none left,
+  /// which lets the system close the app.
+  bool _goBack() {
+    if (_viewHistory.isEmpty) return false;
+    final previous = _viewHistory.removeLast();
+    setState(() {
+      _pageDir = -1;
+      _currentView = previous.view;
+      _selectedProject = previous.project;
+    });
+    return true;
+  }
+
   void _onTabSelected(NavTab tab) {
+    // Remember which way the new page comes from, so the views read as sheets
+    // lying next to each other.
+    _pageDir = tab.tabIndex >= _currentTab.tabIndex ? 1 : -1;
+    _animatePage = true;
+    _pushHistory();
     setState(() {
       switch (tab) {
         case NavTab.inbox:
@@ -93,9 +134,9 @@ class _HomePageState extends ConsumerState<HomePage> {
       case 'completed':
         return CompletedTasksPage(onMenu: menu);
       case 'calendar':
-        return const CalendarPage(embedded: true);
+        return CalendarPage(embedded: true, onMenu: menu);
       case 'habits':
-        return const HabitsPage(embedded: true);
+        return HabitsPage(embedded: true, onMenu: menu);
       case 'notes':
         return NotesPage(embedded: true, onMenu: menu);
       case 'kanban':
@@ -127,6 +168,8 @@ class _HomePageState extends ConsumerState<HomePage> {
       return;
     }
     ref.read(selectedTodoProvider.notifier).state = null;
+    _animatePage = false;
+    _pushHistory();
     setState(() {
       _currentView = view;
     });
@@ -144,6 +187,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     // it looks like the main task screen (bottom nav / drawer stay in place)
     // instead of pushing a separate full-screen route.
     ref.read(selectedTodoProvider.notifier).state = null;
+    _animatePage = false;
+    _pushHistory();
     setState(() {
       _selectedProject = project as Project;
       _currentView = 'project';
@@ -152,7 +197,14 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return AutoSyncManager(
+    return PopScope(
+      // The shell has no routes of its own, so the back gesture has to walk
+      // the view history instead of leaving the app on the first swipe.
+      canPop: _viewHistory.isEmpty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _goBack();
+      },
+      child: AutoSyncManager(
       child: LayoutBuilder(
         builder: (context, constraints) {
           final isDesktop = constraints.maxWidth >= 768;
@@ -196,6 +248,10 @@ class _HomePageState extends ConsumerState<HomePage> {
           // Mobile layout
           return Scaffold(
             key: _scaffoldKey,
+            // The bar is a floating pill: content keeps running underneath it
+            // while every page gets its height added to the bottom inset, so
+            // nothing important can hide behind it.
+            extendBody: true,
             drawer: _MobileDrawer(
               currentView: _currentView,
               onViewSelected: (view) {
@@ -207,18 +263,72 @@ class _HomePageState extends ConsumerState<HomePage> {
                 _handleProjectTap(project);
               },
             ),
-            body: Column(
-              children: [
-                const SyncErrorBanner(),
-                Expanded(child: _buildContent()),
-              ],
+            // Scaffold already adds the bar's height to the body's bottom
+            // inset when extendBody is on, so nothing is injected here — doing
+            // it twice left a dead strip above the bar.
+            body: NotificationListener<UserScrollNotification>(
+              onNotification: (notification) {
+                // Scrolling down folds the labels away, scrolling up brings
+                // them back.
+                if (notification.direction == ScrollDirection.reverse &&
+                    !_navCollapsed) {
+                  setState(() => _navCollapsed = true);
+                } else if (notification.direction == ScrollDirection.forward &&
+                    _navCollapsed) {
+                  setState(() => _navCollapsed = false);
+                }
+                return false;
+              },
+              child: Column(
+                children: [
+                  const SyncErrorBanner(),
+                  // Tabs are pages lying next to each other: the new page
+                  // slides in from the side you moved towards, the old one
+                  // slides out the other way.
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: _animatePage
+                          ? const Duration(milliseconds: 260)
+                          : Duration.zero,
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      transitionBuilder: (child, animation) {
+                        final key = ValueKey(
+                          '$_currentView-${_selectedProject?.id ?? ''}',
+                        );
+                        final incoming = child.key == key;
+                        final dx = _pageDir.toDouble();
+                        return SlideTransition(
+                          position: Tween<Offset>(
+                            begin: Offset(incoming ? dx : -dx, 0),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        );
+                      },
+                      layoutBuilder: (currentChild, previousChildren) => Stack(
+                        alignment: Alignment.topCenter,
+                        children: [...previousChildren, ?currentChild],
+                      ),
+                      child: KeyedSubtree(
+                        key: ValueKey(
+                          '$_currentView-${_selectedProject?.id ?? ''}',
+                        ),
+                        child: _buildContent(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             bottomNavigationBar: ChukdooBottomNavBar(
               currentTab: _currentTab,
+              collapsed: _navCollapsed,
               onTabSelected: _onTabSelected,
             ),
           );
         },
+      ),
       ),
     );
   }
@@ -273,16 +383,32 @@ class _MobileDrawer extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final projects = projectState.sortedProjects;
 
+    // A floating panel, not an edge-to-edge sheet: same rounded, inset block
+    // language as the quick-add dock, just coming in from the left.
     return Drawer(
-      backgroundColor: AppColors.background,
-      // Square edges — no rounded right corners.
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
       shape: const RoundedRectangleBorder(),
-      child: SafeArea(
+      width: MediaQuery.of(context).size.width * 0.84,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(
+          AppShapes.dockMargin,
+          AppShapes.dockMargin,
+          0,
+          AppShapes.dockMargin,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(AppShapes.sheetTop),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+              padding: const EdgeInsets.fromLTRB(20, 6, 20, 14),
               child: Text(
                 'Chukdoo',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
@@ -294,8 +420,10 @@ class _MobileDrawer extends ConsumerWidget {
               icon: MdiIcons.bookmark,
               iconColor: AppColors.primary,
               label: settings.mainListName,
-              count: todoState.todos.where((t) => !t.isCompleted).length,
+              count: todoState.inboxTodos.length,
               isSelected: currentView == 'all',
+              isFirst: true,
+              isLast: false,
               onTap: () => onViewSelected('all'),
               // Long-press to rename (no edit icon cluttering the row).
               onLongPress: () => _renameMainList(context, ref, settings.mainListName),
@@ -304,6 +432,8 @@ class _MobileDrawer extends ConsumerWidget {
               icon: MdiIcons.calendarTodayOutline,
               iconColor: AppColors.green,
               label: 'Today',
+              isFirst: false,
+              isLast: false,
               count: todoState.todayTodos.length,
               isSelected: currentView == 'today',
               onTap: () => onViewSelected('today'),
@@ -313,12 +443,16 @@ class _MobileDrawer extends ConsumerWidget {
               icon: MdiIcons.calendarOutline,
               iconColor: AppColors.blue,
               label: 'Upcoming',
+              isFirst: false,
+              isLast: false,
               isSelected: currentView == 'upcoming',
               onTap: () => onViewSelected('upcoming'),
             ),
             _DrawerItem(
               icon: MdiIcons.checkCircleOutline,
               label: 'Completed',
+              isFirst: false,
+              isLast: false,
               isSelected: currentView == 'completed',
               onTap: () => onViewSelected('completed'),
             ),
@@ -326,11 +460,13 @@ class _MobileDrawer extends ConsumerWidget {
               icon: MdiIcons.noteMultipleOutline,
               iconColor: AppColors.orange,
               label: 'Notes',
+              isFirst: false,
+              isLast: true,
               isSelected: currentView == 'notes',
               onTap: () => onViewSelected('notes'),
             ),
 
-            const Divider(height: 16),
+            const SizedBox(height: 14),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
               child: Text(
@@ -342,30 +478,59 @@ class _MobileDrawer extends ConsumerWidget {
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                children: projects.map((project) {
-                  final count = todoState.todos
-                      .where((t) => !t.isCompleted && t.projectId == project.id)
-                      .length;
-                  return _DrawerProjectTile(
-                    project: project,
-                    count: count,
-                    onTap: () => onProjectTap(project),
-                  );
-                }).toList(),
+                children: [
+                  for (var i = 0; i < projects.length; i++)
+                    _DrawerProjectTile(
+                      project: projects[i],
+                      count: todoState.todos
+                          .where(
+                            (t) =>
+                                !t.isCompleted &&
+                                t.projectId == projects[i].id,
+                          )
+                          .length,
+                      isFirst: i == 0,
+                      isLast: i == projects.length - 1,
+                      onTap: () => onProjectTap(projects[i]),
+                    ),
+                ],
               ),
             ),
 
-            const Divider(height: 1),
-            ListTile(
-              leading: Icon(MdiIcons.plusCircleOutline, color: AppColors.primary),
-              title: Text('New Project', style: TextStyle(color: AppColors.primary)),
-              onTap: () {
-                Navigator.pop(context);
-                ProjectEditDialog.show(context);
-              },
+            const SizedBox(height: 6),
+            // Same block shape as every other drawer row.
+            Container(
+              margin: const EdgeInsets.fromLTRB(
+                AppShapes.listInset,
+                0,
+                AppShapes.listInset,
+                AppShapes.groupGap,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppShapes.groupOuter),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: ListTile(
+                dense: true,
+                leading: Icon(
+                  MdiIcons.plusCircleOutline,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
+                title: Text(
+                  'New project',
+                  style: TextStyle(fontSize: 15, color: AppColors.primary),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  ProjectEditDialog.show(context);
+                },
+              ),
             ),
             const SizedBox(height: 8),
           ],
+        ),
         ),
       ),
     );
@@ -381,6 +546,10 @@ class _DrawerItem extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
+  /// Position inside its rounded group — same grading as the task list.
+  final bool isFirst;
+  final bool isLast;
+
   const _DrawerItem({
     required this.icon,
     required this.label,
@@ -389,21 +558,31 @@ class _DrawerItem extends StatelessWidget {
     this.onLongPress,
     this.iconColor,
     this.count,
+    this.isFirst = true,
+    this.isLast = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final radius = AppShapes.row(isFirst: isFirst, isLast: isLast);
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-      decoration: BoxDecoration(
-        color: isSelected ? AppColors.primary.withValues(alpha: 0.12) : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
+      margin: const EdgeInsets.fromLTRB(
+        AppShapes.listInset,
+        0,
+        AppShapes.listInset,
+        AppShapes.groupGap,
       ),
-      // Clip the ListTile ink to the rounded pill so the tap highlight isn't square.
+      decoration: BoxDecoration(
+        color: isSelected
+            ? AppColors.primary.withValues(alpha: 0.16)
+            : AppColors.surface,
+        borderRadius: radius,
+      ),
       clipBehavior: Clip.antiAlias,
       child: ListTile(
         dense: true,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: radius),
         leading: Icon(icon, size: 20, color: isSelected ? AppColors.primary : (iconColor ?? AppColors.textSecondary)),
         title: Text(
           label,
@@ -428,19 +607,37 @@ class _DrawerProjectTile extends StatelessWidget {
   final Project project;
   final int count;
   final VoidCallback onTap;
+  final bool isFirst;
+  final bool isLast;
 
-  const _DrawerProjectTile({required this.project, required this.count, required this.onTap});
+  const _DrawerProjectTile({
+    required this.project,
+    required this.count,
+    required this.onTap,
+    this.isFirst = true,
+    this.isLast = true,
+  });
 
   @override
   Widget build(BuildContext context) {
     final projectColor = Color(project.color);
+    final radius = AppShapes.row(isFirst: isFirst, isLast: isLast);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppShapes.listInset,
+        0,
+        AppShapes.listInset,
+        AppShapes.groupGap,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: radius,
+      ),
+      clipBehavior: Clip.antiAlias,
       child: ListTile(
         dense: true,
-        // Rounded ink highlight, matching _DrawerItem.
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: radius),
         leading: Icon(projectIconFor(project.icon), size: 20, color: projectColor),
         title: Text(project.name, style: const TextStyle(fontSize: 15), overflow: TextOverflow.ellipsis),
         trailing: count > 0

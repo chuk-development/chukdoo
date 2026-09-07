@@ -210,12 +210,20 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
 
     // Plain Container (no AnimatedContainer): the implicit resize animation
     // fights the Android keyboard insets and stutters on some ROMs.
+    // Floating dock: rounded on every corner with a small gap to the keyboard
+    // (or to the gesture bar when the keyboard is down).
+    final safeBottom = MediaQuery.of(context).padding.bottom;
     return Container(
+      margin: EdgeInsets.fromLTRB(
+        AppShapes.dockMargin,
+        0,
+        AppShapes.dockMargin,
+        bottomPadding + (bottomPadding > 0 ? AppShapes.dockMargin : safeBottom + AppShapes.dockMargin),
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppShapes.sheetTop)),
+        borderRadius: BorderRadius.circular(AppShapes.sheetTop),
       ),
-      padding: EdgeInsets.only(bottom: bottomPadding),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -264,14 +272,29 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
                     runSpacing: 8,
                     children: [
                 // Combined date + time
-                InkWell(
-                  onTap: _pickDateTime,
-                  borderRadius: BorderRadius.circular(AppShapes.dockChip),
+                _MenuAnchor(
+                  width: 340,
+                  contentBuilder: (close) => _CalendarPanel(
+                    date: _selectedDate,
+                    time: _selectedTime,
+                    onChanged: (date, time) {
+                      setState(() {
+                        _selectedDate = date;
+                        _selectedTime = time;
+                        _dateFromParsing = false;
+                        _timeFromParsing = false;
+                      });
+                    },
+                    onDone: () {
+                      close();
+                      _refocus();
+                    },
+                  ),
                   child: _dateChip(),
                 ),
 
                 // Priority — focus-preserving anchored menu (keyboard stays up).
-                _MenuAnchor(
+                _MenuAnchor.menu(
                   width: 200,
                   itemsBuilder: (close) => [
                     for (final p in [1, 2, 3])
@@ -308,14 +331,14 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
                 ),
 
                 // Project / list — focus-preserving anchored menu.
-                _MenuAnchor(
+                _MenuAnchor.menu(
                   width: 260,
                   itemsBuilder: (close) {
                     final projects = ref.read(projectProvider).sortedProjects;
                     return [
                       _menuRow(
                         leading: Icon(MdiIcons.inboxOutline, size: 22, color: AppColors.textSecondary),
-                        label: 'Inbox',
+                        label: 'None',
                         onTap: () {
                           _onProjectSelected(null);
                           close();
@@ -393,8 +416,8 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(AppShapes.dockChip),
-        border: Border.all(color: AppColors.divider),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -462,8 +485,8 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(AppShapes.dockChip),
-        border: Border.all(color: AppColors.divider),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -483,38 +506,6 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
   }
 
   /// Combined date + time picker (one flow).
-  Future<void> _pickDateTime() async {
-    final now = DateTime.now();
-    Widget themed(BuildContext context, Widget? child) => Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.dark(primary: AppColors.primary, surface: AppColors.surface),
-          ),
-          child: child!,
-        );
-
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? now,
-      firstDate: now.subtract(const Duration(days: 365)),
-      lastDate: now.add(const Duration(days: 365 * 5)),
-      builder: themed,
-    );
-    if (date == null || !mounted) return;
-
-    final time = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime ?? TimeOfDay.now(),
-      builder: themed,
-    );
-
-    setState(() {
-      _selectedDate = date;
-      _selectedTime = time; // null = date only
-      _dateFromParsing = false;
-      _timeFromParsing = false;
-    });
-    _refocus();
-  }
 
   void _onProjectSelected(String? value) {
     if (value == '__new__') {
@@ -590,12 +581,30 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
 /// the keyboard.
 class _MenuAnchor extends StatefulWidget {
   final Widget child;
-  final List<Widget> Function(VoidCallback close) itemsBuilder;
+  final Widget Function(VoidCallback close) contentBuilder;
   final double width;
+
+  /// Convenience for a plain list menu.
+  factory _MenuAnchor.menu({
+    required Widget child,
+    required List<Widget> Function(VoidCallback close) itemsBuilder,
+    double width = 220,
+  }) {
+    return _MenuAnchor(
+      width: width,
+      contentBuilder: (close) => SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: itemsBuilder(close),
+        ),
+      ),
+      child: child,
+    );
+  }
 
   const _MenuAnchor({
     required this.child,
-    required this.itemsBuilder,
+    required this.contentBuilder,
     this.width = 220,
   });
 
@@ -612,6 +621,16 @@ class _MenuAnchorState extends State<_MenuAnchor> {
       _close();
       return;
     }
+
+    // The dock sits on top of the keyboard, so a menu below the chip would be
+    // hidden by it. Open upwards and cap the height to the free space above.
+    final box = context.findRenderObject() as RenderBox?;
+    final media = MediaQuery.of(context);
+    final anchorTop = box != null
+        ? box.localToGlobal(Offset.zero).dy
+        : media.size.height;
+    final available = anchorTop - media.padding.top - 24;
+
     final overlay = Overlay.of(context);
     _entry = OverlayEntry(
       builder: (ctx) {
@@ -626,26 +645,22 @@ class _MenuAnchorState extends State<_MenuAnchor> {
             ),
             CompositedTransformFollower(
               link: _link,
-              targetAnchor: Alignment.bottomLeft,
-              followerAnchor: Alignment.topLeft,
-              offset: const Offset(0, 6),
+              targetAnchor: Alignment.topLeft,
+              followerAnchor: Alignment.bottomLeft,
+              offset: const Offset(0, -8),
               child: Align(
-                alignment: Alignment.topLeft,
+                alignment: Alignment.bottomLeft,
                 child: Material(
                   color: AppColors.surface,
                   elevation: 8,
                   borderRadius: BorderRadius.circular(AppShapes.dockField),
+                  clipBehavior: Clip.antiAlias,
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
                       maxWidth: widget.width,
-                      maxHeight: 340,
+                      maxHeight: available.clamp(140.0, 380.0),
                     ),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: widget.itemsBuilder(_close),
-                      ),
-                    ),
+                    child: widget.contentBuilder(_close),
                   ),
                 ),
               ),
@@ -676,6 +691,128 @@ class _MenuAnchorState extends State<_MenuAnchor> {
         onTap: _open,
         child: widget.child,
       ),
+    );
+  }
+}
+
+/// Inline calendar shown above the input dock. It lives in an overlay, not in
+/// a route, so the keyboard stays up; the calendar itself scales down to
+/// whatever space is left above the dock.
+class _CalendarPanel extends StatefulWidget {
+  final DateTime? date;
+  final TimeOfDay? time;
+  final void Function(DateTime? date, TimeOfDay? time) onChanged;
+  final VoidCallback onDone;
+
+  const _CalendarPanel({
+    required this.date,
+    required this.time,
+    required this.onChanged,
+    required this.onDone,
+  });
+
+  @override
+  State<_CalendarPanel> createState() => _CalendarPanelState();
+}
+
+class _CalendarPanelState extends State<_CalendarPanel> {
+  late DateTime? _date = widget.date;
+  late TimeOfDay? _time = widget.time;
+
+  String _two(int v) => v.toString().padLeft(2, '0');
+
+  void _emit() => widget.onChanged(_date, _time);
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _time ?? TimeOfDay.now(),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: ColorScheme.dark(
+            primary: AppColors.primary,
+            surface: AppColors.surface,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _time = picked;
+      _date ??= DateTime.now();
+    });
+    _emit();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.contain,
+            alignment: Alignment.topCenter,
+            child: SizedBox(
+              width: 320,
+              height: 300,
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  colorScheme: ColorScheme.dark(
+                    primary: AppColors.primary,
+                    surface: AppColors.surface,
+                  ),
+                ),
+                child: CalendarDatePicker(
+                  initialDate: _date ?? now,
+                  firstDate: now.subtract(const Duration(days: 365)),
+                  lastDate: now.add(const Duration(days: 365 * 5)),
+                  onDateChanged: (d) {
+                    setState(() => _date = d);
+                    _emit();
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+        Divider(height: 1, color: AppColors.divider),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+          child: Row(
+            children: [
+              TextButton.icon(
+                onPressed: _pickTime,
+                icon: Icon(MdiIcons.clockOutline, size: 18),
+                label: Text(
+                  _time == null
+                      ? 'Time'
+                      : '${_two(_time!.hour)}:${_two(_time!.minute)}',
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _date = null;
+                    _time = null;
+                  });
+                  _emit();
+                  widget.onDone();
+                },
+                child: const Text('Clear'),
+              ),
+              TextButton(
+                onPressed: widget.onDone,
+                child: const Text('Done'),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

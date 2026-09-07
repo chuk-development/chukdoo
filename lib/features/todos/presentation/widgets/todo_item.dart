@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../settings/providers/settings_provider.dart';
 import '../../../nlp/parser/natural_language_parser.dart';
 import '../../../nlp/parser/date_parser.dart';
 
@@ -16,7 +17,7 @@ class TodoItem extends StatefulWidget {
   final VoidCallback? onTap;
   final VoidCallback? onComplete;
   final bool isCompleted;
-  final bool largeCheckbox;
+  final CheckboxSize size;
 
   const TodoItem({
     super.key,
@@ -30,7 +31,7 @@ class TodoItem extends StatefulWidget {
     this.onTap,
     this.onComplete,
     this.isCompleted = false,
-    this.largeCheckbox = false,
+    this.size = CheckboxSize.medium,
   });
 
   @override
@@ -53,7 +54,7 @@ class _TodoItemState extends State<TodoItem> {
   Widget build(BuildContext context) {
     final priorityColor = AppColors.getPriorityColor(widget.priority);
     final showAsCompleted = _isCompleting || widget.isCompleted;
-    final size = widget.largeCheckbox ? 28.0 : 22.0;
+    final circle = widget.size.circle;
 
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 160),
@@ -61,7 +62,10 @@ class _TodoItemState extends State<TodoItem> {
       child: InkWell(
         onTap: widget.onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: widget.size.rowPadding,
+          ),
           // The row is a filled block; its corners come from the ClipRRect of
           // the surrounding group (see AppShapes.row).
           color: AppColors.surface,
@@ -76,8 +80,8 @@ class _TodoItemState extends State<TodoItem> {
                   padding: const EdgeInsets.only(right: 4, top: 2, bottom: 2),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 160),
-                    width: size,
-                    height: size,
+                    width: circle,
+                    height: circle,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: showAsCompleted
@@ -93,7 +97,7 @@ class _TodoItemState extends State<TodoItem> {
                     child: showAsCompleted
                         ? Icon(
                             Icons.check,
-                            size: widget.largeCheckbox ? 16 : 14,
+                            size: widget.size.circle * 0.6,
                             color: Colors.white,
                           )
                         : null,
@@ -124,7 +128,7 @@ class _TodoItemState extends State<TodoItem> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: widget.size.titleSize,
                               color: showAsCompleted
                                   ? AppColors.textSecondary
                                   : AppColors.textPrimary,
