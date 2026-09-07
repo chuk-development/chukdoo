@@ -17,10 +17,9 @@ class LiftedFab extends StatelessWidget {
   Widget build(BuildContext context) {
     if (child == null) return const SizedBox.shrink();
 
-    final gestureInset = MediaQuery.viewPaddingOf(context).bottom;
     // Clear of the pill, not touching it: the FAB's own 16 margin plus this
     // puts its bottom edge a good 24 above the bar.
-    final lift = (gestureInset + AppShapes.navBarHeight + 20).clamp(0.0, 200.0);
+    final lift = (AppShapes.contentBottom(context) + 20).clamp(0.0, 200.0);
 
     return Padding(
       padding: EdgeInsets.only(bottom: lift),

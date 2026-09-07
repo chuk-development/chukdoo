@@ -42,6 +42,9 @@ class AppDrawerPanel extends StatelessWidget {
   /// Share of the screen width a panel takes.
   static const double widthFactor = 0.84;
 
+  /// How far the panel stays clear of the top and the bottom edge.
+  static const double endInset = 28;
+
   @override
   Widget build(BuildContext context) {
     return Drawer(

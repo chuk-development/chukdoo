@@ -144,24 +144,27 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             ),
           ],
         ),
-        body: GestureDetector(
-          // Swipe left/right to move to the next/previous period. This is the
-          // only period navigation — the header carries no arrows.
-          // Agenda has no period to shift, so skip it there.
-          onHorizontalDragEnd: eventState.viewMode == CalendarViewMode.agenda
-              ? null
-              : (details) {
-                  final vx = details.primaryVelocity ?? 0;
-                  if (vx.abs() < 250) return;
-                  final dir = vx < 0 ? 1 : -1; // swipe left -> next
-                  notifier.setFocusedDate(_shiftFocused(eventState, dir));
-                },
-          child: KeyedSubtree(
-            // Switching between month, week and agenda swaps the view
-            // outright. Cross-fading two full-screen grids showed both at
-            // once and read as a glitch.
-            key: ValueKey(eventState.viewMode),
-            child: _buildView(context, ref, eventState.viewMode),
+        body: Padding(
+          padding: EdgeInsets.only(bottom: AppShapes.contentBottom(context)),
+          child: GestureDetector(
+            // Swipe left/right to move to the next/previous period. This is the
+            // only period navigation — the header carries no arrows.
+            // Agenda has no period to shift, so skip it there.
+            onHorizontalDragEnd: eventState.viewMode == CalendarViewMode.agenda
+                ? null
+                : (details) {
+                    final vx = details.primaryVelocity ?? 0;
+                    if (vx.abs() < 250) return;
+                    final dir = vx < 0 ? 1 : -1; // swipe left -> next
+                    notifier.setFocusedDate(_shiftFocused(eventState, dir));
+                  },
+            child: KeyedSubtree(
+              // Switching between month, week and agenda swaps the view
+              // outright. Cross-fading two full-screen grids showed both at
+              // once and read as a glitch.
+              key: ValueKey(eventState.viewMode),
+              child: _buildView(context, ref, eventState.viewMode),
+            ),
           ),
         ),
         floatingActionButton: QuickAddFab(

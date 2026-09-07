@@ -38,15 +38,7 @@ class MonthView extends ConsumerWidget {
     final today = DateTime(now.year, now.month, now.day);
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        AppShapes.listInset,
-        0,
-        AppShapes.listInset,
-        // A month grid cannot scroll, so it stops above the nav bar instead
-        // of hiding its last week behind it. The extra gap keeps the last
-        // week clear of the pill instead of touching it.
-        AppShapes.contentBottom(context) + AppShapes.dockMargin,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppShapes.listInset),
       child: Column(
         children: [
           // Weekday header — the same labels the week view uses.

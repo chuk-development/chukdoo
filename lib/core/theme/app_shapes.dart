@@ -41,8 +41,15 @@ class AppShapes {
   ///
   /// Every list in the app uses this instead of its own guess — the hardcoded
   /// 96 / 100 / SafeArea mix was why the bar looked different per section.
-  static double contentBottom(BuildContext context) =>
-      navBarHeight + MediaQuery.viewPaddingOf(context).bottom;
+  ///
+  /// The inset is read from the view, not from `MediaQuery`: a page sits
+  /// inside its own `Scaffold`, which has already eaten the bottom inset, so
+  /// `MediaQuery.viewPaddingOf` answers 0 there and the padding came out one
+  /// gesture bar too short.
+  static double contentBottom(BuildContext context) {
+    final view = View.of(context);
+    return navBarHeight + view.viewPadding.bottom / view.devicePixelRatio;
+  }
 
   /// Radius for a row at [isFirst]/[isLast] position inside its group.
   static BorderRadius row({required bool isFirst, required bool isLast}) {

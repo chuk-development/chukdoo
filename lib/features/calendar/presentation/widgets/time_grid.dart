@@ -109,10 +109,9 @@ class _TimeGridState extends State<TimeGrid> {
             controller: _scrollController,
             // The grid runs under the floating nav bar; this keeps the last
             // hour reachable instead of hiding it behind the pill.
-            padding: EdgeInsets.only(
-              top: 8,
-              bottom: AppShapes.contentBottom(context) + 8,
-            ),
+            // The page already keeps the nav bar clear; here only the half
+            // line of head- and tailroom the hour labels need.
+            padding: const EdgeInsets.only(top: 8, bottom: 8),
             child: SizedBox(
               height: totalHeight,
               child: Stack(

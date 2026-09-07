@@ -42,11 +42,11 @@ class AgendaView extends ConsumerWidget {
     if (sortedDays.isEmpty) return _EmptyAgenda(onSubscribe: onSubscribe);
 
     return ListView.builder(
-      padding: EdgeInsets.fromLTRB(
+      padding: const EdgeInsets.fromLTRB(
         AppShapes.listInset,
         8,
         AppShapes.listInset,
-        AppShapes.contentBottom(context),
+        8,
       ),
       itemCount: sortedDays.length,
       itemBuilder: (context, index) {
