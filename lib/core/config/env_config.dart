@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 ///
 /// Build commands:
 /// ```bash
-/// # Play Store build (full features)
+/// # Play Store build (cloud sync + donations)
 /// flutter build apk \
 ///   --dart-define=SUPABASE_URL=https://xxx.supabase.co \
 ///   --dart-define=SUPABASE_ANON_KEY=your_key \
@@ -13,7 +13,7 @@ import 'package:flutter/foundation.dart';
 /// # OSS/Self-hosted build (local only, no cloud)
 /// flutter build apk --dart-define=SUPABASE_ENABLED=false
 ///
-/// # Build without RevenueCat (no paywall/subscriptions)
+/// # Build without RevenueCat (no donation button)
 /// flutter build apk --dart-define=REVENUECAT_ENABLED=false
 /// ```
 class EnvConfig {
@@ -26,11 +26,6 @@ class EnvConfig {
       String.fromEnvironment('SUPABASE_URL', defaultValue: '');
   static const String supabaseAnonKey =
       String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '');
-
-  // Forces Pro entitlement (cloud sync etc.) on without a purchase.
-  // Used for test/dev builds that ship without RevenueCat.
-  static const bool forcePro =
-      bool.fromEnvironment('FORCE_PRO', defaultValue: false);
 
   // RevenueCat
   static const bool revenueCatEnabled =

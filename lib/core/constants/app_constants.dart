@@ -5,9 +5,9 @@ class AppConstants {
   static const String appName = 'Chukdoo';
   static const String appVersion = '1.0.0';
 
-  // Subscription (RevenueCat)
-  static const String proEntitlementId = 'Chukdoo Pro';
-  static const String proProductIdYearly = 'yearly';
+  // Donations (RevenueCat / Google Play). The app is free; these are one-off
+  // consumable products, they unlock nothing.
+  static const String donationOfferingId = 'donations';
 
   // Encryption
   static const int kdfIterations = 600000;
@@ -51,4 +51,5 @@ class AppConstants {
   static const String hiveCalendarsBox = 'calendars';
   static const String hiveCalendarEventsBox = 'calendar_events';
   static const String hiveHabitsBox = 'habits';
+  static const String hiveNotesBox = 'notes';
 }

@@ -62,6 +62,32 @@ flutter analyze
 
 ## Architecture
 
+### Monetization: free app + donations
+The app is **free** and every feature — including cloud sync and E2EE — is
+available to everyone. There is no Pro tier, no entitlement and no paywall.
+
+RevenueCat is still used, but only to sell **one-off donations** (consumable
+Google Play products) that unlock nothing:
+- `lib/features/donations/services/revenuecat_service.dart` — SDK init, login,
+  `getDonationPackages()`, `donate(package)`, `donationCount()`
+- `lib/features/donations/presentation/donation_page.dart` — "Support Chukdoo"
+- Products live in a RevenueCat offering named `donations`
+  (`AppConstants.donationOfferingId`); the current offering is the fallback.
+
+Nothing in the sync path checks a subscription. Do not reintroduce
+`isPro`/`canSync` gating.
+
+### Shape system (Material 3 Expressive)
+`lib/core/theme/app_shapes.dart` is the single source for radii:
+- A todo list is one **group**: the first and last row get `groupOuter` (26),
+  the corners between two rows `groupInner` (6), separated by `groupGap`.
+  `TodoSwipeTile` takes `isFirst`/`isLast` and clips the whole row (including
+  the swipe actions) with `AppShapes.row(...)`.
+- Bottom sheets and the quick-add input dock use `sheetTop` (28); controls
+  inside the dock use `dockField`/`dockChip`.
+When adding a new list, pass `isFirst`/`isLast` per group instead of
+hardcoding a radius.
+
 ### Offline-First Design
 The app is designed to work completely offline:
 - **Local storage**: Hive boxes for todos, projects, and sync queue
@@ -80,7 +106,7 @@ lib/
 │   ├── projects/           # Project management
 │   ├── nlp/parser/         # Natural language date/priority parsing
 │   ├── sync/               # Offline queue + background sync
-│   ├── subscription/       # RevenueCat integration
+│   ├── donations/          # RevenueCat one-off donations (no gating)
 │   └── notifications/      # Local notifications
 ├── shared/services/
 │   ├── encryption_service.dart  # E2EE (AES-256-GCM + PBKDF2)

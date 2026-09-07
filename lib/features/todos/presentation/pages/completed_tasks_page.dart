@@ -67,7 +67,9 @@ class CompletedTasksPage extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  ...completedTodos.map((todo) => _buildTodoItem(context, ref, todo, settings.checkboxSize == CheckboxSize.large)),
+                  for (var i = 0; i < completedTodos.length; i++)
+                    _buildTodoItem(context, ref, completedTodos[i], settings.checkboxSize == CheckboxSize.large,
+                        isFirst: i == 0, isLast: i == completedTodos.length - 1),
                 ],
               ),
             ),
@@ -103,12 +105,15 @@ class CompletedTasksPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox) {
+  Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox,
+      {bool isFirst = true, bool isLast = true}) {
     return TodoSwipeTile(
       key: ValueKey(todo.id),
       todo: todo,
       largeCheckbox: largeCheckbox,
       isCompleted: true,
+      isFirst: isFirst,
+      isLast: isLast,
     );
   }
 

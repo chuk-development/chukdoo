@@ -257,7 +257,7 @@ class _ImportPreviewPageState extends ConsumerState<ImportPreviewPage> {
                 backgroundColor: AppColors.primary,
               ),
               child: _isImporting
-                  ? const SizedBox(
+                  ? SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(

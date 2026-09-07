@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_shapes.dart';
 import '../../domain/models/calendar.dart';
 import '../../domain/models/calendar_event.dart';
 import '../../domain/models/rrule_helper.dart';
@@ -527,7 +528,7 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
       context: context,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppShapes.sheetTop)),
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => SafeArea(
@@ -590,7 +591,7 @@ class _EventCreateDialogState extends ConsumerState<EventCreateDialog> {
       context: context,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppShapes.sheetTop)),
       ),
       builder: (ctx) => SafeArea(
         child: Column(

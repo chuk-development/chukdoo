@@ -20,7 +20,9 @@ class Project {
     required this.ownerId,
     required this.name,
     this.description,
-    this.color = AppColors.primary,
+    // Const default (the platinum accent) — AppColors.primary is now runtime
+    // mutable so it can't be a const default here.
+    this.color = const Color(0xFFE7E7EC),
     this.icon = 'folder',
     this.isInbox = false,
     this.isArchived = false,

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_shapes.dart';
 import '../../../nlp/parser/natural_language_parser.dart';
 import '../../../nlp/parser/date_parser.dart';
 import '../../../projects/providers/project_provider.dart';
@@ -210,9 +211,9 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
     // Plain Container (no AnimatedContainer): the implicit resize animation
     // fights the Android keyboard insets and stutters on some ROMs.
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppShapes.sheetTop)),
       ),
       padding: EdgeInsets.only(bottom: bottomPadding),
       child: Column(
@@ -265,42 +266,38 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
                 // Combined date + time
                 InkWell(
                   onTap: _pickDateTime,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppShapes.dockChip),
                   child: _dateChip(),
                 ),
 
-                // Priority — small anchored popup
-                PopupMenuButton<int>(
-                  color: AppColors.surface,
-                  position: PopupMenuPosition.under,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  onCanceled: _refocus,
-                  onSelected: (p) {
-                    setState(() {
-                      _selectedPriority = p == 4 ? null : p;
-                      _priorityFromParsing = false;
-                    });
-                    _refocus();
-                  },
-                  itemBuilder: (_) => [
+                // Priority — focus-preserving anchored menu (keyboard stays up).
+                _MenuAnchor(
+                  width: 200,
+                  itemsBuilder: (close) => [
                     for (final p in [1, 2, 3])
-                      PopupMenuItem(
-                        value: p,
-                        height: 40,
-                        child: Row(children: [
-                          Icon(MdiIcons.flag, size: 16, color: AppColors.getPriorityColor(p)),
-                          const SizedBox(width: 10),
-                          Text('Priority $p'),
-                        ]),
+                      _menuRow(
+                        leading: Icon(MdiIcons.flag, size: 22, color: AppColors.getPriorityColor(p)),
+                        label: 'Priority $p',
+                        onTap: () {
+                          setState(() {
+                            _selectedPriority = p;
+                            _priorityFromParsing = false;
+                          });
+                          close();
+                          _refocus();
+                        },
                       ),
-                    PopupMenuItem(
-                      value: 4,
-                      height: 40,
-                      child: Row(children: [
-                        Icon(MdiIcons.flagOutline, size: 16, color: AppColors.textSecondary),
-                        SizedBox(width: 10),
-                        Text('None'),
-                      ]),
+                    _menuRow(
+                      leading: Icon(MdiIcons.flagOutline, size: 22, color: AppColors.textSecondary),
+                      label: 'None',
+                      onTap: () {
+                        setState(() {
+                          _selectedPriority = null;
+                          _priorityFromParsing = false;
+                        });
+                        close();
+                        _refocus();
+                      },
                     ),
                   ],
                   child: _chipBox(
@@ -310,46 +307,40 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
                   ),
                 ),
 
-                // Project / list — same chip as the others
-                PopupMenuButton<String?>(
-                  color: AppColors.surface,
-                  position: PopupMenuPosition.under,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  onCanceled: _refocus,
-                  onSelected: _onProjectSelected,
-                  itemBuilder: (_) {
+                // Project / list — focus-preserving anchored menu.
+                _MenuAnchor(
+                  width: 260,
+                  itemsBuilder: (close) {
                     final projects = ref.read(projectProvider).sortedProjects;
                     return [
-                      PopupMenuItem(
-                        value: null,
-                        height: 40,
-                        child: Row(children: [
-                          Icon(MdiIcons.inboxOutline, size: 16, color: AppColors.textSecondary),
-                          SizedBox(width: 10),
-                          Text('Inbox'),
-                        ]),
+                      _menuRow(
+                        leading: Icon(MdiIcons.inboxOutline, size: 22, color: AppColors.textSecondary),
+                        label: 'Inbox',
+                        onTap: () {
+                          _onProjectSelected(null);
+                          close();
+                        },
                       ),
                       for (final p in projects)
-                        PopupMenuItem(
-                          value: p.id,
-                          height: 40,
-                          child: Row(children: [
-                            Container(
-                              width: 12, height: 12,
-                              decoration: BoxDecoration(color: Color(p.color), borderRadius: BorderRadius.circular(3)),
-                            ),
-                            const SizedBox(width: 10),
-                            Flexible(child: Text(p.name, overflow: TextOverflow.ellipsis)),
-                          ]),
+                        _menuRow(
+                          leading: Container(
+                            width: 16, height: 16,
+                            decoration: BoxDecoration(color: Color(p.color), borderRadius: BorderRadius.circular(4)),
+                          ),
+                          label: p.name,
+                          onTap: () {
+                            _onProjectSelected(p.id);
+                            close();
+                          },
                         ),
-                      PopupMenuItem(
-                        value: '__new__',
-                        height: 40,
-                        child: Row(children: [
-                          Icon(MdiIcons.plusCircleOutline, size: 16, color: AppColors.primary),
-                          SizedBox(width: 10),
-                          Text('New Project', style: TextStyle(color: AppColors.primary)),
-                        ]),
+                      _menuRow(
+                        leading: Icon(MdiIcons.plusCircleOutline, size: 22, color: AppColors.primary),
+                        label: 'New Project',
+                        labelColor: AppColors.primary,
+                        onTap: () {
+                          close();
+                          _showCreateProjectDialog();
+                        },
                       ),
                     ];
                   },
@@ -366,7 +357,7 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
                     setState(() => _pinned = !_pinned);
                     _refocus();
                   },
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppShapes.dockChip),
                   child: _chipBox(
                     icon: _pinned ? MdiIcons.bookmark : MdiIcons.bookmarkOutline,
                     color: _pinned ? AppColors.orange : null,
@@ -402,7 +393,7 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(AppShapes.dockChip),
         border: Border.all(color: AppColors.divider),
       ),
       child: Row(
@@ -412,7 +403,7 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
           if (hasDate) ...[
             const SizedBox(width: 6),
             Text(_dateLabelShort,
-                style: const TextStyle(fontSize: 13.5, color: AppColors.textPrimary)),
+                style: TextStyle(fontSize: 13.5, color: AppColors.textPrimary)),
             if (_selectedTime != null) ...[
               const SizedBox(width: 7),
               Container(width: 1, height: 16, color: AppColors.divider),
@@ -420,10 +411,42 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
               Icon(MdiIcons.clockOutline, size: 18, color: AppColors.textSecondary),
               const SizedBox(width: 4),
               Text(_formatTime(_selectedTime!),
-                  style: const TextStyle(fontSize: 13.5, color: AppColors.textSecondary)),
+                  style: TextStyle(fontSize: 13.5, color: AppColors.textSecondary)),
             ],
           ],
         ],
+      ),
+    );
+  }
+
+  /// A roomy menu row used inside the anchored Priority / Project menus.
+  /// Bigger text + taller hit target than the old PopupMenuItem.
+  Widget _menuRow({
+    required Widget leading,
+    required String label,
+    Color? labelColor,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(
+          children: [
+            leading,
+            const SizedBox(width: 14),
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: labelColor ?? AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -439,7 +462,7 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(AppShapes.dockChip),
         border: Border.all(color: AppColors.divider),
       ),
       child: Row(
@@ -448,7 +471,7 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
           Icon(icon, size: 25, color: c),
           if (label != null) ...[
             const SizedBox(width: 6),
-            Text(label, style: const TextStyle(fontSize: 13.5, color: AppColors.textPrimary)),
+            Text(label, style: TextStyle(fontSize: 13.5, color: AppColors.textPrimary)),
           ],
           if (trailingArrow) ...[
             const SizedBox(width: 4),
@@ -464,7 +487,7 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
     final now = DateTime.now();
     Widget themed(BuildContext context, Widget? child) => Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(primary: AppColors.primary, surface: AppColors.surface),
+            colorScheme: ColorScheme.dark(primary: AppColors.primary, surface: AppColors.surface),
           ),
           child: child!,
         );
@@ -540,7 +563,7 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
             filled: true,
             fillColor: AppColors.surfaceLight,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppShapes.dockField),
               borderSide: BorderSide.none,
             ),
           ),
@@ -556,6 +579,102 @@ class _TodoInputSheetState extends ConsumerState<TodoInputSheet> {
             child: const Text('Create'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Anchored dropdown that opens via an [OverlayEntry] (NOT a route), so the
+/// text field keeps its focus and the soft keyboard stays open while the menu
+/// is showing — unlike [PopupMenuButton], which pushes a route and dismisses
+/// the keyboard.
+class _MenuAnchor extends StatefulWidget {
+  final Widget child;
+  final List<Widget> Function(VoidCallback close) itemsBuilder;
+  final double width;
+
+  const _MenuAnchor({
+    required this.child,
+    required this.itemsBuilder,
+    this.width = 220,
+  });
+
+  @override
+  State<_MenuAnchor> createState() => _MenuAnchorState();
+}
+
+class _MenuAnchorState extends State<_MenuAnchor> {
+  final LayerLink _link = LayerLink();
+  OverlayEntry? _entry;
+
+  void _open() {
+    if (_entry != null) {
+      _close();
+      return;
+    }
+    final overlay = Overlay.of(context);
+    _entry = OverlayEntry(
+      builder: (ctx) {
+        return Stack(
+          children: [
+            // Tap-outside barrier — translucent so it doesn't steal focus.
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: _close,
+              ),
+            ),
+            CompositedTransformFollower(
+              link: _link,
+              targetAnchor: Alignment.bottomLeft,
+              followerAnchor: Alignment.topLeft,
+              offset: const Offset(0, 6),
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  color: AppColors.surface,
+                  elevation: 8,
+                  borderRadius: BorderRadius.circular(AppShapes.dockField),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: widget.width,
+                      maxHeight: 340,
+                    ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: widget.itemsBuilder(_close),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    overlay.insert(_entry!);
+  }
+
+  void _close() {
+    _entry?.remove();
+    _entry = null;
+  }
+
+  @override
+  void dispose() {
+    _close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CompositedTransformTarget(
+      link: _link,
+      child: GestureDetector(
+        onTap: _open,
+        child: widget.child,
       ),
     );
   }
@@ -578,7 +697,7 @@ class _SendButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           padding: EdgeInsets.zero,
           minimumSize: const Size(38, 38),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppShapes.dockField)),
         ),
         child: Icon(MdiIcons.send, size: 20),
       ),

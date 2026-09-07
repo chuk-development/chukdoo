@@ -6,15 +6,14 @@ import 'package:material_design_icons_flutter/material_design_icons_flutter.dart
 
 import '../../../core/config/env_config.dart';
 import '../../../core/utils/native_io.dart' as native_io;
-import '../../../core/utils/platform_utils.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/services/encryption_service.dart';
 import '../../../shared/services/supabase_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/providers/backup_codes_provider.dart';
-import '../../subscription/presentation/paywall_helper.dart';
-import '../../subscription/providers/subscription_provider.dart';
+import '../../donations/presentation/donation_page.dart';
+import '../../donations/providers/donation_provider.dart';
 import '../../sync/presentation/widgets/sync_status_indicator.dart';
 import '../../sync/services/sync_service.dart';
 import '../../todos/providers/todo_provider.dart';
@@ -30,7 +29,6 @@ class SettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
-    final subscriptionState = ref.watch(subscriptionProvider);
     final isLocalOnlyMode = EnvConfig.isLocalOnlyMode;
     final isInLocalMode = authState.status == AuthStatus.localMode;
 
@@ -53,9 +51,7 @@ class SettingsPage extends ConsumerWidget {
                 color: AppColors.primary,
               ),
               title: const Text('Connect to cloud'),
-              subtitle: const Text(
-                'Sign in to sync your data across devices',
-              ),
+              subtitle: const Text('Sign in to sync your data across devices'),
               trailing: Icon(
                 MdiIcons.chevronRight,
                 color: AppColors.textSecondary,
@@ -78,61 +74,18 @@ class SettingsPage extends ConsumerWidget {
 
           const Divider(height: 32),
 
-          // Subscription section (only if RevenueCat is available)
-          if (!isLocalOnlyMode) ...[
-            _buildSectionHeader('Subscription'),
-            _buildSubscriptionTile(context, ref, subscriptionState),
-            if (subscriptionState.isPro) ...[
-              Builder(
-                builder: (context) {
-                  final isDesktop = PlatformUtils.isDesktop;
-                  return ListTile(
-                    leading: Icon(
-                      MdiIcons.cogOutline,
-                      color: AppColors.textPrimary,
-                    ),
-                    title: const Text('Manage subscription'),
-                    subtitle: Text(
-                      isDesktop
-                          ? 'Available in the mobile app only'
-                          : 'View, cancel or change your subscription',
-                    ),
-                    trailing: isDesktop
-                        ? Icon(
-                            MdiIcons.cellphone,
-                            color: AppColors.textSecondary,
-                          )
-                        : Icon(
-                            MdiIcons.chevronRight,
-                            color: AppColors.textSecondary,
-                          ),
-                    onTap: isDesktop
-                        ? null
-                        : () => PaywallHelper.showCustomerCenter(context),
-                  );
-                },
-              ),
-            ] else ...[
-              ListTile(
-                leading: Icon(
-                  MdiIcons.refresh,
-                  color: AppColors.textPrimary,
-                ),
-                title: const Text('Restore purchases'),
-                subtitle: const Text('Restore previous purchases'),
-                trailing: Icon(
-                  MdiIcons.chevronRight,
-                  color: AppColors.textSecondary,
-                ),
-                onTap: () => _restorePurchases(context, ref),
-              ),
-            ],
+          // Support section — the app is free, donations are optional.
+          if (ref.watch(canDonateProvider)) ...[
+            _buildSectionHeader('Support'),
+            _buildDonationTile(context, ref),
 
             const Divider(height: 32),
+          ],
 
-            // Sync section
+          // Sync section
+          if (!isLocalOnlyMode) ...[
             _buildSectionHeader('Sync'),
-            _buildSyncTile(context, ref, subscriptionState),
+            _buildSyncTile(context, ref),
 
             const Divider(height: 32),
 
@@ -143,6 +96,12 @@ class SettingsPage extends ConsumerWidget {
               const Divider(height: 32),
             ],
           ],
+
+          // Appearance section
+          _buildSectionHeader('Appearance'),
+          _buildMaterialYouTile(ref),
+
+          const Divider(height: 32),
 
           // Behavior section
           _buildSectionHeader('Behavior'),
@@ -159,14 +118,9 @@ class SettingsPage extends ConsumerWidget {
           // Data section - Export/Import
           _buildSectionHeader('Data'),
           ListTile(
-            leading: Icon(
-              MdiIcons.export,
-              color: AppColors.textPrimary,
-            ),
+            leading: Icon(MdiIcons.export, color: AppColors.textPrimary),
             title: const Text('Export data'),
-            subtitle: const Text(
-              'Save all tasks and projects as JSON',
-            ),
+            subtitle: const Text('Save all tasks and projects as JSON'),
             trailing: Icon(
               MdiIcons.chevronRight,
               color: AppColors.textSecondary,
@@ -174,10 +128,7 @@ class SettingsPage extends ConsumerWidget {
             onTap: () => _exportData(context),
           ),
           ListTile(
-            leading: Icon(
-              MdiIcons.import,
-              color: AppColors.textPrimary,
-            ),
+            leading: Icon(MdiIcons.import, color: AppColors.textPrimary),
             title: const Text('Import data'),
             subtitle: const Text('Import data from a JSON file'),
             trailing: Icon(
@@ -258,6 +209,26 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
+  Widget _buildMaterialYouTile(WidgetRef ref) {
+    final enabled = ref.watch(settingsProvider.select((s) => s.materialYou));
+
+    return SwitchListTile(
+      secondary: Icon(MdiIcons.palette, color: AppColors.primary),
+      title: const Text('Material You colors'),
+      subtitle: Text(
+        enabled
+            ? 'Accent & surfaces follow your system wallpaper'
+            : 'Use the default platinum theme',
+        style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+      ),
+      value: enabled,
+      onChanged: (value) {
+        ref.read(settingsProvider.notifier).setMaterialYou(value);
+      },
+      activeThumbColor: AppColors.primary,
+    );
+  }
+
   Widget _buildCheckboxSizeTile(WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
     final isLarge = settings.checkboxSize == CheckboxSize.large;
@@ -282,84 +253,27 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildSubscriptionTile(
-    BuildContext context,
-    WidgetRef ref,
-    SubscriptionState state,
-  ) {
-    final isPro = state.isPro;
-    final status = state.status;
-    final isDesktop = PlatformUtils.isDesktop;
+  Widget _buildDonationTile(BuildContext context, WidgetRef ref) {
+    final donations = ref.watch(donationCountProvider);
+    final count = donations.asData?.value ?? 0;
 
     return ListTile(
       leading: Icon(
-        isPro ? MdiIcons.crown : MdiIcons.crownOutline,
-        color: isPro ? AppColors.warning : AppColors.textPrimary,
+        count > 0 ? MdiIcons.heart : MdiIcons.heartOutline,
+        color: count > 0 ? AppColors.error : AppColors.textPrimary,
       ),
-      title: Text(isPro ? 'Chukdoo Pro' : 'Free'),
-      subtitle: isPro
-          ? Text(
-              status.expiresAt != null
-                  ? 'Valid until ${_formatDate(status.expiresAt!)}'
-                  : 'Active',
-            )
-          : Text(
-              isDesktop
-                  ? 'Upgrade in the mobile app'
-                  : 'Local storage only',
-            ),
-      trailing: isPro
-          ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.warning.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: DefaultTextStyle(
-                style: TextStyle(color: AppColors.warning),
-                child: const Text('PRO',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ),
-            )
-          : isDesktop
-          ? Icon(MdiIcons.cellphone, color: AppColors.textSecondary)
-          : TextButton(
-              onPressed: () => _showPaywall(context, ref),
-              child: const Text('Upgrade'),
-            ),
+      title: Text(count > 0 ? 'Thanks for your support' : 'Donate'),
+      subtitle: Text(
+        count > 0
+            ? 'The app stays free either way'
+            : 'Everything is free. Pay what you want via Google Play.',
+      ),
+      trailing: Icon(MdiIcons.chevronRight, color: AppColors.textSecondary),
+      onTap: () => _showDonationPage(context, ref),
     );
   }
 
-  Widget _buildSyncTile(
-    BuildContext context,
-    WidgetRef ref,
-    SubscriptionState subscriptionState,
-  ) {
-    final canSync = subscriptionState.canSync;
-    final isDesktop = PlatformUtils.isDesktop;
-
-    if (!canSync) {
-      return ListTile(
-        leading: Icon(
-          MdiIcons.cloudOffOutline,
-          color: AppColors.textSecondary,
-        ),
-        title: const Text('Cloud sync'),
-        subtitle: Text(
-          isDesktop
-              ? 'Upgrade in the mobile app for cloud sync'
-              : 'Upgrade to Pro for cloud sync',
-        ),
-        trailing: isDesktop
-            ? Icon(MdiIcons.cellphone, color: AppColors.textSecondary)
-            : TextButton(
-                onPressed: () => _showPaywall(context, ref),
-                child: const Text('Upgrade'),
-              ),
-      );
-    }
-
+  Widget _buildSyncTile(BuildContext context, WidgetRef ref) {
     return Column(
       children: [
         ListTile(
@@ -369,20 +283,14 @@ class SettingsPage extends ConsumerWidget {
           trailing: const SyncStatusIndicator(),
         ),
         ListTile(
-          leading: Icon(
-            MdiIcons.refresh,
-            color: AppColors.textPrimary,
-          ),
+          leading: Icon(MdiIcons.refresh, color: AppColors.textPrimary),
           title: const Text('Sync now'),
           subtitle: Text(
             SyncService.lastSyncTime != null
                 ? 'Last: ${_formatDateTime(SyncService.lastSyncTime!)}'
                 : 'Never synced',
           ),
-          trailing: Icon(
-            MdiIcons.chevronRight,
-            color: AppColors.textSecondary,
-          ),
+          trailing: Icon(MdiIcons.chevronRight, color: AppColors.textSecondary),
           onTap: () => _manualSync(context, ref),
         ),
       ],
@@ -448,9 +356,9 @@ class SettingsPage extends ConsumerWidget {
   Future<void> _showMigrationDialog(BuildContext context, WidgetRef ref) async {
     final user = SupabaseService.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No user signed in.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No user signed in.')));
       return;
     }
 
@@ -621,38 +529,25 @@ class SettingsPage extends ConsumerWidget {
     }
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}.${date.month}.${date.year}';
-  }
-
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.day}.${dateTime.month}.${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
-  Future<void> _showPaywall(BuildContext context, WidgetRef ref) async {
-    final purchased = await PaywallHelper.showPaywall(context);
-    if (purchased) {
-      ref.read(subscriptionProvider.notifier).refresh();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Welcome to Chukdoo Pro!')),
-        );
-      }
-    }
-  }
+  Future<void> _showDonationPage(BuildContext context, WidgetRef ref) async {
+    final donated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const DonationPage(),
+        fullscreenDialog: true,
+      ),
+    );
 
-  Future<void> _restorePurchases(BuildContext context, WidgetRef ref) async {
-    await ref.read(subscriptionProvider.notifier).restorePurchases();
-    final state = ref.read(subscriptionProvider);
-    if (context.mounted) {
-      if (state.isPro) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Purchases restored successfully!')),
-        );
-      } else {
+    if (donated == true) {
+      ref.invalidate(donationCountProvider);
+      if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('No purchases found.')));
+        ).showSnackBar(const SnackBar(content: Text('Thank you!')));
       }
     }
   }
@@ -674,9 +569,9 @@ class SettingsPage extends ConsumerWidget {
           ),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sync complete')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Sync complete')));
       }
     }
   }
@@ -792,9 +687,7 @@ class SettingsPage extends ConsumerWidget {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Export failed: ${result.error ?? "Unknown error"}',
-          ),
+          content: Text('Export failed: ${result.error ?? "Unknown error"}'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -908,10 +801,7 @@ class _ShowNewBackupCodesPageState extends State<_ShowNewBackupCodesPage> {
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      MdiIcons.alertOutline,
-                      color: AppColors.warning,
-                    ),
+                    Icon(MdiIcons.alertOutline, color: AppColors.warning),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -940,7 +830,7 @@ class _ShowNewBackupCodesPageState extends State<_ShowNewBackupCodesPage> {
                             width: 24,
                             child: Text(
                               '${entry.key + 1}.',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.textSecondary,
                                 fontSize: 14,
                               ),
@@ -950,7 +840,7 @@ class _ShowNewBackupCodesPageState extends State<_ShowNewBackupCodesPage> {
                           Expanded(
                             child: Text(
                               entry.value,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: 'monospace',
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -1040,7 +930,8 @@ class _SunriseToggleTileState extends State<_SunriseToggleTile> {
       secondary: Icon(MdiIcons.weatherSunny, color: AppColors.textPrimary),
       title: const Text('Connect Sunrise'),
       subtitle: const Text(
-          'Show today\'s tasks in the Sunrise app (this device only, unencrypted).'),
+        'Show today\'s tasks in the Sunrise app (this device only, unencrypted).',
+      ),
       value: _loading ? false : _enabled,
       onChanged: _loading ? null : _toggle,
     );

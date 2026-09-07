@@ -80,7 +80,9 @@ class TodayPage extends ConsumerWidget {
                     padding: const EdgeInsets.only(bottom: 100),
                     children: [
                       // Active todos
-                      ...todos.map((todo) => _buildTodoItem(context, ref, todo, settings.checkboxSize == CheckboxSize.large)),
+                      for (var i = 0; i < todos.length; i++)
+                        _buildTodoItem(context, ref, todos[i], settings.checkboxSize == CheckboxSize.large,
+                            isFirst: i == 0, isLast: i == todos.length - 1),
                       // Completed todos section
                       if (showCompleted && completedTodos.isNotEmpty) ...[
                         Padding(
@@ -110,7 +112,9 @@ class TodayPage extends ConsumerWidget {
                             ],
                           ),
                         ),
-                        ...completedTodos.map((todo) => _buildTodoItem(context, ref, todo, settings.checkboxSize == CheckboxSize.large, isCompleted: true)),
+                        for (var i = 0; i < completedTodos.length; i++)
+                          _buildTodoItem(context, ref, completedTodos[i], settings.checkboxSize == CheckboxSize.large,
+                              isCompleted: true, isFirst: i == 0, isLast: i == completedTodos.length - 1),
                       ],
                     ],
                   ),
@@ -121,12 +125,15 @@ class TodayPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox, {bool isCompleted = false}) {
+  Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox,
+      {bool isCompleted = false, bool isFirst = true, bool isLast = true}) {
     return TodoSwipeTile(
       key: ValueKey(todo.id),
       todo: todo,
       largeCheckbox: largeCheckbox,
       isCompleted: isCompleted,
+      isFirst: isFirst,
+      isLast: isLast,
     );
   }
 

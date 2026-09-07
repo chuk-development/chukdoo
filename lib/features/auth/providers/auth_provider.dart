@@ -8,7 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 import '../../../core/constants/app_constants.dart';
 import '../../../shared/services/encryption_service.dart';
 import '../../../shared/services/supabase_service.dart';
-import '../../subscription/services/revenuecat_service.dart';
+import '../../donations/services/revenuecat_service.dart';
 import '../services/backup_code_service.dart';
 
 enum AuthStatus {

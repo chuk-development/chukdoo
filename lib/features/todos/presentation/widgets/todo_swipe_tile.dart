@@ -4,6 +4,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_shapes.dart';
 import '../../../projects/providers/project_provider.dart';
 import '../../domain/models/todo.dart';
 import '../../providers/todo_provider.dart';
@@ -31,85 +32,106 @@ class TodoSwipeTile extends ConsumerWidget {
   final bool largeCheckbox;
   final String? projectName;
 
+  /// Position inside the surrounding list group. The first and last row get
+  /// the large outer radius, everything between them the small inner one.
+  final bool isFirst;
+  final bool isLast;
+
   const TodoSwipeTile({
     super.key,
     required this.todo,
     required this.largeCheckbox,
     this.isCompleted = false,
     this.projectName,
+    this.isFirst = true,
+    this.isLast = true,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(todoProvider.notifier);
+    final radius = AppShapes.row(isFirst: isFirst, isLast: isLast);
 
-    return Slidable(
-      key: ValueKey(todo.id),
-
-      // ── Swipe right → complete ──
-      startActionPane: ActionPane(
-        motion: const BehindMotion(),
-        extentRatio: 0.28,
-        dismissible: DismissiblePane(
-          dismissThreshold: 0.5,
-          onDismissed: () => notifier.toggleComplete(todo.id),
-        ),
-        children: [
-          SlidableAction(
-            onPressed: (_) => notifier.toggleComplete(todo.id),
-            backgroundColor: AppColors.green,
-            foregroundColor: Colors.white,
-            icon: isCompleted ? MdiIcons.refresh : MdiIcons.checkCircle,
-            label: isCompleted ? 'Reopen' : 'Completed',
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppShapes.listInset,
+        0,
+        AppShapes.listInset,
+        AppShapes.groupGap,
       ),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: Slidable(
+          key: ValueKey(todo.id),
 
-      // ── Swipe left → action buttons; swipe past 2/3 → delete ──
-      endActionPane: ActionPane(
-        motion: const BehindMotion(),
-        extentRatio: isCompleted ? 0.25 : 0.78,
-        dismissible: DismissiblePane(
-          dismissThreshold: 0.66, // swipe more than two thirds = delete
-          onDismissed: () => _deleteWithUndo(context, ref),
-        ),
-        children: [
-          if (!isCompleted) ...[
-            SlidableAction(
-              onPressed: (ctx) => _showDateDialog(ctx, ref),
-              backgroundColor: AppColors.blue,
-              foregroundColor: Colors.white,
-              icon: MdiIcons.calendar,
-              label: 'Date',
+          // ── Swipe right → complete ──
+          startActionPane: ActionPane(
+            motion: const BehindMotion(),
+            extentRatio: 0.28,
+            dismissible: DismissiblePane(
+              dismissThreshold: 0.5,
+              onDismissed: () => notifier.toggleComplete(todo.id),
             ),
-            SlidableAction(
-              onPressed: (ctx) => _showMoveSheet(ctx, ref),
-              backgroundColor: AppColors.purple,
-              foregroundColor: Colors.white,
-              icon: MdiIcons.folder,
-              label: 'Move',
-            ),
-            SlidableAction(
-              onPressed: (_) => notifier.togglePin(todo.id),
-              backgroundColor: AppColors.orange,
-              foregroundColor: Colors.white,
-              icon: todo.isPinned ? MdiIcons.bookmark : MdiIcons.bookmarkOutline,
-              label: todo.isPinned ? 'Unpin' : 'Pin',
-            ),
-          ],
-          SlidableAction(
-            onPressed: (ctx) => _deleteWithUndo(ctx, ref),
-            backgroundColor: AppColors.error,
-            foregroundColor: Colors.white,
-            icon: MdiIcons.trashCan,
-            label: 'Delete',
+            children: [
+              SlidableAction(
+                onPressed: (_) => notifier.toggleComplete(todo.id),
+                backgroundColor: AppColors.green,
+                foregroundColor: Colors.white,
+                icon: isCompleted ? MdiIcons.refresh : MdiIcons.checkCircle,
+                label: isCompleted ? 'Reopen' : 'Completed',
+              ),
+            ],
           ),
-        ],
-      ),
 
-      child: isCompleted
-          ? _row(context, ref, notifier)
-          : _draggable(context, ref, notifier),
+          // ── Swipe left → action buttons; swipe past 2/3 → delete ──
+          endActionPane: ActionPane(
+            motion: const BehindMotion(),
+            extentRatio: isCompleted ? 0.25 : 0.78,
+            dismissible: DismissiblePane(
+              dismissThreshold: 0.66, // swipe more than two thirds = delete
+              onDismissed: () => _deleteWithUndo(context, ref),
+            ),
+            children: [
+              if (!isCompleted) ...[
+                SlidableAction(
+                  onPressed: (ctx) => _showDateDialog(ctx, ref),
+                  backgroundColor: AppColors.blue,
+                  foregroundColor: Colors.white,
+                  icon: MdiIcons.calendar,
+                  label: 'Date',
+                ),
+                SlidableAction(
+                  onPressed: (ctx) => _showMoveSheet(ctx, ref),
+                  backgroundColor: AppColors.purple,
+                  foregroundColor: Colors.white,
+                  icon: MdiIcons.folder,
+                  label: 'Move',
+                ),
+                SlidableAction(
+                  onPressed: (_) => notifier.togglePin(todo.id),
+                  backgroundColor: AppColors.orange,
+                  foregroundColor: Colors.white,
+                  icon: todo.isPinned
+                      ? MdiIcons.bookmark
+                      : MdiIcons.bookmarkOutline,
+                  label: todo.isPinned ? 'Unpin' : 'Pin',
+                ),
+              ],
+              SlidableAction(
+                onPressed: (ctx) => _deleteWithUndo(ctx, ref),
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+                icon: MdiIcons.trashCan,
+                label: 'Delete',
+              ),
+            ],
+          ),
+
+          child: isCompleted
+              ? _row(context, ref, notifier)
+              : _draggable(context, ref, notifier),
+        ),
+      ),
     );
   }
 
@@ -125,7 +147,10 @@ class TodoSwipeTile extends ConsumerWidget {
       delay: const Duration(milliseconds: 200),
       hapticFeedbackOnStart: true,
       feedback: _TodoDragFeedback(todo: todo),
-      childWhenDragging: Opacity(opacity: 0.35, child: _row(context, ref, notifier)),
+      childWhenDragging: Opacity(
+        opacity: 0.35,
+        child: _row(context, ref, notifier),
+      ),
       child: _row(context, ref, notifier),
     );
   }
@@ -235,7 +260,9 @@ class TodoSwipeTile extends ConsumerWidget {
 
         return Dialog(
           backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
             child: Column(
@@ -264,17 +291,25 @@ class TodoSwipeTile extends ConsumerWidget {
       context: context,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppShapes.sheetTop),
+        ),
       ),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 12),
-            const Text('Move to', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            const Text(
+              'Move to',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             ListTile(
-              leading: Icon(MdiIcons.inboxOutline, color: AppColors.textSecondary),
+              leading: Icon(
+                MdiIcons.inboxOutline,
+                color: AppColors.textSecondary,
+              ),
               title: const Text('Inbox'),
               trailing: todo.projectId == null
                   ? Icon(MdiIcons.checkCircle, color: AppColors.primary)
@@ -284,21 +319,26 @@ class TodoSwipeTile extends ConsumerWidget {
                 Navigator.pop(ctx);
               },
             ),
-            ...projects.map((p) => ListTile(
-                  leading: Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(color: Color(p.color), borderRadius: BorderRadius.circular(3)),
+            ...projects.map(
+              (p) => ListTile(
+                leading: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Color(p.color),
+                    borderRadius: BorderRadius.circular(3),
                   ),
-                  title: Text(p.name, overflow: TextOverflow.ellipsis),
-                  trailing: todo.projectId == p.id
-                      ? Icon(MdiIcons.checkCircle, color: AppColors.primary)
-                      : null,
-                  onTap: () {
-                    notifier.moveToProject(todo.id, p.id);
-                    Navigator.pop(ctx);
-                  },
-                )),
+                ),
+                title: Text(p.name, overflow: TextOverflow.ellipsis),
+                trailing: todo.projectId == p.id
+                    ? Icon(MdiIcons.checkCircle, color: AppColors.primary)
+                    : null,
+                onTap: () {
+                  notifier.moveToProject(todo.id, p.id);
+                  Navigator.pop(ctx);
+                },
+              ),
+            ),
             const SizedBox(height: 8),
           ],
         ),
@@ -369,7 +409,11 @@ class _DateCell extends StatelessWidget {
                   label,
                   textAlign: TextAlign.center,
                   maxLines: 2,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textPrimary, height: 1.2),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textPrimary,
+                    height: 1.2,
+                  ),
                 ),
               ),
             ],
@@ -416,7 +460,7 @@ class _TodoDragFeedback extends StatelessWidget {
                 todo.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textPrimary,

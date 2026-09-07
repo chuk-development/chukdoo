@@ -26,6 +26,7 @@ void main() async {
   await Hive.openBox<Map>(AppConstants.hiveCalendarsBox);
   await Hive.openBox<Map>(AppConstants.hiveCalendarEventsBox);
   await Hive.openBox<Map>(AppConstants.hiveHabitsBox);
+  await Hive.openBox<Map>(AppConstants.hiveNotesBox);
 
   // Initialize sync service (local queue - always works)
   await SyncService.initialize();

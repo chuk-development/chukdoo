@@ -50,3 +50,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local scratch / private data (never commit)
+passwords.txt
+session.txt
+chukdoo_export.json
+.playwright-mcp/

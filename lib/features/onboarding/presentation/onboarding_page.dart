@@ -148,7 +148,7 @@ class _WelcomeScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 40),
-          const Text(
+          Text(
             'Welcome to Chukdoo',
             style: TextStyle(
               fontSize: 28,
@@ -197,7 +197,7 @@ class _NLPSyntaxScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 40),
-          const Text(
+          Text(
             'Quick entry',
             style: TextStyle(
               fontSize: 28,
@@ -237,7 +237,7 @@ class _NLPSyntaxScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Milch kaufen mi 15:00 !!2 #einkauf',
                   style: TextStyle(
                     fontSize: 16,
@@ -246,7 +246,7 @@ class _NLPSyntaxScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Divider(color: AppColors.divider),
+                Divider(color: AppColors.divider),
                 const SizedBox(height: 12),
                 _buildSyntaxItem('mi', 'Wednesday', MdiIcons.calendarOutline),
                 _buildSyntaxItem('15:00', 'Time', MdiIcons.clockOutline),
@@ -275,7 +275,7 @@ class _NLPSyntaxScreen extends StatelessWidget {
             ),
             child: Text(
               syntax,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'monospace',
                 fontSize: 13,
                 color: AppColors.primary,
@@ -320,7 +320,7 @@ class _OfflineFirstScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 40),
-          const Text(
+          Text(
             'Works offline',
             style: TextStyle(
               fontSize: 28,
@@ -382,7 +382,7 @@ class _OfflineFirstScreen extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textPrimary,

@@ -200,7 +200,7 @@ class _ProjectEditDialogState extends ConsumerState<ProjectEditDialog> {
             ),
             if (_isEditing) ...[
               const SizedBox(height: 24),
-              const Divider(color: AppColors.divider),
+              Divider(color: AppColors.divider),
               const SizedBox(height: 8),
               TextButton.icon(
                 onPressed: _confirmDelete,

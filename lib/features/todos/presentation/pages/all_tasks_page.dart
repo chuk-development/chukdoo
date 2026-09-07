@@ -41,7 +41,9 @@ class AllTasksPage extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    ...activeTodos.map((todo) => _buildTodoItem(context, ref, todo, settings.checkboxSize == CheckboxSize.large)),
+                    for (var i = 0; i < activeTodos.length; i++)
+                      _buildTodoItem(context, ref, activeTodos[i], settings.checkboxSize == CheckboxSize.large,
+                          isFirst: i == 0, isLast: i == activeTodos.length - 1),
                   ],
                   if (completedTodos.isNotEmpty) ...[
                     Padding(
@@ -55,7 +57,9 @@ class AllTasksPage extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    ...completedTodos.map((todo) => _buildTodoItem(context, ref, todo, settings.checkboxSize == CheckboxSize.large, isCompleted: true)),
+                    for (var i = 0; i < completedTodos.length; i++)
+                      _buildTodoItem(context, ref, completedTodos[i], settings.checkboxSize == CheckboxSize.large,
+                          isCompleted: true, isFirst: i == 0, isLast: i == completedTodos.length - 1),
                   ],
                 ],
               ),
@@ -63,12 +67,15 @@ class AllTasksPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox, {bool isCompleted = false}) {
+  Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox,
+      {bool isCompleted = false, bool isFirst = true, bool isLast = true}) {
     return TodoSwipeTile(
       key: ValueKey(todo.id),
       todo: todo,
       largeCheckbox: largeCheckbox,
       isCompleted: isCompleted,
+      isFirst: isFirst,
+      isLast: isLast,
     );
   }
 

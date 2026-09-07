@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
   connectivity_plus
+  dynamic_color
   flutter_secure_storage_windows
   passkeys_windows
   screen_retriever_windows

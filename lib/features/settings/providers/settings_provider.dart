@@ -20,21 +20,28 @@ class AppSettings {
   /// All tag names the user has ever used — drives autocomplete suggestions.
   final List<String> knownTags;
 
+  /// When true, recolor accent + surfaces from the system wallpaper palette
+  /// (Material You) instead of the default platinum theme.
+  final bool materialYou;
+
   const AppSettings({
     this.checkboxSize = CheckboxSize.normal,
     this.mainListName = 'Aufgaben',
     this.knownTags = const [],
+    this.materialYou = false,
   });
 
   AppSettings copyWith({
     CheckboxSize? checkboxSize,
     String? mainListName,
     List<String>? knownTags,
+    bool? materialYou,
   }) {
     return AppSettings(
       checkboxSize: checkboxSize ?? this.checkboxSize,
       mainListName: mainListName ?? this.mainListName,
       knownTags: knownTags ?? this.knownTags,
+      materialYou: materialYou ?? this.materialYou,
     );
   }
 }
@@ -47,6 +54,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   static const _checkboxSizeKey = 'checkbox_size';
   static const _mainListNameKey = 'main_list_name';
   static const _knownTagsKey = 'known_tags';
+  static const _materialYouKey = 'material_you';
 
   Box? _box;
 
@@ -66,11 +74,19 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
             ?.map((e) => e.toString())
             .toList() ??
         const <String>[];
+    final materialYou =
+        _settingsBox.get(_materialYouKey, defaultValue: false) as bool;
     state = AppSettings(
       checkboxSize: size,
       mainListName: mainListName,
       knownTags: knownTags,
+      materialYou: materialYou,
     );
+  }
+
+  Future<void> setMaterialYou(bool enabled) async {
+    await _settingsBox.put(_materialYouKey, enabled);
+    state = state.copyWith(materialYou: enabled);
   }
 
   Future<void> setCheckboxSize(CheckboxSize size) async {

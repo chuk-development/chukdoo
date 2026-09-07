@@ -4,6 +4,7 @@ import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_shapes.dart';
 import '../../domain/models/todo.dart';
 import '../../providers/todo_provider.dart';
 import '../../../projects/providers/project_provider.dart';
@@ -207,7 +208,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
               maxLines: null,
             ),
             const SizedBox(height: 6),
-            const Divider(height: 1, thickness: 1, color: AppColors.divider),
+            Divider(height: 1, thickness: 1, color: AppColors.divider),
             const SizedBox(height: 14),
 
             // Description — Markdown: rendered when not editing, raw on tap.
@@ -346,7 +347,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
         style: const TextStyle(fontSize: 16, height: 1.4),
         decoration: InputDecoration(
           hintText: 'Description (Markdown supported)',
-          hintStyle: const TextStyle(color: AppColors.textSecondary),
+          hintStyle: TextStyle(color: AppColors.textSecondary),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
@@ -369,7 +370,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: GptMarkdown(
           text,
-          style: const TextStyle(fontSize: 16, height: 1.4, color: AppColors.textPrimary),
+          style: TextStyle(fontSize: 16, height: 1.4, color: AppColors.textPrimary),
         ),
       ),
     );
@@ -394,7 +395,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
     for (var i = 0; i < rows.length; i++) {
       children.add(rows[i]);
       if (i != rows.length - 1) {
-        children.add(const Divider(
+        children.add(Divider(
           height: 1,
           thickness: 1,
           indent: 48,
@@ -433,7 +434,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
           children: [
             Icon(icon, size: 20, color: iconColor ?? AppColors.textSecondary),
             const SizedBox(width: 14),
-            Text(label, style: const TextStyle(fontSize: 15, color: AppColors.textPrimary)),
+            Text(label, style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -479,7 +480,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
           children: [
             Icon(MdiIcons.pound, size: 20, color: AppColors.textSecondary),
             const SizedBox(width: 8),
-            const Text('Tags', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+            Text('Tags', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
           ],
         ),
         const SizedBox(height: 14),
@@ -499,7 +500,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text('#$tag',
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.primary)),
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.primary)),
                     const SizedBox(width: 6),
                     GestureDetector(
                       onTap: () => setState(() => _tags.remove(tag)),
@@ -524,7 +525,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
                 },
                 onSubmitted: _commitTag,
                 style: const TextStyle(fontSize: 15),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(vertical: 8),
                   prefixText: '#',
@@ -555,7 +556,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
                       color: AppColors.background,
                       border: Border.all(color: AppColors.divider, width: 1),
                     ),
-                    child: Text('#$s', style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                    child: Text('#$s', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
                   ),
                 ),
             ],
@@ -597,7 +598,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
       lastDate: now.add(const Duration(days: 365 * 5)),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.dark(primary: AppColors.primary, surface: AppColors.surface),
+          colorScheme: ColorScheme.dark(primary: AppColors.primary, surface: AppColors.surface),
         ),
         child: child!,
       ),
@@ -609,7 +610,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
       initialTime: _dueTime ?? TimeOfDay.now(),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.dark(primary: AppColors.primary, surface: AppColors.surface),
+          colorScheme: ColorScheme.dark(primary: AppColors.primary, surface: AppColors.surface),
         ),
         child: child!,
       ),
@@ -626,7 +627,7 @@ class _TodoDetailPageState extends ConsumerState<TodoDetailPage> {
       context: context,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppShapes.sheetTop)),
       ),
       builder: (context) {
         final now = DateTime.now();

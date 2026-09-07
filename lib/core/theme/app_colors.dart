@@ -3,23 +3,77 @@ import 'package:flutter/material.dart';
 class AppColors {
   const AppColors._();
 
-  // Primary accent — neutral, premium, minimal "platinum" (no green/teal).
-  static const Color primary = Color(0xFFE7E7EC);
-  static const Color primaryLight = Color(0xFFF5F5F8);
-  static const Color primaryDark = Color(0xFFCFCFD8);
+  // ── Platinum defaults (the app's hand-tuned dark theme) ───────────────────
+  // Kept as const so they can also seed const widgets and the reset path.
+  static const Color _platinumPrimary = Color(0xFFE7E7EC);
+  static const Color _platinumPrimaryLight = Color(0xFFF5F5F8);
+  static const Color _platinumPrimaryDark = Color(0xFFCFCFD8);
+  static const Color _platinumOnPrimary = Color(0xFF121218);
+  static const Color _platinumBackground = Color(0xFF121218);
+  static const Color _platinumSurface = Color(0xFF1E1E26);
+  static const Color _platinumSurfaceLight = Color(0xFF2A2A36);
+  static const Color _platinumTextPrimary = Color(0xFFF0F0F5);
+  static const Color _platinumTextSecondary = Color(0xFF9898A6);
+  static const Color _platinumTextTertiary = Color(0xFF5C5C6E);
+  static const Color _platinumDivider = Color(0xFF2A2A36);
 
-  /// Dark foreground to sit on the light accent (buttons, FAB, checkmarks).
-  static const Color onPrimary = Color(0xFF121218);
+  // ── Live theme colors ─────────────────────────────────────────────────────
+  // Mutable so "Material You" can recolor accent + surfaces app-wide at
+  // runtime (see [applyMaterialYou] / [resetToPlatinum]). Widgets read these
+  // statics directly, so a tree rebuild is required after changing them.
+  static Color primary = _platinumPrimary;
+  static Color primaryLight = _platinumPrimaryLight;
+  static Color primaryDark = _platinumPrimaryDark;
 
-  // Background colors - Darker, more blue-tinted
-  static const Color background = Color(0xFF121218);
-  static const Color surface = Color(0xFF1E1E26);
-  static const Color surfaceLight = Color(0xFF2A2A36);
+  /// Foreground that sits on the accent (buttons, FAB, checkmarks).
+  static Color onPrimary = _platinumOnPrimary;
+
+  // Background / surfaces
+  static Color background = _platinumBackground;
+  static Color surface = _platinumSurface;
+  static Color surfaceLight = _platinumSurfaceLight;
 
   // Text colors
-  static const Color textPrimary = Color(0xFFF0F0F5);
-  static const Color textSecondary = Color(0xFF9898A6);
-  static const Color textTertiary = Color(0xFF5C5C6E);
+  static Color textPrimary = _platinumTextPrimary;
+  static Color textSecondary = _platinumTextSecondary;
+  static Color textTertiary = _platinumTextTertiary;
+
+  /// True while a dynamic (Material You) palette is active.
+  static bool isMaterialYou = false;
+
+  /// Recolor accent + surfaces from a dynamic [ColorScheme] (wallpaper-based on
+  /// Android 12+, or a seeded scheme elsewhere). Semantic colors (priority,
+  /// status, project) are intentionally left untouched.
+  static void applyMaterialYou(ColorScheme s) {
+    primary = s.primary;
+    primaryLight = s.primaryContainer;
+    primaryDark = s.primary;
+    onPrimary = s.onPrimary;
+    background = s.surface;
+    surface = s.surfaceContainerHigh;
+    surfaceLight = s.surfaceContainerHighest;
+    textPrimary = s.onSurface;
+    textSecondary = s.onSurfaceVariant;
+    textTertiary = s.outline;
+    divider = s.outlineVariant;
+    isMaterialYou = true;
+  }
+
+  /// Restore the hand-tuned platinum palette.
+  static void resetToPlatinum() {
+    primary = _platinumPrimary;
+    primaryLight = _platinumPrimaryLight;
+    primaryDark = _platinumPrimaryDark;
+    onPrimary = _platinumOnPrimary;
+    background = _platinumBackground;
+    surface = _platinumSurface;
+    surfaceLight = _platinumSurfaceLight;
+    textPrimary = _platinumTextPrimary;
+    textSecondary = _platinumTextSecondary;
+    textTertiary = _platinumTextTertiary;
+    divider = _platinumDivider;
+    isMaterialYou = false;
+  }
 
   // Priority colors - Distinct from Todoist
   static const Color priority1 = Color(0xFFFF5252);  // Bright red
@@ -46,7 +100,7 @@ class AppColors {
   static const Color lime = Color(0xFFC6FF00);
 
   // Other
-  static const Color divider = Color(0xFF2A2A36);
+  static Color divider = _platinumDivider;
   static const Color shimmer = Color(0xFF2A2A36);
 
   // Project colors (for user selection)

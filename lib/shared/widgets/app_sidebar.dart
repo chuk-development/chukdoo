@@ -14,6 +14,7 @@ import '../../features/todos/providers/todo_provider.dart';
 enum SidebarSection {
   tasks,
   calendar,
+  notes,
   habits,
   kanban,
 }
@@ -52,6 +53,8 @@ class _AppSidebarState extends ConsumerState<AppSidebar> {
         return SidebarSection.tasks;
       case 'calendar':
         return SidebarSection.calendar;
+      case 'notes':
+        return SidebarSection.notes;
       case 'habits':
         return SidebarSection.habits;
       case 'kanban':
@@ -71,6 +74,8 @@ class _AppSidebarState extends ConsumerState<AppSidebar> {
         widget.onViewSelected('all');
       case SidebarSection.calendar:
         widget.onViewSelected('calendar');
+      case SidebarSection.notes:
+        widget.onViewSelected('notes');
       case SidebarSection.habits:
         widget.onViewSelected('habits');
       case SidebarSection.kanban:
@@ -136,7 +141,7 @@ class _IconRail extends StatelessWidget {
               borderRadius: BorderRadius.circular(11),
             ),
             alignment: Alignment.center,
-            child: const Text(
+            child: Text(
               'C',
               style: TextStyle(
                 color: AppColors.onPrimary,
@@ -159,6 +164,12 @@ class _IconRail extends StatelessWidget {
             activeIcon: MdiIcons.calendar,
             isActive: activeSection == SidebarSection.calendar,
             onTap: () => onSectionSelected(SidebarSection.calendar),
+          ),
+          _RailIcon(
+            icon: MdiIcons.noteMultipleOutline,
+            activeIcon: MdiIcons.noteMultiple,
+            isActive: activeSection == SidebarSection.notes,
+            onTap: () => onSectionSelected(SidebarSection.notes),
           ),
           _RailIcon(
             icon: MdiIcons.target,
@@ -298,6 +309,13 @@ class _SubPanel extends ConsumerWidget {
             onViewSelected: onViewSelected,
             section: SidebarSection.calendar,
           ),
+        SidebarSection.notes => _SimpleSubPanel(
+            title: 'Notes',
+            icon: MdiIcons.noteMultipleOutline,
+            currentView: currentView,
+            onViewSelected: onViewSelected,
+            section: SidebarSection.notes,
+          ),
         SidebarSection.habits => _SimpleSubPanel(
             title: 'Habits',
             icon: MdiIcons.target,
@@ -340,8 +358,8 @@ class _TasksSubPanel extends ConsumerWidget {
     return Column(
       children: [
         // Header
-        const Padding(
-          padding: EdgeInsets.fromLTRB(18, 18, 16, 10),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 18, 16, 10),
           child: Align(
             alignment: Alignment.centerLeft,
             child: Text(
@@ -385,14 +403,14 @@ class _TasksSubPanel extends ConsumerWidget {
         ),
 
         const SizedBox(height: 4),
-        const Divider(color: AppColors.divider, height: 1),
+        Divider(color: AppColors.divider, height: 1),
 
         // Projects section
         Padding(
           padding: const EdgeInsets.fromLTRB(18, 12, 10, 4),
           child: Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'PROJECTS',
                   style: TextStyle(
@@ -404,7 +422,7 @@ class _TasksSubPanel extends ConsumerWidget {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.add, size: 16, color: AppColors.textSecondary),
+                icon: Icon(Icons.add, size: 16, color: AppColors.textSecondary),
                 onPressed: () => onViewSelected('add_project'),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
@@ -437,7 +455,7 @@ class _TasksSubPanel extends ConsumerWidget {
           ),
         ),
 
-        const Divider(color: AppColors.divider, height: 1),
+        Divider(color: AppColors.divider, height: 1),
 
         // Bottom items
         _SubNavItem(
@@ -555,7 +573,7 @@ class _SimpleSubPanel extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w600,
                   fontSize: 16,
@@ -564,7 +582,7 @@ class _SimpleSubPanel extends StatelessWidget {
             ],
           ),
         ),
-        const Divider(color: AppColors.divider, height: 1),
+        Divider(color: AppColors.divider, height: 1),
         const SizedBox(height: 8),
 
         // Section-specific sub-navigation
@@ -572,7 +590,7 @@ class _SimpleSubPanel extends StatelessWidget {
 
         // Settings always at bottom
         const Spacer(),
-        const Divider(color: AppColors.divider, height: 1),
+        Divider(color: AppColors.divider, height: 1),
         _SubNavItem(
           icon: MdiIcons.cogOutline,
           label: 'Settings',
@@ -744,7 +762,7 @@ class _ProjectItemState extends State<_ProjectItem> {
                 if (count > 0)
                   Text(
                     '$count',
-                    style: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
+                    style: TextStyle(fontSize: 13, color: AppColors.textTertiary),
                   ),
               ],
             ),

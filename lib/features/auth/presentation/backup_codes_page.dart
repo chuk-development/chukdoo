@@ -79,7 +79,7 @@ class _BackupCodesPageState extends ConsumerState<BackupCodesPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'Save your backup codes',
                       style: TextStyle(
                         fontSize: 20,
@@ -89,7 +89,7 @@ class _BackupCodesPageState extends ConsumerState<BackupCodesPage> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'These codes let you access your data if you forget your password. Each code can only be used once.',
                       style: TextStyle(
                         fontSize: 14,
@@ -212,7 +212,7 @@ class _BackupCodesPageState extends ConsumerState<BackupCodesPage> {
             width: 24,
             child: Text(
               '$index.',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 14,
               ),
@@ -222,7 +222,7 @@ class _BackupCodesPageState extends ConsumerState<BackupCodesPage> {
           Expanded(
             child: Text(
               code,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'monospace',
                 fontSize: 16,
                 fontWeight: FontWeight.w600,

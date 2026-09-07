@@ -9,6 +9,7 @@ import '../../../../shared/widgets/app_sidebar.dart';
 import '../../../sync/presentation/widgets/auto_sync_manager.dart';
 import '../../../calendar/presentation/pages/calendar_page.dart';
 import '../../../habits/presentation/pages/habits_page.dart';
+import '../../../notes/presentation/pages/notes_page.dart';
 import '../../../settings/presentation/settings_page.dart';
 import '../../../projects/domain/models/project.dart';
 import '../../../projects/domain/project_icons.dart';
@@ -48,6 +49,8 @@ class _HomePageState extends ConsumerState<HomePage> {
         return NavTab.inbox;
       case 'calendar':
         return NavTab.calendar;
+      case 'notes':
+        return NavTab.notes;
       case 'habits':
         return NavTab.habits;
       case 'settings':
@@ -64,6 +67,8 @@ class _HomePageState extends ConsumerState<HomePage> {
           _currentView = 'all';
         case NavTab.calendar:
           _currentView = 'calendar';
+        case NavTab.notes:
+          _currentView = 'notes';
         case NavTab.habits:
           _currentView = 'habits';
         case NavTab.more:
@@ -91,6 +96,8 @@ class _HomePageState extends ConsumerState<HomePage> {
         return const CalendarPage(embedded: true);
       case 'habits':
         return const HabitsPage(embedded: true);
+      case 'notes':
+        return NotesPage(embedded: true, onMenu: menu);
       case 'kanban':
         return const KanbanPage(embedded: true);
       case 'project':
@@ -274,8 +281,8 @@ class _MobileDrawer extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 20, 20, 12),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
               child: Text(
                 'Chukdoo',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
@@ -315,10 +322,17 @@ class _MobileDrawer extends ConsumerWidget {
               isSelected: currentView == 'completed',
               onTap: () => onViewSelected('completed'),
             ),
+            _DrawerItem(
+              icon: MdiIcons.noteMultipleOutline,
+              iconColor: AppColors.orange,
+              label: 'Notes',
+              isSelected: currentView == 'notes',
+              onTap: () => onViewSelected('notes'),
+            ),
 
             const Divider(height: 16),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, 4),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
               child: Text(
                 'PROJECTS',
                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.8, color: AppColors.textTertiary),
@@ -344,7 +358,7 @@ class _MobileDrawer extends ConsumerWidget {
             const Divider(height: 1),
             ListTile(
               leading: Icon(MdiIcons.plusCircleOutline, color: AppColors.primary),
-              title: const Text('New Project', style: TextStyle(color: AppColors.primary)),
+              title: Text('New Project', style: TextStyle(color: AppColors.primary)),
               onTap: () {
                 Navigator.pop(context);
                 ProjectEditDialog.show(context);
@@ -401,7 +415,7 @@ class _DrawerItem extends StatelessWidget {
           ),
         ),
         trailing: count != null && count! > 0
-            ? Text('$count', style: const TextStyle(fontSize: 13, color: AppColors.textTertiary))
+            ? Text('$count', style: TextStyle(fontSize: 13, color: AppColors.textTertiary))
             : null,
         onTap: onTap,
         onLongPress: onLongPress,
@@ -430,7 +444,7 @@ class _DrawerProjectTile extends StatelessWidget {
         leading: Icon(projectIconFor(project.icon), size: 20, color: projectColor),
         title: Text(project.name, style: const TextStyle(fontSize: 15), overflow: TextOverflow.ellipsis),
         trailing: count > 0
-            ? Text('$count', style: const TextStyle(fontSize: 13, color: AppColors.textTertiary))
+            ? Text('$count', style: TextStyle(fontSize: 13, color: AppColors.textTertiary))
             : null,
         onTap: onTap,
       ),

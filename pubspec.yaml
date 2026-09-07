@@ -46,6 +46,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_slidable: ^4.0.3
   google_fonts: ^8.1.0
+  dynamic_color: ^1.7.0
   solar_icons: ^0.1.0
   material_design_icons_flutter: ^7.0.7296
   gpt_markdown: ^1.0.19
@@ -64,6 +65,12 @@ dependencies:
 
   # Subscriptions (RevenueCat)
   purchases_flutter: ^10.2.3
+
+# Upstream material_design_icons_flutter does not build on Flutter 3.47
+# (IconData is a final class now). See third_party/README.md.
+dependency_overrides:
+  material_design_icons_flutter:
+    path: third_party/material_design_icons_flutter
 
 dev_dependencies:
   flutter_test:

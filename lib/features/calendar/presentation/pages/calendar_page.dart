@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_shapes.dart';
 import '../../../../core/utils/native_io.dart' as native_io;
 import '../../../../shared/services/supabase_service.dart';
 import '../../domain/models/calendar_item.dart';
@@ -40,35 +41,50 @@ class CalendarPage extends ConsumerWidget {
               onExport: () => _exportIcs(context),
             ),
             Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 280),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (child, animation) {
-                  final fade = CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOut,
-                  );
-                  final scale = Tween<double>(begin: 0.96, end: 1.0)
-                      .animate(CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                  ));
-                  return FadeTransition(
-                    opacity: fade,
-                    child: ScaleTransition(scale: scale, child: child),
-                  );
-                },
-                layoutBuilder: (currentChild, previousChildren) => Stack(
-                  alignment: Alignment.topCenter,
-                  children: [
-                    ...previousChildren,
-                    ?currentChild,
-                  ],
-                ),
-                child: KeyedSubtree(
-                  key: ValueKey(eventState.viewMode),
-                  child: _buildView(context, ref, eventState.viewMode),
+              child: GestureDetector(
+                // Swipe left/right to move to the next/previous period —
+                // replaces reaching for the small arrows up in the header.
+                // Agenda has no period to shift, so skip it there.
+                onHorizontalDragEnd: eventState.viewMode == CalendarViewMode.agenda
+                    ? null
+                    : (details) {
+                        final vx = details.primaryVelocity ?? 0;
+                        if (vx.abs() < 250) return;
+                        final dir = vx < 0 ? 1 : -1; // swipe left → next
+                        ref
+                            .read(calendarEventProvider.notifier)
+                            .setFocusedDate(_shiftFocused(eventState, dir));
+                      },
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 280),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    final fade = CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOut,
+                    );
+                    final scale = Tween<double>(begin: 0.96, end: 1.0)
+                        .animate(CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ));
+                    return FadeTransition(
+                      opacity: fade,
+                      child: ScaleTransition(scale: scale, child: child),
+                    );
+                  },
+                  layoutBuilder: (currentChild, previousChildren) => Stack(
+                    alignment: Alignment.topCenter,
+                    children: [
+                      ...previousChildren,
+                      ?currentChild,
+                    ],
+                  ),
+                  child: KeyedSubtree(
+                    key: ValueKey(eventState.viewMode),
+                    child: _buildView(context, ref, eventState.viewMode),
+                  ),
                 ),
               ),
             ),
@@ -83,6 +99,21 @@ class CalendarPage extends ConsumerWidget {
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  /// Period shift for swipe navigation — mirrors the header arrow logic.
+  DateTime _shiftFocused(CalendarEventState state, int dir) {
+    final f = state.focusedDate;
+    switch (state.viewMode) {
+      case CalendarViewMode.day:
+        return f.add(Duration(days: dir));
+      case CalendarViewMode.week:
+        return f.add(Duration(days: 7 * dir));
+      case CalendarViewMode.month:
+        return DateTime(f.year, f.month + dir, 1);
+      case CalendarViewMode.agenda:
+        return f.add(Duration(days: 30 * dir));
+    }
   }
 
   Widget _buildView(BuildContext context, WidgetRef ref, CalendarViewMode mode) {
@@ -123,7 +154,7 @@ class CalendarPage extends ConsumerWidget {
       context: context,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppShapes.sheetTop)),
       ),
       builder: (_) => EventDetailSheet(item: item),
     );
@@ -229,7 +260,7 @@ class _CalendarHeader extends ConsumerWidget {
               Expanded(
                 child: Text(
                   _periodTitle(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 21,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,

@@ -313,25 +313,31 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
             ),
           ),
         ),
-        // Todos for this date
-        ...todosForDate.map((todo) => _buildTodoTile(todo, largeCheckbox)),
+        // Todos for this date — one rounded group per day.
+        for (var i = 0; i < todosForDate.length; i++)
+          _buildTodoTile(todosForDate[i], largeCheckbox,
+              isFirst: i == 0, isLast: i == todosForDate.length - 1),
         // Completed todos for this date
         if (showCompleted && completedTodosForDate.isNotEmpty)
-          ...completedTodosForDate.map((todo) => _buildTodoTile(todo, largeCheckbox, isCompleted: true)),
-        const Divider(height: 1, indent: 16, endIndent: 16),
+          for (var i = 0; i < completedTodosForDate.length; i++)
+            _buildTodoTile(completedTodosForDate[i], largeCheckbox,
+                isCompleted: true,
+                isFirst: i == 0,
+                isLast: i == completedTodosForDate.length - 1),
+        const SizedBox(height: 8),
       ],
     );
   }
 
-  Widget _buildTodoTile(Todo todo, bool largeCheckbox, {bool isCompleted = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 16),
-      child: TodoSwipeTile(
-        key: ValueKey(todo.id),
-        todo: todo,
-        largeCheckbox: largeCheckbox,
-        isCompleted: isCompleted,
-      ),
+  Widget _buildTodoTile(Todo todo, bool largeCheckbox,
+      {bool isCompleted = false, bool isFirst = true, bool isLast = true}) {
+    return TodoSwipeTile(
+      key: ValueKey(todo.id),
+      todo: todo,
+      largeCheckbox: largeCheckbox,
+      isCompleted: isCompleted,
+      isFirst: isFirst,
+      isLast: isLast,
     );
   }
 }

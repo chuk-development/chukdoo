@@ -90,7 +90,7 @@ class _RecoveryPageState extends ConsumerState<RecoveryPage> {
                           color: AppColors.primary,
                         ),
                         const SizedBox(height: 12),
-                        const Text(
+                        Text(
                           'Enter one of your backup codes to reset your password.',
                           style: TextStyle(
                             fontSize: 14,
@@ -105,7 +105,7 @@ class _RecoveryPageState extends ConsumerState<RecoveryPage> {
                   const SizedBox(height: 24),
 
                   // Backup code input
-                  const Text(
+                  Text(
                     'Backup code',
                     style: TextStyle(
                       fontSize: 14,
@@ -123,8 +123,8 @@ class _RecoveryPageState extends ConsumerState<RecoveryPage> {
                           nextFocusNode: _code2Focus,
                         ),
                       ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
                         child: Text(
                           '-',
                           style: TextStyle(
@@ -141,8 +141,8 @@ class _RecoveryPageState extends ConsumerState<RecoveryPage> {
                           nextFocusNode: _code3Focus,
                         ),
                       ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
                         child: Text(
                           '-',
                           style: TextStyle(

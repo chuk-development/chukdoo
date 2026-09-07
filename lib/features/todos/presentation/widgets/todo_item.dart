@@ -61,12 +61,10 @@ class _TodoItemState extends State<TodoItem> {
       child: InkWell(
         onTap: widget.onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: const BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: AppColors.divider, width: 0.5),
-            ),
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          // The row is a filled block; its corners come from the ClipRRect of
+          // the surrounding group (see AppShapes.row).
+          color: AppColors.surface,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -82,14 +80,22 @@ class _TodoItemState extends State<TodoItem> {
                     height: size,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: showAsCompleted ? AppColors.green : Colors.transparent,
+                      color: showAsCompleted
+                          ? AppColors.green
+                          : Colors.transparent,
                       border: Border.all(
-                        color: showAsCompleted ? AppColors.green : priorityColor,
+                        color: showAsCompleted
+                            ? AppColors.green
+                            : priorityColor,
                         width: 2,
                       ),
                     ),
                     child: showAsCompleted
-                        ? Icon(Icons.check, size: widget.largeCheckbox ? 16 : 14, color: Colors.white)
+                        ? Icon(
+                            Icons.check,
+                            size: widget.largeCheckbox ? 16 : 14,
+                            color: Colors.white,
+                          )
                         : null,
                   ),
                 ),
@@ -104,7 +110,11 @@ class _TodoItemState extends State<TodoItem> {
                     Row(
                       children: [
                         if (widget.isPinned && !showAsCompleted) ...[
-                          Icon(MdiIcons.bookmark, size: 13, color: AppColors.orange),
+                          Icon(
+                            MdiIcons.bookmark,
+                            size: 13,
+                            color: AppColors.orange,
+                          ),
                           const SizedBox(width: 4),
                         ],
                         // Single-line title with ellipsis
@@ -127,7 +137,10 @@ class _TodoItemState extends State<TodoItem> {
                         if (widget.priority < 4 && !showAsCompleted) ...[
                           const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: priorityColor.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(20),
@@ -151,27 +164,41 @@ class _TodoItemState extends State<TodoItem> {
                       Row(
                         children: [
                           if (widget.dueDate != null) ...[
-                            Icon(MdiIcons.calendarOutline, size: 12, color: _getDueDateColor()),
+                            Icon(
+                              MdiIcons.calendarOutline,
+                              size: 12,
+                              color: _getDueDateColor(),
+                            ),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
                                 _formatDueLabel(),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(fontSize: 12, color: _getDueDateColor()),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: _getDueDateColor(),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
                           ],
                           if (widget.projectName != null) ...[
-                            Icon(MdiIcons.folderOutline, size: 12, color: AppColors.textSecondary),
+                            Icon(
+                              MdiIcons.folderOutline,
+                              size: 12,
+                              color: AppColors.textSecondary,
+                            ),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
                                 widget.projectName!,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ),
                           ],
@@ -196,7 +223,11 @@ class _TodoItemState extends State<TodoItem> {
     if (widget.dueDate == null) return AppColors.textSecondary;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final dueDate = DateTime(widget.dueDate!.year, widget.dueDate!.month, widget.dueDate!.day);
+    final dueDate = DateTime(
+      widget.dueDate!.year,
+      widget.dueDate!.month,
+      widget.dueDate!.day,
+    );
     if (dueDate.isBefore(today)) return AppColors.error;
     if (dueDate == today) return AppColors.green;
     if (dueDate == today.add(const Duration(days: 1))) return AppColors.orange;

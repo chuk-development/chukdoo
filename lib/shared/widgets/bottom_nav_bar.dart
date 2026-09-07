@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 enum NavTab {
   inbox(0, 'Inbox'),
   calendar(1, 'Calendar'),
+  notes(2, 'Notes'),
   habits(3, 'Habits'),
   more(4, 'More');
 
@@ -19,6 +20,7 @@ enum NavTab {
   IconData get icon => switch (this) {
         NavTab.inbox => MdiIcons.inboxOutline,
         NavTab.calendar => MdiIcons.calendarOutline,
+        NavTab.notes => MdiIcons.noteMultipleOutline,
         NavTab.habits => MdiIcons.trophyOutline,
         NavTab.more => MdiIcons.cogOutline,
       };
@@ -26,6 +28,7 @@ enum NavTab {
   IconData get activeIcon => switch (this) {
         NavTab.inbox => MdiIcons.inboxFull,
         NavTab.calendar => MdiIcons.calendar,
+        NavTab.notes => MdiIcons.noteMultiple,
         NavTab.habits => MdiIcons.trophy,
         NavTab.more => MdiIcons.cog,
       };

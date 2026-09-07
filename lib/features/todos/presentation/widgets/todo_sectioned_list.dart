@@ -28,30 +28,47 @@ class TodoSectionedList extends StatelessWidget {
     final pinned = active.where((t) => t.isPinned).toList();
     final unpinned = active.where((t) => !t.isPinned).toList();
 
-    Widget item(Todo t, {bool isCompleted = false}) => TodoSwipeTile(
-        key: ValueKey(t.id), todo: t, largeCheckbox: large, isCompleted: isCompleted);
+    // One list is one visual group: large radius on the outer corners, small
+    // radius between two rows.
+    List<Widget> group(List<Todo> items, {bool isCompleted = false}) => [
+      for (var i = 0; i < items.length; i++)
+        TodoSwipeTile(
+          key: ValueKey(items[i].id),
+          todo: items[i],
+          largeCheckbox: large,
+          isCompleted: isCompleted,
+          isFirst: i == 0,
+          isLast: i == items.length - 1,
+        ),
+    ];
 
     final sections = <Widget>[];
     if (pinned.isNotEmpty) {
-      sections.add(_CollapsibleSection(
-        title: 'Pinned',
-        count: pinned.length,
-        children: pinned.map((t) => item(t)).toList(),
-      ));
-      sections.add(_CollapsibleSection(
-        title: 'More',
-        count: unpinned.length,
-        children: unpinned.map((t) => item(t)).toList(),
-      ));
+      sections.add(
+        _CollapsibleSection(
+          title: 'Pinned',
+          count: pinned.length,
+          children: group(pinned),
+        ),
+      );
+      sections.add(
+        _CollapsibleSection(
+          title: 'More',
+          count: unpinned.length,
+          children: group(unpinned),
+        ),
+      );
     } else {
-      sections.addAll(unpinned.map((t) => item(t)));
+      sections.addAll(group(unpinned));
     }
     if (completed.isNotEmpty) {
-      sections.add(_CollapsibleSection(
-        title: 'Completed',
-        count: completed.length,
-        children: completed.map((t) => item(t, isCompleted: true)).toList(),
-      ));
+      sections.add(
+        _CollapsibleSection(
+          title: 'Completed',
+          count: completed.length,
+          children: group(completed, isCompleted: true),
+        ),
+      );
     }
 
     return SlidableAutoCloseBehavior(
@@ -93,15 +110,26 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
                 AnimatedRotation(
                   turns: _expanded ? 0 : -0.25,
                   duration: const Duration(milliseconds: 150),
-                  child: Icon(MdiIcons.chevronDown, size: 16, color: AppColors.textSecondary),
+                  child: Icon(
+                    MdiIcons.chevronDown,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   widget.title,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(width: 8),
-                Text('${widget.count}', style: const TextStyle(fontSize: 13, color: AppColors.textTertiary)),
+                Text(
+                  '${widget.count}',
+                  style: TextStyle(fontSize: 13, color: AppColors.textTertiary),
+                ),
               ],
             ),
           ),

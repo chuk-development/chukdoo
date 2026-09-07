@@ -97,19 +97,23 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     itemCount: filteredTodos.length,
                     itemBuilder: (context, index) {
                       final todo = filteredTodos[index];
-                      return _buildTodoItem(context, ref, todo, settings.checkboxSize == CheckboxSize.large);
+                      return _buildTodoItem(context, ref, todo, settings.checkboxSize == CheckboxSize.large,
+                          isFirst: index == 0, isLast: index == filteredTodos.length - 1);
                     },
                   ),
                 ),
     );
   }
 
-  Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox) {
+  Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, bool largeCheckbox,
+      {bool isFirst = true, bool isLast = true}) {
     return TodoSwipeTile(
       key: ValueKey(todo.id),
       todo: todo,
       largeCheckbox: largeCheckbox,
       isCompleted: todo.isCompleted,
+      isFirst: isFirst,
+      isLast: isLast,
     );
   }
 

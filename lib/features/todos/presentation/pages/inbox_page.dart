@@ -109,7 +109,7 @@ class _InboxPageState extends ConsumerState<InboxPage> {
                 style: const TextStyle(fontSize: 18),
                 decoration: InputDecoration(
                   hintText: 'Search tasks…',
-                  hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 18),
+                  hintStyle: TextStyle(color: AppColors.textSecondary, fontSize: 18),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
@@ -159,7 +159,7 @@ class _InboxPageState extends ConsumerState<InboxPage> {
             Icon(MdiIcons.magnify, size: 64, color: AppColors.textTertiary),
             const SizedBox(height: 16),
             Text('No matches for "$_query"',
-                style: const TextStyle(fontSize: 16, color: AppColors.textSecondary),
+                style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
                 textAlign: TextAlign.center),
           ],
         ),

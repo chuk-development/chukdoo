@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: #121218;
+  --color-foreground: #F0F0F5;
+  --color-card: #1E1E26;
+  --color-card-foreground: #F0F0F5;
+  --color-popover: #1E1E26;
+  --color-popover-foreground: #F0F0F5;
+  --color-primary: #00BFA5;
+  --color-primary-foreground: #121218;
+  --color-secondary: #2A2A36;
+  --color-secondary-foreground: #F0F0F5;
+  --color-muted: #2A2A36;
+  --color-muted-foreground: #9898A6;
+  --color-accent: #2A2A36;
+  --color-accent-foreground: #F0F0F5;
+  --color-destructive: #FF5252;
+  --color-destructive-foreground: #F0F0F5;
+  --color-border: #2A2A36;
+  --color-input: #2A2A36;
+  --color-ring: #00BFA5;
+  --radius: 0.5rem;
+  /* Priority colors */
+  --color-p1: #FF5252;
+  --color-p2: #FFB74D;
+  --color-p3: #64B5F6;
+  --color-p4: #5C5C6E;
+  --color-success: #66BB6A;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-['Inter',sans-serif] m-0 p-0;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2A2A36;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3A3A46;
+  }
+}
+
+/* Animation keyframes */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(1.3); opacity: 0; }
+}
+
+@keyframes pulse-highlight {
+  0% { background-color: rgba(0, 191, 165, 0.25); }
+  30% { background-color: rgba(0, 191, 165, 0.15); }
+  60% { background-color: rgba(0, 191, 165, 0.25); }
+  100% { background-color: transparent; }
+}
+
+/* Radix UI dialog overlay animation */
+[data-state="open"] {
+  animation: slideIn 150ms ease-out;
+}
+
+/* SVG timer ring styles */
+.timer-ring-bg {
+  fill: none;
+  stroke: #2A2A36;
+  stroke-width: 6;
+}
+
+.timer-ring-fg {
+  fill: none;
+  stroke: #00BFA5;
+  stroke-width: 6;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke-dashoffset 0.1s linear;
+}
