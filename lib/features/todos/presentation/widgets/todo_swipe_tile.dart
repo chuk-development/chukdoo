@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -11,6 +10,7 @@ import '../../../projects/providers/project_provider.dart';
 import '../../domain/models/todo.dart';
 import '../../providers/todo_provider.dart';
 import '../pages/todo_detail_page.dart';
+import 'swipe_zone_row.dart';
 import 'todo_item.dart';
 
 /// Pushes a route with no slide/fade transition — the page is just *there*.
@@ -22,12 +22,17 @@ Route<T> instantRoute<T>(Widget page) {
   );
 }
 
-/// A todo row with TickTick-style swipe gestures, shared by every list page.
+/// A todo row with zoned swipe gestures, shared by every list page.
 ///
-/// - Swipe RIGHT  → mark complete (full swipe completes).
-/// - Swipe LEFT   → action buttons [Datum, Verschieben, Anheften, Löschen];
-///                  swiping past two thirds deletes (with undo). The Datum
-///                  button opens a centered TickTick-style quick-date grid.
+/// - Swipe RIGHT → one zone: complete (or reopen), with undo.
+/// - Swipe LEFT  → a sequence of zones, shortest drag first:
+///                 Delete · Pin · Date · Move, then the menu at the far end.
+///
+/// Nothing happens while the finger moves. The zone under the finger is
+/// armed — it fills the revealed strip and ticks the haptics when it changes —
+/// and only the release runs it. Swiping all the way left arms the *menu*
+/// instead of a destructive action, so a careless full swipe can never delete
+/// silently; Delete itself is undoable through the snackbar.
 class TodoSwipeTile extends ConsumerWidget {
   final Todo todo;
   final bool isCompleted;
@@ -63,72 +68,22 @@ class TodoSwipeTile extends ConsumerWidget {
       ),
       child: ClipRRect(
         borderRadius: radius,
-        child: Slidable(
+        child: SwipeZoneRow(
           key: ValueKey(todo.id),
-
-          // ── Swipe right → complete ──
-          startActionPane: ActionPane(
-            motion: const BehindMotion(),
-            extentRatio: 0.28,
-            dismissible: DismissiblePane(
-              dismissThreshold: 0.5,
-              onDismissed: () => _completeWithUndo(context, ref),
-            ),
-            children: [
-              SlidableAction(
-                onPressed: (ctx) => _completeWithUndo(ctx, ref),
-                backgroundColor: AppColors.green,
-                foregroundColor: Colors.white,
-                icon: isCompleted ? MdiIcons.refresh : MdiIcons.checkCircle,
-                label: isCompleted ? 'Reopen' : 'Completed',
-              ),
-            ],
+          startAction: SwipeZoneAction(
+            label: isCompleted ? 'Reopen' : 'Completed',
+            icon: isCompleted ? MdiIcons.refresh : MdiIcons.checkCircle,
+            color: AppColors.green,
+            onRun: () => _completeWithUndo(context, ref),
           ),
-
-          // ── Swipe left → action buttons; swipe past 2/3 → delete ──
-          endActionPane: ActionPane(
-            motion: const BehindMotion(),
-            extentRatio: isCompleted ? 0.25 : 0.78,
-            dismissible: DismissiblePane(
-              dismissThreshold: 0.66, // swipe more than two thirds = delete
-              onDismissed: () => _deleteWithUndo(context, ref),
-            ),
-            children: [
-              if (!isCompleted) ...[
-                SlidableAction(
-                  onPressed: (ctx) => _showDateDialog(ctx, ref),
-                  backgroundColor: AppColors.blue,
-                  foregroundColor: Colors.white,
-                  icon: MdiIcons.calendar,
-                  label: 'Date',
-                ),
-                SlidableAction(
-                  onPressed: (ctx) => _showMoveSheet(ctx, ref),
-                  backgroundColor: AppColors.purple,
-                  foregroundColor: Colors.white,
-                  icon: MdiIcons.folder,
-                  label: 'Move',
-                ),
-                SlidableAction(
-                  onPressed: (_) => notifier.togglePin(todo.id),
-                  backgroundColor: AppColors.orange,
-                  foregroundColor: Colors.white,
-                  icon: todo.isPinned
-                      ? MdiIcons.bookmark
-                      : MdiIcons.bookmarkOutline,
-                  label: todo.isPinned ? 'Unpin' : 'Pin',
-                ),
-              ],
-              SlidableAction(
-                onPressed: (ctx) => _deleteWithUndo(ctx, ref),
-                backgroundColor: AppColors.error,
-                foregroundColor: Colors.white,
-                icon: MdiIcons.trashCan,
-                label: 'Delete',
-              ),
-            ],
+          endActions: _endActions(context, ref),
+          endMenu: SwipeZoneAction(
+            label: 'More',
+            icon: MdiIcons.dotsHorizontal,
+            color: AppColors.surfaceLight,
+            foreground: AppColors.textPrimary,
+            onRun: () => _showActionMenu(context, ref),
           ),
-
           child: isCompleted
               ? _row(context, ref, notifier)
               : _draggable(context, ref, notifier),
@@ -137,12 +92,100 @@ class TodoSwipeTile extends ConsumerWidget {
     );
   }
 
+  /// Left-swipe zones, shortest drag first. Delete comes first because it is
+  /// the action the owner reaches for most; it is undoable, and the far end of
+  /// the swipe opens the menu instead of running it, so the short throw never
+  /// turns into an accidental delete on a long one.
+  List<SwipeZoneAction> _endActions(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(todoProvider.notifier);
+    return [
+      SwipeZoneAction(
+        label: 'Delete',
+        icon: MdiIcons.trashCan,
+        color: AppColors.error,
+        onRun: () => _deleteWithUndo(context, ref),
+      ),
+      // A completed row has nothing left to pin, date or move.
+      if (!isCompleted) ...[
+        SwipeZoneAction(
+          label: todo.isPinned ? 'Unpin' : 'Pin',
+          icon: todo.isPinned ? MdiIcons.bookmark : MdiIcons.bookmarkOutline,
+          color: AppColors.warning,
+          onRun: () => notifier.togglePin(todo.id),
+        ),
+        SwipeZoneAction(
+          label: 'Date',
+          icon: MdiIcons.calendar,
+          color: AppColors.blue,
+          onRun: () => _showDateDialog(context, ref),
+        ),
+        SwipeZoneAction(
+          label: 'Move',
+          icon: MdiIcons.folder,
+          color: AppColors.purple,
+          onRun: () => _showMoveSheet(context, ref),
+        ),
+      ],
+    ];
+  }
+
+  /// What a full left swipe opens: the same actions as the zones, on the one
+  /// modal surface the app uses everywhere.
+  Future<void> _showActionMenu(BuildContext context, WidgetRef ref) async {
+    final notifier = ref.read(todoProvider.notifier);
+    final picked = await showPickerSheet<String>(
+      context: context,
+      title: 'Task',
+      options: [
+        if (!isCompleted) ...[
+          PickerOption(
+            value: 'date',
+            label: 'Date',
+            icon: MdiIcons.calendar,
+            color: AppColors.blue,
+          ),
+          PickerOption(
+            value: 'move',
+            label: 'Move',
+            icon: MdiIcons.folder,
+            color: AppColors.purple,
+          ),
+          PickerOption(
+            value: 'pin',
+            label: todo.isPinned ? 'Unpin' : 'Pin',
+            icon: todo.isPinned ? MdiIcons.bookmark : MdiIcons.bookmarkOutline,
+            color: AppColors.warning,
+          ),
+        ],
+        PickerOption(
+          value: 'delete',
+          label: 'Delete',
+          icon: MdiIcons.trashCan,
+          color: AppColors.error,
+        ),
+      ],
+    );
+
+    if (picked == null || !context.mounted) return;
+
+    switch (picked) {
+      case 'date':
+        await _showDateDialog(context, ref);
+      case 'move':
+        await _showMoveSheet(context, ref);
+      case 'pin':
+        await notifier.togglePin(todo.id);
+      case 'delete':
+        _deleteWithUndo(context, ref);
+    }
+  }
+
   /// Wrap the row so it can be dragged onto a project/All in the sidebar.
   ///
   /// Uses [LongPressDraggable] on every platform: a quick horizontal flick is
-  /// still claimed by the Slidable (swipe actions), while press-and-hold then
-  /// move starts a drag toward the sidebar. This is the only way the two
-  /// gestures coexist — a plain Draggable steals the horizontal swipe.
+  /// still claimed by the swipe gesture, while press-and-hold then move starts
+  /// a drag toward the sidebar. This is the only way the two gestures
+  /// coexist — a plain Draggable steals the horizontal swipe.
   Widget _draggable(BuildContext context, WidgetRef ref, dynamic notifier) {
     return LongPressDraggable<Todo>(
       data: todo,
@@ -199,11 +242,7 @@ class TodoSwipeTile extends ConsumerWidget {
       context: context,
       title: 'Due date',
       options: [
-        PickerOption(
-          value: 'today',
-          label: 'Today',
-          icon: MdiIcons.calendar,
-        ),
+        PickerOption(value: 'today', label: 'Today', icon: MdiIcons.calendar),
         PickerOption(
           value: 'tomorrow',
           label: 'Tomorrow',
