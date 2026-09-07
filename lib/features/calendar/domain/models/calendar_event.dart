@@ -45,11 +45,7 @@ class CalendarEvent {
 
   /// Sensitive data to encrypt before sync
   Map<String, dynamic> toEncryptedPayload() {
-    return {
-      'title': title,
-      'description': description,
-      'location': location,
-    };
+    return {'title': title, 'description': description, 'location': location};
   }
 
   /// Non-sensitive metadata for Supabase (with encrypted blob)
@@ -89,11 +85,14 @@ class CalendarEvent {
       startTime: DateTime.parse(row['start_time'] as String),
       endTime: DateTime.parse(row['end_time'] as String),
       isAllDay: row['is_all_day'] as bool? ?? false,
-      color: row['color'] != null ? int.tryParse(row['color'] as String) ?? 0 : 0,
+      color: row['color'] != null
+          ? int.tryParse(row['color'] as String) ?? 0
+          : 0,
       recurrenceRule: row['recurrence_rule'] as String?,
       recurrenceId: row['recurrence_id'] as String?,
       originalStartTime: row['original_start_time'] as String?,
-      reminderMinutes: (row['reminder_minutes'] as List<dynamic>?)
+      reminderMinutes:
+          (row['reminder_minutes'] as List<dynamic>?)
               ?.map((e) => e as int)
               .toList() ??
           const [],
@@ -145,7 +144,8 @@ class CalendarEvent {
       recurrenceRule: json['recurrence_rule'] as String?,
       recurrenceId: json['recurrence_id'] as String?,
       originalStartTime: json['original_start_time'] as String?,
-      reminderMinutes: (json['reminder_minutes'] as List<dynamic>?)
+      reminderMinutes:
+          (json['reminder_minutes'] as List<dynamic>?)
               ?.map((e) => e as int)
               .toList() ??
           const [],
@@ -195,9 +195,15 @@ class CalendarEvent {
       endTime: endTime ?? this.endTime,
       isAllDay: isAllDay ?? this.isAllDay,
       color: color ?? this.color,
-      recurrenceRule: clearRecurrenceRule ? null : (recurrenceRule ?? this.recurrenceRule),
-      recurrenceId: clearRecurrenceId ? null : (recurrenceId ?? this.recurrenceId),
-      originalStartTime: clearOriginalStartTime ? null : (originalStartTime ?? this.originalStartTime),
+      recurrenceRule: clearRecurrenceRule
+          ? null
+          : (recurrenceRule ?? this.recurrenceRule),
+      recurrenceId: clearRecurrenceId
+          ? null
+          : (recurrenceId ?? this.recurrenceId),
+      originalStartTime: clearOriginalStartTime
+          ? null
+          : (originalStartTime ?? this.originalStartTime),
       reminderMinutes: reminderMinutes ?? this.reminderMinutes,
       sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
@@ -208,10 +214,7 @@ class CalendarEvent {
   }
 
   CalendarEvent incrementVersion() {
-    return copyWith(
-      version: version + 1,
-      updatedAt: DateTime.now(),
-    );
+    return copyWith(version: version + 1, updatedAt: DateTime.now());
   }
 
   /// Duration of the event

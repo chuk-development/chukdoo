@@ -35,19 +35,26 @@ class IcsService {
       final ics = _buildIcsString(events);
 
       if (kIsWeb) {
-        return IcsExportResult(success: true, eventCount: events.length, icsContent: ics);
+        return IcsExportResult(
+          success: true,
+          eventCount: events.length,
+          icsContent: ics,
+        );
       }
 
       final dir = await getApplicationDocumentsDirectory();
       final path = '${dir.path}/chukdoo_calendar.ics';
       await native_io.writeFileAsString(path, ics);
 
-      await Share.shareXFiles(
-        [XFile(path, mimeType: 'text/calendar')],
-        subject: 'Chukdoo Kalender Export',
-      );
+      await Share.shareXFiles([
+        XFile(path, mimeType: 'text/calendar'),
+      ], subject: 'Chukdoo Kalender Export');
 
-      return IcsExportResult(success: true, filePath: path, eventCount: events.length);
+      return IcsExportResult(
+        success: true,
+        filePath: path,
+        eventCount: events.length,
+      );
     } catch (e) {
       debugPrint('IcsService: Export failed: $e');
       return IcsExportResult(success: false, error: e.toString());
@@ -55,7 +62,10 @@ class IcsService {
   }
 
   /// Import events from .ics file content
-  static Future<IcsImportResult> importIcs(String icsContent, String userId) async {
+  static Future<IcsImportResult> importIcs(
+    String icsContent,
+    String userId,
+  ) async {
     try {
       final events = _parseIcsString(icsContent, userId);
       final box = Hive.box<Map>(AppConstants.hiveCalendarEventsBox);
@@ -110,7 +120,9 @@ class IcsService {
 
       if (event.isAllDay) {
         buf.writeln('DTSTART;VALUE=DATE:${_formatIcsDate(event.startTime)}');
-        buf.writeln('DTEND;VALUE=DATE:${_formatIcsDate(event.endTime.add(const Duration(days: 1)))}');
+        buf.writeln(
+          'DTEND;VALUE=DATE:${_formatIcsDate(event.endTime.add(const Duration(days: 1)))}',
+        );
       } else {
         buf.writeln('DTSTART:${_formatIcsDateTime(event.startTime)}');
         buf.writeln('DTEND:${_formatIcsDateTime(event.endTime)}');
@@ -200,14 +212,16 @@ class IcsService {
         final props = <String, String>{};
         final alarms = <int>[];
 
-        while (i < lines.length && lines[i].trim().toUpperCase() != 'END:VEVENT') {
+        while (i < lines.length &&
+            lines[i].trim().toUpperCase() != 'END:VEVENT') {
           final line = lines[i].trim();
 
           if (line.toUpperCase() == 'BEGIN:VALARM') {
             // Parse alarm
             i++;
             String? trigger;
-            while (i < lines.length && lines[i].trim().toUpperCase() != 'END:VALARM') {
+            while (i < lines.length &&
+                lines[i].trim().toUpperCase() != 'END:VALARM') {
               if (lines[i].trim().toUpperCase().startsWith('TRIGGER')) {
                 trigger = lines[i].trim().split(':').skip(1).join(':');
               }
@@ -253,7 +267,11 @@ class IcsService {
     return result;
   }
 
-  static CalendarEvent? _propsToEvent(Map<String, String> props, List<int> alarms, String userId) {
+  static CalendarEvent? _propsToEvent(
+    Map<String, String> props,
+    List<int> alarms,
+    String userId,
+  ) {
     final summary = _unescapeIcs(props['SUMMARY'] ?? '');
     if (summary.isEmpty) return null;
 
@@ -279,7 +297,9 @@ class IcsService {
       startTime = _parseIcsDate(props[dtStartKey] ?? '');
       final parsedEnd = _parseIcsDate(props[dtEndKey] ?? '');
       // RFC 5545: DTEND for all-day events is exclusive, subtract 1 day to get inclusive end
-      endTime = parsedEnd != null ? parsedEnd.subtract(const Duration(days: 1)) : startTime;
+      endTime = parsedEnd != null
+          ? parsedEnd.subtract(const Duration(days: 1))
+          : startTime;
     } else {
       startTime = _parseIcsDateTime(props[dtStartKey] ?? '');
       endTime = _parseIcsDateTime(props[dtEndKey] ?? '');

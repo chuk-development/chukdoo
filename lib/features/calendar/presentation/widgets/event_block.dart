@@ -49,7 +49,10 @@ class EventBlock extends StatelessWidget {
       onTap: onTap,
       child: Container(
         height: displayHeight,
-        padding: EdgeInsets.symmetric(horizontal: 7, vertical: isCompact ? 1 : 4),
+        padding: EdgeInsets.symmetric(
+          horizontal: 7,
+          vertical: isCompact ? 1 : 4,
+        ),
         decoration: BoxDecoration(
           // No outline — a task reads as a softer tint of the same color.
           color: _isTodo ? blockColor.withValues(alpha: 0.3) : blockColor,

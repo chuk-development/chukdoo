@@ -83,11 +83,13 @@ class EventLayoutCalculator {
 
       final totalColumns = columns.length;
       for (final item in group) {
-        results.add(EventLayoutInfo(
-          item: item,
-          column: assignments[item]!,
-          totalColumns: totalColumns,
-        ));
+        results.add(
+          EventLayoutInfo(
+            item: item,
+            column: assignments[item]!,
+            totalColumns: totalColumns,
+          ),
+        );
       }
     }
 

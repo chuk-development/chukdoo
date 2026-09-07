@@ -140,9 +140,7 @@ class Calendar {
   }
 
   static CalendarKind _parseKind(Object? raw) {
-    return CalendarKind.values
-            .where((k) => k.name == raw)
-            .firstOrNull ??
+    return CalendarKind.values.where((k) => k.name == raw).firstOrNull ??
         CalendarKind.general;
   }
 

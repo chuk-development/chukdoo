@@ -82,8 +82,16 @@ class RRuleHelper {
     return RecurrenceConfig(
       frequency: _freqMap[freqStr]!,
       interval: int.tryParse(params['INTERVAL'] ?? '1') ?? 1,
-      byDay: params['BYDAY']?.split(',').map((d) => _dayMap[d.toUpperCase()]).whereType<Weekday>().toList(),
-      byMonthDay: params['BYMONTHDAY']?.split(',').map((d) => int.tryParse(d)).whereType<int>().toList(),
+      byDay: params['BYDAY']
+          ?.split(',')
+          .map((d) => _dayMap[d.toUpperCase()])
+          .whereType<Weekday>()
+          .toList(),
+      byMonthDay: params['BYMONTHDAY']
+          ?.split(',')
+          .map((d) => int.tryParse(d))
+          .whereType<int>()
+          .toList(),
       count: params['COUNT'] != null ? int.tryParse(params['COUNT']!) : null,
       until: params['UNTIL'] != null ? _parseUntil(params['UNTIL']!) : null,
       weekStart: _dayMap[params['WKST']?.toUpperCase()] ?? Weekday.mo,
@@ -147,7 +155,9 @@ class RRuleHelper {
       if (config.count != null && count >= config.count!) break;
       if (current.isAfter(rangeEnd)) break;
 
-      if (config.frequency == RecurrenceFrequency.weekly && config.byDay != null && config.byDay!.isNotEmpty) {
+      if (config.frequency == RecurrenceFrequency.weekly &&
+          config.byDay != null &&
+          config.byDay!.isNotEmpty) {
         // For weekly with BYDAY, check each day of the week
         final weekStart = current;
         for (final day in config.byDay!) {
@@ -156,46 +166,69 @@ class RRuleHelper {
           final occurrence = weekStart.add(Duration(days: adjusted));
 
           if (occurrence.isAfter(rangeEnd)) continue;
-          if (config.until != null && occurrence.isAfter(config.until!)) continue;
+          if (config.until != null && occurrence.isAfter(config.until!))
+            continue;
           if (config.count != null && count >= config.count!) break;
 
-          final dateKey = '${occurrence.year}-${occurrence.month.toString().padLeft(2, '0')}-${occurrence.day.toString().padLeft(2, '0')}';
+          final dateKey =
+              '${occurrence.year}-${occurrence.month.toString().padLeft(2, '0')}-${occurrence.day.toString().padLeft(2, '0')}';
           if (excludedDates != null && excludedDates.contains(dateKey)) {
             count++;
             continue;
           }
 
           if (!occurrence.isBefore(rangeStart)) {
-            occurrences.add(DateTime(
-              occurrence.year,
-              occurrence.month,
-              occurrence.day,
-              eventStart.hour,
-              eventStart.minute,
-              eventStart.second,
-            ));
+            occurrences.add(
+              DateTime(
+                occurrence.year,
+                occurrence.month,
+                occurrence.day,
+                eventStart.hour,
+                eventStart.minute,
+                eventStart.second,
+              ),
+            );
           }
           count++;
         }
         current = _addInterval(weekStart, config.frequency, config.interval);
       } else {
-        final dateKey = '${current.year}-${current.month.toString().padLeft(2, '0')}-${current.day.toString().padLeft(2, '0')}';
-        final excluded = excludedDates != null && excludedDates.contains(dateKey);
+        final dateKey =
+            '${current.year}-${current.month.toString().padLeft(2, '0')}-${current.day.toString().padLeft(2, '0')}';
+        final excluded =
+            excludedDates != null && excludedDates.contains(dateKey);
 
         if (!current.isBefore(rangeStart) && !excluded) {
           occurrences.add(current);
         }
         count++;
 
-        if (config.frequency == RecurrenceFrequency.monthly && config.byMonthDay != null) {
+        if (config.frequency == RecurrenceFrequency.monthly &&
+            config.byMonthDay != null) {
           // Advance to next month, then check byMonthDay
-          final nextMonth = DateTime(current.year, current.month + config.interval, 1, eventStart.hour, eventStart.minute);
+          final nextMonth = DateTime(
+            current.year,
+            current.month + config.interval,
+            1,
+            eventStart.hour,
+            eventStart.minute,
+          );
           current = nextMonth;
           // Find first matching day in that month
           for (final day in config.byMonthDay!) {
-            final daysInMonth = DateTime(nextMonth.year, nextMonth.month + 1, 0).day;
+            final daysInMonth = DateTime(
+              nextMonth.year,
+              nextMonth.month + 1,
+              0,
+            ).day;
             if (day <= daysInMonth) {
-              current = DateTime(nextMonth.year, nextMonth.month, day, eventStart.hour, eventStart.minute);
+              current = DateTime(
+                nextMonth.year,
+                nextMonth.month,
+                day,
+                eventStart.hour,
+                eventStart.minute,
+              );
               break;
             }
           }
@@ -210,7 +243,11 @@ class RRuleHelper {
   }
 
   /// Get the next occurrence after a given date
-  static DateTime? getNextOccurrence(DateTime eventStart, String rrule, DateTime after) {
+  static DateTime? getNextOccurrence(
+    DateTime eventStart,
+    String rrule,
+    DateTime after,
+  ) {
     final occurrences = expandOccurrences(
       eventStart,
       rrule,
@@ -220,28 +257,53 @@ class RRuleHelper {
     return occurrences.isNotEmpty ? occurrences.first : null;
   }
 
-  static DateTime _addInterval(DateTime date, RecurrenceFrequency freq, int interval) {
+  static DateTime _addInterval(
+    DateTime date,
+    RecurrenceFrequency freq,
+    int interval,
+  ) {
     switch (freq) {
       case RecurrenceFrequency.daily:
         return date.add(Duration(days: interval));
       case RecurrenceFrequency.weekly:
         return date.add(Duration(days: 7 * interval));
       case RecurrenceFrequency.monthly:
-        return DateTime(date.year, date.month + interval, date.day, date.hour, date.minute, date.second);
+        return DateTime(
+          date.year,
+          date.month + interval,
+          date.day,
+          date.hour,
+          date.minute,
+          date.second,
+        );
       case RecurrenceFrequency.yearly:
-        return DateTime(date.year + interval, date.month, date.day, date.hour, date.minute, date.second);
+        return DateTime(
+          date.year + interval,
+          date.month,
+          date.day,
+          date.hour,
+          date.minute,
+          date.second,
+        );
     }
   }
 
   static int _weekdayToInt(Weekday day) {
     switch (day) {
-      case Weekday.mo: return DateTime.monday;
-      case Weekday.tu: return DateTime.tuesday;
-      case Weekday.we: return DateTime.wednesday;
-      case Weekday.th: return DateTime.thursday;
-      case Weekday.fr: return DateTime.friday;
-      case Weekday.sa: return DateTime.saturday;
-      case Weekday.su: return DateTime.sunday;
+      case Weekday.mo:
+        return DateTime.monday;
+      case Weekday.tu:
+        return DateTime.tuesday;
+      case Weekday.we:
+        return DateTime.wednesday;
+      case Weekday.th:
+        return DateTime.thursday;
+      case Weekday.fr:
+        return DateTime.friday;
+      case Weekday.sa:
+        return DateTime.saturday;
+      case Weekday.su:
+        return DateTime.sunday;
     }
   }
 

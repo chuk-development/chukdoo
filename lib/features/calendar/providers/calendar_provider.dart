@@ -138,9 +138,7 @@ class CalendarContainerNotifier extends StateNotifier<CalendarContainerState> {
       data: calendar.toJson(),
     );
 
-    state = state.copyWith(
-      calendars: [...state.calendars, calendar],
-    );
+    state = state.copyWith(calendars: [...state.calendars, calendar]);
 
     return calendar;
   }
@@ -189,15 +187,13 @@ class CalendarContainerNotifier extends StateNotifier<CalendarContainerState> {
     final existing = state.defaultCalendar;
     if (existing != null) return existing;
 
-    return addCalendar(
-      name: 'Calendar',
-      isDefault: true,
-      color: 0xFF64B5F6,
-    );
+    return addCalendar(name: 'Calendar', isDefault: true, color: 0xFF64B5F6);
   }
 }
 
 final calendarContainerProvider =
-    StateNotifierProvider<CalendarContainerNotifier, CalendarContainerState>((ref) {
-  return CalendarContainerNotifier();
-});
+    StateNotifierProvider<CalendarContainerNotifier, CalendarContainerState>((
+      ref,
+    ) {
+      return CalendarContainerNotifier();
+    });

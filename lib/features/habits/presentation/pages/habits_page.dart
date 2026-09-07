@@ -9,6 +9,7 @@ import '../../domain/models/habit.dart';
 import '../../providers/habit_provider.dart';
 import '../../../todos/presentation/widgets/quick_add_fab.dart';
 import '../../../../shared/widgets/app_scaffold.dart';
+import '../../../../shared/widgets/app_check.dart';
 
 class HabitsPage extends ConsumerWidget {
   final bool embedded;
@@ -427,10 +428,6 @@ class _DayToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color borderColor = completed
-        ? color
-        : (isToday ? color : AppColors.surfaceLight);
-
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -447,34 +444,28 @@ class _DayToggle extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            Container(
-              height: 44,
-              constraints: const BoxConstraints(minWidth: 36),
-              alignment: Alignment.center,
-              child: Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: completed ? color : Colors.transparent,
-                  border: Border.all(
-                    color: borderColor,
-                    width: isToday && !completed ? 2 : 1.5,
-                  ),
+            // The same tick a task row uses, at the same size — a habit day
+            // is ticked off, not pressed like a big button.
+            SizedBox(
+              height: 34,
+              child: Center(
+                child: AppCheck(
+                  checked: completed,
+                  color: isToday || completed ? color : AppColors.surfaceLight,
                 ),
-                child: completed
-                    ? const Icon(Icons.check, size: 20, color: Colors.white)
-                    : Text(
-                        '$dayNum',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: isFuture
-                              ? AppColors.textTertiary
-                              : AppColors.textSecondary,
-                        ),
-                      ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$dayNum',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+                color: isToday
+                    ? color
+                    : (isFuture
+                          ? AppColors.textTertiary
+                          : AppColors.textSecondary),
               ),
             ),
           ],

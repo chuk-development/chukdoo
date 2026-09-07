@@ -186,7 +186,9 @@ class IcsFeedService {
           .timeout(const Duration(seconds: 20));
 
       if (response.statusCode != 200) {
-        return await _store(feed.copyWith(lastError: 'HTTP ${response.statusCode}'));
+        return await _store(
+          feed.copyWith(lastError: 'HTTP ${response.statusCode}'),
+        );
       }
 
       // ICS is required to be UTF-8; decode explicitly so umlauts survive.

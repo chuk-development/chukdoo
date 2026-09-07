@@ -50,50 +50,59 @@ class AppDrawerPanel extends StatelessWidget {
       elevation: 0,
       shape: const RoundedRectangleBorder(),
       width: MediaQuery.of(context).size.width * widthFactor,
-      child: Container(
-        // Free on every side, like the quick-add dock: the gap is what makes
-        // it read as a panel lying over the page.
-        margin: const EdgeInsets.all(AppShapes.dockMargin),
-        decoration: BoxDecoration(
-          // A tone above the page background, so the panel has a visible edge.
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppShapes.sheetTop),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                // Tight under the title: the rows start right below it.
-                padding: const EdgeInsets.fromLTRB(20, 4, 8, 6),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: Container(
+          // Free on every side, like the quick-add dock: the gap is what makes
+          // it read as a panel lying over the page.
+          margin: const EdgeInsets.all(AppShapes.dockMargin),
+          decoration: BoxDecoration(
+            // A tone above the page background, so the panel has a visible edge.
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppShapes.sheetTop),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: SafeArea(
+            child: Column(
+              // Wrap the content instead of filling the screen: the panel ends
+              // right under its last row.
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  // Tight under the title: the rows start right below it.
+                  padding: const EdgeInsets.fromLTRB(20, 4, 8, 6),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                       ),
-                    ),
-                    ...titleActions,
-                  ],
+                      ...titleActions,
+                    ],
+                  ),
                 ),
-              ),
-              ...header,
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.only(top: 4, bottom: 4),
-                  children: children,
+                ...header,
+                // Flexible, not Expanded: a short list keeps the panel short,
+                // a long one still scrolls inside the screen.
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.only(top: 4, bottom: 4),
+                    children: children,
+                  ),
                 ),
-              ),
-              ?footer,
-              const SizedBox(height: 8),
-            ],
+                ?footer,
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         ),
       ),
@@ -137,6 +146,10 @@ class AppDrawerSection extends StatelessWidget {
 /// One row of a drawer group: filled block, corner grading by position.
 class AppDrawerTile extends StatelessWidget {
   final IconData icon;
+
+  /// Replaces the icon when a row leads with a control instead — the tick of
+  /// a calendar's visibility, for example.
+  final Widget? leading;
   final Color? iconColor;
   final String label;
 
@@ -158,6 +171,7 @@ class AppDrawerTile extends StatelessWidget {
   const AppDrawerTile({
     super.key,
     required this.icon,
+    this.leading,
     required this.label,
     this.iconColor,
     this.count,
@@ -191,13 +205,15 @@ class AppDrawerTile extends StatelessWidget {
       child: ListTile(
         dense: true,
         shape: RoundedRectangleBorder(borderRadius: radius),
-        leading: Icon(
-          icon,
-          size: 20,
-          color: isSelected
-              ? AppColors.primary
-              : (iconColor ?? AppColors.textSecondary),
-        ),
+        leading:
+            leading ??
+            Icon(
+              icon,
+              size: 20,
+              color: isSelected
+                  ? AppColors.primary
+                  : (iconColor ?? AppColors.textSecondary),
+            ),
         title: Text(
           label,
           overflow: TextOverflow.ellipsis,

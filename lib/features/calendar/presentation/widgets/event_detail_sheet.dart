@@ -108,9 +108,7 @@ class EventDetailSheet extends ConsumerWidget {
     }
 
     if (event.description != null && event.description!.isNotEmpty) {
-      rows.add(
-        _DetailRow(icon: MdiIcons.textLong, text: event.description!),
-      );
+      rows.add(_DetailRow(icon: MdiIcons.textLong, text: event.description!));
     }
 
     if (event.isRecurring) {
@@ -160,9 +158,7 @@ class EventDetailSheet extends ConsumerWidget {
             width: 14,
             height: 14,
             decoration: BoxDecoration(
-              color: cal != null
-                  ? Color(cal.color)
-                  : AppColors.textTertiary,
+              color: cal != null ? Color(cal.color) : AppColors.textTertiary,
               shape: BoxShape.circle,
             ),
           ),

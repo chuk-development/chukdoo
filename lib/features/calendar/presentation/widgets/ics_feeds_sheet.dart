@@ -59,10 +59,9 @@ class _IcsFeedsSheetState extends ConsumerState<IcsFeedsSheet> {
       _error = null;
     });
 
-    final feed = await ref.read(icsFeedsProvider.notifier).add(
-      url: normalized,
-      name: _nameController.text,
-    );
+    final feed = await ref
+        .read(icsFeedsProvider.notifier)
+        .add(url: normalized, name: _nameController.text);
 
     if (!mounted) return;
     setState(() {
@@ -117,7 +116,9 @@ class _IcsFeedsSheetState extends ConsumerState<IcsFeedsSheet> {
                 children: [
                   for (var i = 0; i < feeds.length; i++)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: AppShapes.groupGap),
+                      padding: const EdgeInsets.only(
+                        bottom: AppShapes.groupGap,
+                      ),
                       child: Material(
                         color: AppColors.surface,
                         borderRadius: AppShapes.row(

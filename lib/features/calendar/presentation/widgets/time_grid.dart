@@ -46,7 +46,7 @@ class TimeGrid extends StatefulWidget {
     // meeting still gets two readable lines, and an hour of empty grid does
     // not look squeezed while scrolling.
     this.hourHeight = 60.0,
-    this.timeColumnWidth = 44.0,
+    this.timeColumnWidth = 34.0,
     this.onSlotTap,
     this.onItemTap,
     this.onItemDrop,
@@ -137,9 +137,7 @@ class _TimeGridState extends State<TimeGrid> {
                                   right: 8,
                                 ),
                                 child: Text(
-                                  i == 0
-                                      ? ''
-                                      : '${hour.toString().padLeft(2, '0')}:00',
+                                  i == 0 ? '' : hour.toString().padLeft(2, '0'),
                                   // Right against the grid, the way every
                                   // calendar app sets its hour scale.
                                   textAlign: TextAlign.right,

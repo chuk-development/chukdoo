@@ -11,6 +11,7 @@ import '../../providers/ics_feeds_provider.dart';
 import '../../services/ics_feed_service.dart';
 import 'calendar_edit_sheet.dart';
 import 'ics_feeds_sheet.dart';
+import '../../../../shared/widgets/app_check.dart';
 
 /// Side panel of the calendar: what the views show.
 ///
@@ -135,9 +136,13 @@ class _CalendarRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppDrawerTile(
-      icon: calendar.isVisible
-          ? MdiIcons.checkboxMarked
-          : MdiIcons.checkboxBlankOutline,
+      icon: MdiIcons.calendarBlankOutline,
+      // Same tick as a task row — a calendar is switched on the same way a
+      // task is ticked off.
+      leading: AppCheck(
+        checked: calendar.isVisible,
+        color: Color(calendar.color),
+      ),
       iconColor: calendar.isVisible
           ? Color(calendar.color)
           : AppColors.textTertiary,
@@ -176,9 +181,8 @@ class _FeedRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppDrawerTile(
-      icon: feed.isVisible
-          ? MdiIcons.checkboxMarked
-          : MdiIcons.checkboxBlankOutline,
+      icon: MdiIcons.calendarSync,
+      leading: AppCheck(checked: feed.isVisible, color: Color(feed.color)),
       iconColor: feed.isVisible ? Color(feed.color) : AppColors.textTertiary,
       label: feed.name,
       isFirst: isFirst,

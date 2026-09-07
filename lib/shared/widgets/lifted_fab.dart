@@ -6,8 +6,8 @@ import '../../core/theme/app_shapes.dart';
 ///
 /// Pages inside the shell run their own Scaffold, which places its FAB against
 /// the screen edge and knows nothing about the shell's bar. The lift is the
-/// bar's footprint plus the gesture inset, minus the FAB's own 16 margin, plus
-/// a small gap so the button never touches the pill.
+/// bar's footprint plus the gesture inset and a gap, so the button keeps clear
+/// air over the pill instead of resting on it.
 class LiftedFab extends StatelessWidget {
   final Widget? child;
 
@@ -20,7 +20,7 @@ class LiftedFab extends StatelessWidget {
     final gestureInset = MediaQuery.viewPaddingOf(context).bottom;
     // Clear of the pill, not touching it: the FAB's own 16 margin plus this
     // puts its bottom edge a good 24 above the bar.
-    final lift = (gestureInset + AppShapes.navBarHeight + 8).clamp(0.0, 180.0);
+    final lift = (gestureInset + AppShapes.navBarHeight + 20).clamp(0.0, 200.0);
 
     return Padding(
       padding: EdgeInsets.only(bottom: lift),

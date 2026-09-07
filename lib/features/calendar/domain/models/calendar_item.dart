@@ -19,8 +19,8 @@ class EventItem extends CalendarItem {
     required this.event,
     DateTime? occurrenceStart,
     DateTime? occurrenceEnd,
-  })  : occurrenceStart = occurrenceStart ?? event.startTime,
-        occurrenceEnd = occurrenceEnd ?? event.endTime;
+  }) : occurrenceStart = occurrenceStart ?? event.startTime,
+       occurrenceEnd = occurrenceEnd ?? event.endTime;
 
   @override
   DateTime get startTime => occurrenceStart;
