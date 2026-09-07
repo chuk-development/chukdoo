@@ -25,13 +25,23 @@ class MonthView extends ConsumerWidget {
     final focused = eventState.focusedDate;
 
     final firstOfMonth = DateTime(focused.year, focused.month, 1);
-    final gridStart = firstOfMonth.subtract(Duration(days: firstOfMonth.weekday - 1));
+    final gridStart = firstOfMonth.subtract(
+      Duration(days: firstOfMonth.weekday - 1),
+    );
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppShapes.listInset),
+      padding: EdgeInsets.fromLTRB(
+        AppShapes.listInset,
+        0,
+        AppShapes.listInset,
+        // A month grid cannot scroll, so it stops above the nav bar instead
+        // of hiding its last week behind it. The extra gap keeps the last
+        // week clear of the pill instead of touching it.
+        AppShapes.contentBottom(context) + AppShapes.dockMargin,
+      ),
       child: Column(
         children: [
           // Weekday header — the same labels the week view uses.
@@ -59,36 +69,49 @@ class MonthView extends ConsumerWidget {
             ),
           ),
 
-          // 6-week grid
+          // 6-week grid. The row height is measured, not shared through
+          // Expanded: a flex row that ends up a few pixels too tall paints
+          // past its box, which is how the last week used to end up under
+          // the nav bar.
           Expanded(
-            child: Column(
-              children: List.generate(6, (week) {
-                return Expanded(
-                  child: Row(
-                    children: List.generate(7, (dayOfWeek) {
-                      final date = gridStart.add(Duration(days: week * 7 + dayOfWeek));
-                      final isCurrentMonth = date.month == focused.month;
-                      final isToday = date.isAtSameMomentAs(today);
-                      final dayItems = calendarItems.itemsForDay(date);
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final rowHeight = constraints.maxHeight / 6;
+                return ClipRect(
+                  child: Column(
+                    children: List.generate(6, (week) {
+                      return SizedBox(
+                        height: rowHeight,
+                        child: Row(
+                          children: List.generate(7, (dayOfWeek) {
+                            final date = gridStart.add(
+                              Duration(days: week * 7 + dayOfWeek),
+                            );
+                            final isCurrentMonth = date.month == focused.month;
+                            final isToday = date.isAtSameMomentAs(today);
+                            final dayItems = calendarItems.itemsForDay(date);
 
-                      return Expanded(
-                        child: _MonthCell(
-                          date: date,
-                          isCurrentMonth: isCurrentMonth,
-                          isToday: isToday,
-                          items: dayItems,
-                          onTap: () => onDayTap?.call(date),
-                          onItemTap: onItemTap,
-                          row: week,
-                          col: dayOfWeek,
-                          rowCount: 6,
-                          colCount: 7,
+                            return Expanded(
+                              child: _MonthCell(
+                                date: date,
+                                isCurrentMonth: isCurrentMonth,
+                                isToday: isToday,
+                                items: dayItems,
+                                onTap: () => onDayTap?.call(date),
+                                onItemTap: onItemTap,
+                                row: week,
+                                col: dayOfWeek,
+                                rowCount: 6,
+                                colCount: 7,
+                              ),
+                            );
+                          }),
                         ),
                       );
                     }),
                   ),
                 );
-              }),
+              },
             ),
           ),
         ],
@@ -174,9 +197,7 @@ class _MonthCell extends StatelessWidget {
                   height: 22,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: isToday
-                        ? CalendarStyle.accent
-                        : Colors.transparent,
+                    color: isToday ? CalendarStyle.accent : Colors.transparent,
                     shape: BoxShape.circle,
                   ),
                   child: Text(
@@ -202,7 +223,10 @@ class _MonthCell extends StatelessWidget {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     // ~16px per chip incl. spacing; reserve room for "+N".
-                    final maxChips = (constraints.maxHeight / 16).floor().clamp(0, 4);
+                    final maxChips = (constraints.maxHeight / 16).floor().clamp(
+                      0,
+                      4,
+                    );
                     final overflow = items.length - maxChips;
                     final visible = items.take(maxChips).toList();
 

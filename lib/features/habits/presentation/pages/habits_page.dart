@@ -8,7 +8,7 @@ import '../../../../shared/widgets/app_field.dart';
 import '../../domain/models/habit.dart';
 import '../../providers/habit_provider.dart';
 import '../../../todos/presentation/widgets/quick_add_fab.dart';
-import '../../../../shared/widgets/lifted_fab.dart';
+import '../../../../shared/widgets/app_scaffold.dart';
 
 class HabitsPage extends ConsumerWidget {
   final bool embedded;
@@ -23,23 +23,10 @@ class HabitsPage extends ConsumerWidget {
     final habitState = ref.watch(habitProvider);
     final habits = habitState.habits;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Habits'),
-        automaticallyImplyLeading: false,
-        leading: embedded
-            ? (onMenu == null
-                  ? null
-                  : IconButton(
-                      icon: Icon(MdiIcons.menu),
-                      onPressed: onMenu,
-                      tooltip: 'Menu',
-                    ))
-            : IconButton(
-                icon: Icon(MdiIcons.chevronLeft),
-                onPressed: () => Navigator.pop(context),
-              ),
-      ),
+    return AppScaffold(
+      title: 'Habits',
+      onMenu: embedded ? onMenu : null,
+      onBack: embedded ? null : () => Navigator.pop(context),
       body: habitState.isLoading
           ? const Center(child: CircularProgressIndicator())
           : habits.isEmpty
@@ -48,7 +35,10 @@ class HabitsPage extends ConsumerWidget {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 680),
                 child: ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 100, top: 8),
+                  padding: EdgeInsets.only(
+                    bottom: AppShapes.contentBottom(context),
+                    top: 8,
+                  ),
                   itemCount: habits.length,
                   itemBuilder: (context, index) {
                     return _HabitCard(
@@ -60,8 +50,8 @@ class HabitsPage extends ConsumerWidget {
                 ),
               ),
             ),
-      floatingActionButton: LiftedFab(
-        child: QuickAddFab(onPressed: () => _showHabitSheet(context, ref)),
+      floatingActionButton: QuickAddFab(
+        onPressed: () => _showHabitSheet(context, ref),
       ),
     );
   }
@@ -554,7 +544,9 @@ class _HabitHeatmap extends StatelessWidget {
                             height: dotSize,
                             decoration: BoxDecoration(
                               color: dotColor,
-                              borderRadius: BorderRadius.circular(dotSize * 0.3),
+                              borderRadius: BorderRadius.circular(
+                                dotSize * 0.3,
+                              ),
                               border: isToday && !isCompleted
                                   ? Border.all(color: habitColor, width: 1)
                                   : null,
@@ -629,7 +621,12 @@ class _HabitEditSheetState extends State<_HabitEditSheet> {
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppShapes.groupGap),
-      child: AppField(label: label, isFirst: isFirst, isLast: isLast, child: child),
+      child: AppField(
+        label: label,
+        isFirst: isFirst,
+        isLast: isLast,
+        child: child,
+      ),
     );
   }
 
@@ -701,7 +698,10 @@ class _HabitEditSheetState extends State<_HabitEditSheet> {
               child: TextField(
                 controller: _nameController,
                 autofocus: !_isEditing,
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                ),
                 decoration: AppField.decoration('Name'),
               ),
             ),

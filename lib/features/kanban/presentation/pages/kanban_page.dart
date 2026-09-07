@@ -9,6 +9,7 @@ import '../../../todos/domain/models/todo.dart';
 import '../../../todos/providers/todo_provider.dart';
 import '../../../todos/presentation/pages/todo_detail_page.dart';
 import '../../../projects/providers/project_provider.dart';
+import '../../../../shared/widgets/app_scaffold.dart';
 
 class KanbanPage extends ConsumerStatefulWidget {
   final bool embedded;
@@ -61,17 +62,9 @@ class _KanbanPageState extends ConsumerState<KanbanPage> {
         ? projectState.getById(_filterProjectId!)?.name ?? 'Project'
         : null;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kanban Board'),
-        automaticallyImplyLeading: false,
-        leading: widget.embedded
-            ? null
-            : IconButton(
-                icon: Icon(MdiIcons.chevronLeft),
-                onPressed: () => Navigator.pop(context),
-              ),
-      ),
+    return AppScaffold(
+      title: 'Kanban Board',
+      onBack: widget.embedded ? null : () => Navigator.pop(context),
       body: Column(
         children: [
           // Project filter chips

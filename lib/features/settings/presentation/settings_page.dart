@@ -24,9 +24,14 @@ import '../services/export_service.dart';
 import '../../integrations/sunrise_export_service.dart';
 import 'import_preview_page.dart';
 import 'licenses_page.dart';
+import '../../../shared/widgets/app_scaffold.dart';
+import '../../../core/theme/app_shapes.dart';
 
 class SettingsPage extends ConsumerWidget {
-  const SettingsPage({super.key});
+  /// Opens the app drawer. Set by the shell, like every other tab.
+  final VoidCallback? onMenu;
+
+  const SettingsPage({super.key, this.onMenu});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,10 +39,11 @@ class SettingsPage extends ConsumerWidget {
     final isLocalOnlyMode = EnvConfig.isLocalOnlyMode;
     final isInLocalMode = authState.status == AuthStatus.localMode;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+    return AppScaffold(
+      onMenu: onMenu,
+      title: 'Settings',
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 96),
+        padding: EdgeInsets.only(bottom: AppShapes.contentBottom(context)),
         children: [
           // Account section
           _buildSectionHeader('Account'),
@@ -55,7 +61,9 @@ class SettingsPage extends ConsumerWidget {
                     color: AppColors.primary,
                   ),
                   title: const Text('Connect to cloud'),
-                  subtitle: const Text('Sign in to sync your data across devices'),
+                  subtitle: const Text(
+                    'Sign in to sync your data across devices',
+                  ),
                   trailing: Icon(
                     MdiIcons.chevronRight,
                     color: AppColors.textSecondary,
@@ -241,10 +249,7 @@ class SettingsPage extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(
-                MdiIcons.checkCircleOutline,
-                color: AppColors.textPrimary,
-              ),
+              Icon(MdiIcons.checkCircleOutline, color: AppColors.textPrimary),
               const SizedBox(width: 16),
               Expanded(
                 child: Text(

@@ -95,6 +95,9 @@ class _TimeGridState extends State<TimeGrid> {
         Expanded(
           child: SingleChildScrollView(
             controller: _scrollController,
+            // The grid runs under the floating nav bar; this keeps the last
+            // hour reachable instead of hiding it behind the pill.
+            padding: EdgeInsets.only(bottom: AppShapes.contentBottom(context)),
             child: SizedBox(
               height: totalHeight,
               child: Stack(

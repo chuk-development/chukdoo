@@ -8,6 +8,8 @@ import '../../../settings/providers/settings_provider.dart';
 import '../../domain/models/todo.dart';
 import '../../providers/todo_provider.dart';
 import '../widgets/todo_swipe_tile.dart';
+import '../../../../shared/widgets/app_scaffold.dart';
+import '../../../../core/theme/app_shapes.dart';
 
 class CompletedTasksPage extends ConsumerWidget {
   final VoidCallback? onMenu;
@@ -20,13 +22,10 @@ class CompletedTasksPage extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final completedTodos = todoState.todos.where((t) => t.isCompleted).toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: onMenu != null
-            ? IconButton(icon: Icon(MdiIcons.menu), onPressed: onMenu, tooltip: 'Menu')
-            : null,
-        title: const Text('Completed'),
-        actions: [
+    return AppScaffold(
+  onMenu: onMenu,
+  title: 'Completed',
+  actions: [
           if (completedTodos.isNotEmpty)
             PopupMenuButton<String>(
               icon: Icon(MdiIcons.dotsHorizontal),
@@ -49,12 +48,11 @@ class CompletedTasksPage extends ConsumerWidget {
               ],
             ),
         ],
-      ),
-      body: completedTodos.isEmpty
+  body: completedTodos.isEmpty
           ? _buildEmptyState()
           : SlidableAutoCloseBehavior(
               child: ListView(
-                padding: const EdgeInsets.only(bottom: 96),
+                padding: EdgeInsets.only(bottom: AppShapes.contentBottom(context)),
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -73,7 +71,7 @@ class CompletedTasksPage extends ConsumerWidget {
                 ],
               ),
             ),
-    );
+);
   }
 
   void _showDeleteAllConfirmation(BuildContext context, WidgetRef ref, List<Todo> todos) {

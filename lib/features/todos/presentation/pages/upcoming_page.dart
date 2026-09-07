@@ -11,7 +11,9 @@ import '../../providers/todo_provider.dart';
 import '../widgets/todo_input_sheet.dart';
 import '../widgets/todo_swipe_tile.dart';
 import '../widgets/quick_add_fab.dart';
-import '../../../../shared/widgets/lifted_fab.dart';
+import '../../../../shared/widgets/app_scaffold.dart';
+import '../../../../core/theme/app_shapes.dart';
+
 
 class UpcomingPage extends ConsumerStatefulWidget {
   final VoidCallback? onMenu;
@@ -96,14 +98,11 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
     final showCompleted = todoState.showCompleted;
     final hasAnyCompleted = todoState.allCompletedTodos.isNotEmpty;
 
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        leading: widget.onMenu != null
-            ? IconButton(icon: Icon(MdiIcons.menu), onPressed: widget.onMenu, tooltip: 'Menu')
-            : null,
-        title: const Text('Upcoming'),
-        actions: [
+    return AppScaffold(
+  resizeToAvoidBottomInset: false,
+  onMenu: widget.onMenu,
+  title: 'Upcoming',
+  actions: [
           if (hasAnyCompleted)
             IconButton(
               icon: Icon(
@@ -116,8 +115,7 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
               tooltip: showCompleted ? 'Hide completed' : 'Show completed',
             ),
         ],
-      ),
-      body: Column(
+  body: Column(
         children: [
           // Month selector with navigation
           Padding(
@@ -160,7 +158,7 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
           Expanded(
             child: SlidableAutoCloseBehavior(
               child: ListView.builder(
-                padding: const EdgeInsets.only(bottom: 96),
+                padding: EdgeInsets.only(bottom: AppShapes.contentBottom(context)),
                 itemCount: 14, // Show 2 weeks
                 itemBuilder: (context, index) {
                   final date = _listStartDate.add(Duration(days: index));
@@ -171,10 +169,10 @@ class _UpcomingPageState extends ConsumerState<UpcomingPage> {
           ),
         ],
       ),
-      floatingActionButton: LiftedFab(child: QuickAddFab(
+  floatingActionButton: QuickAddFab(
         onPressed: () => _showAddTodoSheet(),
-      )),
-    );
+      ),
+);
   }
 
   Widget _buildWeekCalendar() {

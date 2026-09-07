@@ -14,6 +14,8 @@ import '../../domain/models/project.dart';
 import '../../providers/project_provider.dart';
 import '../widgets/project_edit_dialog.dart';
 import 'project_page.dart';
+import '../../../../shared/widgets/app_scaffold.dart';
+import '../../../../core/theme/app_shapes.dart';
 
 class BrowsePage extends ConsumerWidget {
   const BrowsePage({super.key});
@@ -30,10 +32,9 @@ class BrowsePage extends ConsumerWidget {
     final todoState = ref.watch(todoProvider);
     final projects = projectState.sortedProjects;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Browse'),
-        actions: [
+    return AppScaffold(
+  title: 'Browse',
+  actions: [
           Tooltip(
             message: 'Search',
             child: IconButton(
@@ -47,9 +48,8 @@ class BrowsePage extends ConsumerWidget {
             ),
           ),
         ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 96),
+  body: ListView(
+        padding: EdgeInsets.only(bottom: AppShapes.contentBottom(context)),
         children: [
           // Projects section
           _buildSectionHeader('Projects'),
@@ -133,7 +133,7 @@ class BrowsePage extends ConsumerWidget {
           ),
         ],
       ),
-    );
+);
   }
 
   Widget _buildSectionHeader(String title) {

@@ -9,7 +9,7 @@ import '../../providers/todo_provider.dart';
 import '../widgets/todo_input_sheet.dart';
 import '../widgets/todo_sectioned_list.dart';
 import '../widgets/quick_add_fab.dart';
-import '../../../../shared/widgets/lifted_fab.dart';
+import '../../../../shared/widgets/app_scaffold.dart';
 
 class InboxPage extends ConsumerStatefulWidget {
   /// When true, shows ALL uncompleted todos (not just project-less inbox).
@@ -36,10 +36,10 @@ class _InboxPageState extends ConsumerState<InboxPage> {
   }
 
   void _stopSearch() => setState(() {
-        _searching = false;
-        _query = '';
-        _searchController.clear();
-      });
+    _searching = false;
+    _query = '';
+    _searchController.clear();
+  });
 
   void _showAddTodoSheet() {
     showModalBottomSheet(
@@ -47,19 +47,22 @@ class _InboxPageState extends ConsumerState<InboxPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => TodoInputSheet(
-        onSubmit: (title, dueDate, dueTime, priority, projectId, labels, pinned) {
-          ref.read(todoProvider.notifier).addTodo(
-            title: title,
-            dueDate: dueDate,
-            dueTime: dueTime,
-            projectId: projectId,
-            priority: priority != null
-                ? TodoPriority.fromValue(priority)
-                : TodoPriority.p4,
-            labelIds: labels,
-            isPinned: pinned,
-          );
-        },
+        onSubmit:
+            (title, dueDate, dueTime, priority, projectId, labels, pinned) {
+              ref
+                  .read(todoProvider.notifier)
+                  .addTodo(
+                    title: title,
+                    dueDate: dueDate,
+                    dueTime: dueTime,
+                    projectId: projectId,
+                    priority: priority != null
+                        ? TodoPriority.fromValue(priority)
+                        : TodoPriority.p4,
+                    labelIds: labels,
+                    isPinned: pinned,
+                  );
+            },
       ),
     );
   }
@@ -84,67 +87,61 @@ class _InboxPageState extends ConsumerState<InboxPage> {
       completedTodos = completedTodos.where(match).toList();
     }
 
-    return Scaffold(
+    return AppScaffold(
       resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        leading: _searching
-            ? IconButton(
-                icon: Icon(MdiIcons.chevronLeft),
-                onPressed: _stopSearch,
-                tooltip: 'Back',
-              )
-            : (widget.onMenu != null
-                ? IconButton(
-                    icon: Icon(MdiIcons.menu),
-                    onPressed: widget.onMenu,
-                    tooltip: 'Menu',
-                  )
-                : null),
-        titleSpacing: _searching ? 0 : null,
-        title: _searching
-            ? TextField(
-                controller: _searchController,
-                autofocus: true,
-                style: const TextStyle(fontSize: 18),
-                decoration: InputDecoration(
-                  hintText: 'Search tasks…',
-                  hintStyle: TextStyle(color: AppColors.textSecondary, fontSize: 18),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  filled: false,
+      onMenu: _searching ? null : widget.onMenu,
+      onBack: _searching ? _stopSearch : null,
+      title: showAll ? 'Main' : settings.mainListName,
+      titleWidget: _searching
+          ? TextField(
+              controller: _searchController,
+              autofocus: true,
+              style: const TextStyle(fontSize: 18),
+              decoration: InputDecoration(
+                hintText: 'Search tasks…',
+                hintStyle: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 18,
                 ),
-                onChanged: (v) => setState(() => _query = v),
-              )
-            : Text(showAll ? 'Main' : settings.mainListName),
-        actions: _searching
-            ? [
-                if (_query.isNotEmpty)
-                  IconButton(
-                    icon: Icon(MdiIcons.closeCircle),
-                    onPressed: () => setState(() {
-                      _query = '';
-                      _searchController.clear();
-                    }),
-                    tooltip: 'Clear',
-                  ),
-              ]
-            : [
-                IconButton(
-                  icon: Icon(MdiIcons.magnify),
-                  onPressed: () => setState(() => _searching = true),
-                  tooltip: 'Search',
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                filled: false,
+              ),
+              onChanged: (v) => setState(() => _query = v),
+            )
+          : null,
+      actions: _searching
+          ? [
+              if (_query.isNotEmpty)
+                AppHeaderAction(
+                  icon: MdiIcons.closeCircle,
+                  onPressed: () => setState(() {
+                    _query = '';
+                    _searchController.clear();
+                  }),
+                  tooltip: 'Clear',
                 ),
-              ],
-      ),
+            ]
+          : [
+              AppHeaderAction(
+                icon: MdiIcons.magnify,
+                onPressed: () => setState(() => _searching = true),
+                tooltip: 'Search',
+              ),
+            ],
       body: todoState.isLoading
           ? const Center(child: CircularProgressIndicator())
           : (todos.isEmpty && completedTodos.isEmpty)
-              ? (q.isNotEmpty ? _buildNoResults() : _buildEmptyState())
-              : TodoSectionedList(active: todos, completed: completedTodos, size: size),
-      floatingActionButton: LiftedFab(child: _searching
+          ? (q.isNotEmpty ? _buildNoResults() : _buildEmptyState())
+          : TodoSectionedList(
+              active: todos,
+              completed: completedTodos,
+              size: size,
+            ),
+      floatingActionButton: _searching
           ? null
-          : QuickAddFab(onPressed: _showAddTodoSheet)),
+          : QuickAddFab(onPressed: _showAddTodoSheet),
     );
   }
 
@@ -157,9 +154,11 @@ class _InboxPageState extends ConsumerState<InboxPage> {
           children: [
             Icon(MdiIcons.magnify, size: 64, color: AppColors.textTertiary),
             const SizedBox(height: 16),
-            Text('No matches for "$_query"',
-                style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
-                textAlign: TextAlign.center),
+            Text(
+              'No matches for "$_query"',
+              style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -181,18 +180,12 @@ class _InboxPageState extends ConsumerState<InboxPage> {
             const SizedBox(height: 24),
             Text(
               widget.showAll ? 'No open tasks' : 'Your inbox is empty',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             Text(
               'Tap + to add a task',
-              style: TextStyle(
-                fontSize: 16,
-                color: AppColors.textSecondary,
-              ),
+              style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
           ],

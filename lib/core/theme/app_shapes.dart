@@ -36,6 +36,14 @@ class AppShapes {
   static const double dockField = 20;
   static const double dockChip = 16;
 
+  /// Bottom padding a scrollable needs so its last row clears the floating
+  /// nav bar: the bar's own footprint plus the system gesture inset.
+  ///
+  /// Every list in the app uses this instead of its own guess — the hardcoded
+  /// 96 / 100 / SafeArea mix was why the bar looked different per section.
+  static double contentBottom(BuildContext context) =>
+      navBarHeight + MediaQuery.viewPaddingOf(context).bottom;
+
   /// Radius for a row at [isFirst]/[isLast] position inside its group.
   static BorderRadius row({required bool isFirst, required bool isLast}) {
     return BorderRadius.vertical(

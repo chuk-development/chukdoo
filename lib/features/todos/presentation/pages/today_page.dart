@@ -10,7 +10,9 @@ import '../../providers/todo_provider.dart';
 import '../widgets/todo_input_sheet.dart';
 import '../widgets/todo_swipe_tile.dart';
 import '../widgets/quick_add_fab.dart';
-import '../../../../shared/widgets/lifted_fab.dart';
+import '../../../../shared/widgets/app_scaffold.dart';
+import '../../../../core/theme/app_shapes.dart';
+
 
 class TodayPage extends ConsumerWidget {
   final VoidCallback? onMenu;
@@ -49,14 +51,11 @@ class TodayPage extends ConsumerWidget {
     final completedTodos = todoState.completedTodayTodos;
     final showCompleted = todoState.showCompleted;
 
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        leading: onMenu != null
-            ? IconButton(icon: Icon(MdiIcons.menu), onPressed: onMenu, tooltip: 'Menu')
-            : null,
-        title: const Text('Today'),
-        actions: [
+    return AppScaffold(
+  resizeToAvoidBottomInset: false,
+  onMenu: onMenu,
+  title: 'Today',
+  actions: [
           if (completedTodos.isNotEmpty)
             Tooltip(
               message: showCompleted ? 'Hide completed' : 'Show completed',
@@ -71,14 +70,13 @@ class TodayPage extends ConsumerWidget {
               ),
             ),
         ],
-      ),
-      body: todoState.isLoading
+  body: todoState.isLoading
           ? const Center(child: CircularProgressIndicator())
           : todos.isEmpty && (!showCompleted || completedTodos.isEmpty)
               ? _buildEmptyState()
               : SlidableAutoCloseBehavior(
                   child: ListView(
-                    padding: const EdgeInsets.only(bottom: 96),
+                    padding: EdgeInsets.only(bottom: AppShapes.contentBottom(context)),
                     children: [
                       // Active todos
                       for (var i = 0; i < todos.length; i++)
@@ -120,10 +118,10 @@ class TodayPage extends ConsumerWidget {
                     ],
                   ),
                 ),
-      floatingActionButton: LiftedFab(child: QuickAddFab(
+  floatingActionButton: QuickAddFab(
         onPressed: () => _showAddTodoSheet(context, ref),
-      )),
-    );
+      ),
+);
   }
 
   Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, CheckboxSize size,

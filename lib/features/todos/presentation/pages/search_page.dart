@@ -8,6 +8,8 @@ import '../../../settings/providers/settings_provider.dart';
 import '../../domain/models/todo.dart';
 import '../../providers/todo_provider.dart';
 import '../widgets/todo_swipe_tile.dart';
+import '../../../../shared/widgets/app_scaffold.dart';
+import '../../../../core/theme/app_shapes.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -51,13 +53,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final settings = ref.watch(settingsProvider);
     final filteredTodos = _filterTodos(todoState.todos);
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(MdiIcons.chevronLeft),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: TextField(
+    return AppScaffold(
+  onBack: () => Navigator.pop(context),
+  titleWidget: TextField(
           controller: _searchController,
           focusNode: _focusNode,
           style: const TextStyle(fontSize: 18),
@@ -74,7 +72,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             });
           },
         ),
-        actions: [
+  actions: [
           if (_query.isNotEmpty)
             IconButton(
               icon: Icon(MdiIcons.closeCircleOutline),
@@ -86,14 +84,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               },
             ),
         ],
-      ),
-      body: _query.isEmpty
+  body: _query.isEmpty
           ? _buildEmptySearch()
           : filteredTodos.isEmpty
               ? _buildNoResults()
               : SlidableAutoCloseBehavior(
                   child: ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 96),
+                    padding: EdgeInsets.only(bottom: AppShapes.contentBottom(context)),
                     itemCount: filteredTodos.length,
                     itemBuilder: (context, index) {
                       final todo = filteredTodos[index];
@@ -102,7 +99,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     },
                   ),
                 ),
-    );
+);
   }
 
   Widget _buildTodoItem(BuildContext context, WidgetRef ref, Todo todo, CheckboxSize size,

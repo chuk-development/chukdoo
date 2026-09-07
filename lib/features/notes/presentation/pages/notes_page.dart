@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_shapes.dart';
 import '../../domain/models/note.dart';
 import '../../providers/note_provider.dart';
 import '../widgets/note_card.dart';
 import 'note_editor_page.dart';
-import '../../../../shared/widgets/lifted_fab.dart';
+import '../../../../shared/widgets/app_scaffold.dart';
 import '../../../todos/presentation/widgets/quick_add_fab.dart';
 
 /// The Notes grid — a 2-column masonry of note cards with long-press drag
@@ -38,32 +39,34 @@ class _NotesPageState extends ConsumerState<NotesPage> {
   }
 
   void _stopSearch() => setState(() {
-        _searching = false;
-        _query = '';
-        _searchController.clear();
-      });
+    _searching = false;
+    _query = '';
+    _searchController.clear();
+  });
 
   Future<void> _createNote() async {
     final note = await ref.read(noteProvider.notifier).addNote();
     if (!mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: note.id)),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: note.id)));
   }
 
   void _openNote(Note note) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: note.id)),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: note.id)));
   }
 
   List<Note> _filtered(List<Note> notes) {
     final q = _query.trim().toLowerCase();
     if (q.isEmpty) return notes;
     return notes
-        .where((n) =>
-            n.title.toLowerCase().contains(q) ||
-            n.content.toLowerCase().contains(q))
+        .where(
+          (n) =>
+              n.title.toLowerCase().contains(q) ||
+              n.content.toLowerCase().contains(q),
+        )
         .toList();
   }
 
@@ -72,55 +75,31 @@ class _NotesPageState extends ConsumerState<NotesPage> {
     final state = ref.watch(noteProvider);
     final notes = _filtered(state.notes);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: _buildAppBar(),
-      body: state.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : notes.isEmpty
-              ? _buildEmpty()
-              : _buildGrid(notes),
-      floatingActionButton: LiftedFab(child: _searching
-          ? null
-          : QuickAddFab(onPressed: _createNote)),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      leading: _searching
-          ? IconButton(
-              icon: Icon(MdiIcons.chevronLeft),
-              onPressed: _stopSearch,
-              tooltip: 'Back',
-            )
-          : (widget.onMenu != null
-              ? IconButton(
-                  icon: Icon(MdiIcons.menu),
-                  onPressed: widget.onMenu,
-                  tooltip: 'Menu',
-                )
-              : null),
-      titleSpacing: _searching ? 0 : null,
-      title: _searching
+    return AppScaffold(
+      onMenu: _searching ? null : widget.onMenu,
+      onBack: _searching ? _stopSearch : null,
+      title: 'Notes',
+      titleWidget: _searching
           ? TextField(
               controller: _searchController,
               autofocus: true,
               style: const TextStyle(fontSize: 18),
               decoration: InputDecoration(
                 hintText: 'Search notes…',
-                hintStyle:
-                    TextStyle(color: AppColors.textSecondary, fontSize: 18),
+                hintStyle: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 18,
+                ),
                 border: InputBorder.none,
               ),
               onChanged: (v) => setState(() => _query = v),
             )
-          : const Text('Notes'),
+          : null,
       actions: _searching
           ? [
               if (_query.isNotEmpty)
-                IconButton(
-                  icon: Icon(MdiIcons.closeCircle),
+                AppHeaderAction(
+                  icon: MdiIcons.closeCircle,
                   onPressed: () => setState(() {
                     _query = '';
                     _searchController.clear();
@@ -129,12 +108,20 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                 ),
             ]
           : [
-              IconButton(
-                icon: Icon(MdiIcons.magnify),
+              AppHeaderAction(
+                icon: MdiIcons.magnify,
                 onPressed: () => setState(() => _searching = true),
                 tooltip: 'Search',
               ),
             ],
+      body: state.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : notes.isEmpty
+          ? _buildEmpty()
+          : _buildGrid(notes),
+      floatingActionButton: _searching
+          ? null
+          : QuickAddFab(onPressed: _createNote),
     );
   }
 
@@ -168,7 +155,12 @@ class _NotesPageState extends ConsumerState<NotesPage> {
         }
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(outer, outer, outer, 96),
+          padding: EdgeInsets.fromLTRB(
+            outer,
+            outer,
+            outer,
+            AppShapes.contentBottom(context),
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
