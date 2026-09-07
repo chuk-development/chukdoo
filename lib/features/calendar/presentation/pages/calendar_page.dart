@@ -18,6 +18,7 @@ import '../widgets/calendar_style.dart';
 import '../widgets/day_view.dart';
 import '../widgets/week_view.dart';
 import '../widgets/month_view.dart';
+import '../widgets/month_strip.dart';
 import '../widgets/agenda_view.dart';
 import '../widgets/view_mode_selector.dart';
 import '../widgets/event_create_dialog.dart';
@@ -121,7 +122,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
               curve: Curves.easeOutCubic,
               alignment: Alignment.topCenter,
               child: _monthStripOpen
-                  ? _MonthPicker(
+                  ? MonthStrip(
                       focused: eventState.focusedDate,
                       onPick: (month) {
                         notifier.setFocusedDate(month);
@@ -144,27 +145,24 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             ),
           ],
         ),
-        body: Padding(
-          padding: EdgeInsets.only(bottom: AppShapes.contentBottom(context)),
-          child: GestureDetector(
-            // Swipe left/right to move to the next/previous period. This is the
-            // only period navigation — the header carries no arrows.
-            // Agenda has no period to shift, so skip it there.
-            onHorizontalDragEnd: eventState.viewMode == CalendarViewMode.agenda
-                ? null
-                : (details) {
-                    final vx = details.primaryVelocity ?? 0;
-                    if (vx.abs() < 250) return;
-                    final dir = vx < 0 ? 1 : -1; // swipe left -> next
-                    notifier.setFocusedDate(_shiftFocused(eventState, dir));
-                  },
-            child: KeyedSubtree(
-              // Switching between month, week and agenda swaps the view
-              // outright. Cross-fading two full-screen grids showed both at
-              // once and read as a glitch.
-              key: ValueKey(eventState.viewMode),
-              child: _buildView(context, ref, eventState.viewMode),
-            ),
+        body: GestureDetector(
+          // Swipe left/right to move to the next/previous period. This is the
+          // only period navigation — the header carries no arrows.
+          // Agenda has no period to shift, so skip it there.
+          onHorizontalDragEnd: eventState.viewMode == CalendarViewMode.agenda
+              ? null
+              : (details) {
+                  final vx = details.primaryVelocity ?? 0;
+                  if (vx.abs() < 250) return;
+                  final dir = vx < 0 ? 1 : -1; // swipe left -> next
+                  notifier.setFocusedDate(_shiftFocused(eventState, dir));
+                },
+          child: KeyedSubtree(
+            // Switching between month, week and agenda swaps the view
+            // outright. Cross-fading two full-screen grids showed both at
+            // once and read as a glitch.
+            key: ValueKey(eventState.viewMode),
+            child: _buildView(context, ref, eventState.viewMode),
           ),
         ),
         floatingActionButton: QuickAddFab(
@@ -357,119 +355,5 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       case CalendarViewMode.agenda:
         return 'Agenda';
     }
-  }
-}
-
-/// The month picker under the title: a strip of month pills, three years
-/// wide, scrolled to the focused month.
-///
-/// Each pill carries the month over its year, so a month is never mistaken
-/// for another year's. The strip is anchored on a fixed base year, so the
-/// scroll position keeps its meaning while the user browses.
-class _MonthPicker extends StatefulWidget {
-  final DateTime focused;
-  final ValueChanged<DateTime> onPick;
-
-  const _MonthPicker({required this.focused, required this.onPick});
-
-  @override
-  State<_MonthPicker> createState() => _MonthPickerState();
-}
-
-class _MonthPickerState extends State<_MonthPicker> {
-  /// Years before and after the year the picker was opened in.
-  static const _yearRange = 1;
-  static const _pillWidth = 72.0;
-  static const _pillGap = AppShapes.groupGap;
-  static const _extent = _pillWidth + _pillGap * 2;
-
-  /// Fixed base so a scroll offset means the same month the whole time.
-  late final int _baseYear = widget.focused.year - _yearRange;
-
-  late final ScrollController _controller = ScrollController(
-    initialScrollOffset: _offsetFor(widget.focused),
-  );
-
-  int _indexOf(DateTime month) =>
-      (month.year - _baseYear) * 12 + (month.month - 1);
-
-  /// Scroll offset that puts [month] roughly in the middle of the strip.
-  double _offsetFor(DateTime month) {
-    final centred = _indexOf(month) * _extent - _extent * 1.5;
-    return centred < 0 ? 0 : centred;
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final focusedIndex = _indexOf(widget.focused);
-    final count = (_yearRange * 2 + 1) * 12;
-
-    return SizedBox(
-      height: 64,
-      child: ListView.builder(
-        controller: _controller,
-        scrollDirection: Axis.horizontal,
-        itemExtent: _extent,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppShapes.listInset - _pillGap,
-          vertical: 4,
-        ),
-        itemCount: count,
-        itemBuilder: (context, i) {
-          final month = DateTime(_baseYear, i + 1, 1);
-          final selected = i == focusedIndex;
-
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: _pillGap),
-            child: GestureDetector(
-              onTap: () => widget.onPick(month),
-              behavior: HitTestBehavior.opaque,
-              child: AnimatedContainer(
-                duration: CalendarStyle.motion,
-                curve: Curves.easeOutCubic,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: selected ? AppColors.primary : AppColors.surface,
-                  borderRadius: BorderRadius.circular(AppShapes.groupOuter),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      DateFormat('MMM', 'en_US').format(month),
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: selected
-                            ? AppColors.onPrimary
-                            : AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      DateFormat('yyyy', 'en_US').format(month),
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.4,
-                        color: selected
-                            ? AppColors.onPrimary.withValues(alpha: 0.7)
-                            : AppColors.textTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
   }
 }

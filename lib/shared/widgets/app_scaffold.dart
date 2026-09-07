@@ -61,6 +61,12 @@ class AppScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A sheet or dialog on top of the page takes the page's own actions with
+    // it: the FAB used to ride up with the quick-add dock instead of getting
+    // out of the way. ModalRoute.of subscribes to this, so it rebuilds when
+    // something is pushed or popped.
+    final isTopmost = ModalRoute.of(context)?.isCurrent ?? true;
+
     return Scaffold(
       // The shell paints the background. A page that paints its own puts an
       // opaque sheet under the nav bar and kills its blur.
@@ -83,7 +89,7 @@ class AppScaffold extends StatelessWidget {
           ],
         ),
       ),
-      floatingActionButton: floatingActionButton == null
+      floatingActionButton: floatingActionButton == null || !isTopmost
           ? null
           : LiftedFab(child: floatingActionButton),
     );

@@ -72,15 +72,20 @@ class MonthView extends ConsumerWidget {
             ),
           ),
 
-          // 6-week grid. The row height is measured, not shared through
-          // Expanded: a flex row that ends up a few pixels too tall paints
-          // past its box, which is how the last week used to end up under
-          // the nav bar.
+          // 6-week grid. It fills the viewport and scrolls, so the nav bar
+          // has real content to blur and the last week can still be pulled
+          // clear of the pill.
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final rowHeight = constraints.maxHeight / 6;
-                return ClipRect(
+                final rowHeight = (constraints.maxHeight / 6).clamp(
+                  88.0,
+                  200.0,
+                );
+                return SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    bottom: AppShapes.contentBottom(context),
+                  ),
                   child: Column(
                     children: List.generate(6, (week) {
                       return SizedBox(

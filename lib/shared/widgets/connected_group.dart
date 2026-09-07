@@ -33,6 +33,22 @@ class ConnectedButtonGroup extends StatelessWidget {
     this.height = 40,
   });
 
+  /// The selected segment is strongly rounded on both sides; the others only
+  /// where the group itself ends.
+  BorderRadius _radiusFor(int i) {
+    final selected = i == selectedIndex;
+    return BorderRadius.horizontal(
+      left: Radius.circular(
+        selected || i == 0 ? AppShapes.groupOuter : AppShapes.groupInner,
+      ),
+      right: Radius.circular(
+        selected || i == items.length - 1
+            ? AppShapes.groupOuter
+            : AppShapes.groupInner,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -43,18 +59,9 @@ class ConnectedButtonGroup extends StatelessWidget {
             if (i > 0) const SizedBox(width: AppShapes.groupGap),
             Expanded(
               child: _Segment(
-              item: items[i],
-              selected: i == selectedIndex,
-              radius: BorderRadius.horizontal(
-                left: Radius.circular(
-                  i == 0 ? AppShapes.groupOuter : AppShapes.groupInner,
-                ),
-                right: Radius.circular(
-                  i == items.length - 1
-                      ? AppShapes.groupOuter
-                      : AppShapes.groupInner,
-                ),
-              ),
+                item: items[i],
+                selected: i == selectedIndex,
+                radius: _radiusFor(i),
                 onTap: () => onSelected(i),
               ),
             ),
