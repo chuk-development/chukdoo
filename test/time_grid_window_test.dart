@@ -7,6 +7,7 @@ import 'package:chukdoo/features/calendar/domain/models/calendar_event.dart';
 import 'package:chukdoo/features/calendar/domain/models/calendar_item.dart';
 import 'package:chukdoo/features/calendar/presentation/widgets/event_block.dart';
 import 'package:chukdoo/features/calendar/presentation/widgets/time_grid.dart';
+import 'package:chukdoo/features/calendar/providers/calendar_event_provider.dart';
 import 'package:chukdoo/features/settings/providers/settings_provider.dart';
 
 /// Two things a screenshot of the grid cannot prove: that an item outside the
@@ -42,10 +43,14 @@ void main() {
         child: MaterialApp(
           home: Scaffold(
             body: TimeGrid(
-              columnCount: 1,
-              columnHeaders: const ['Tue'],
-              columnDates: [day],
-              itemsByColumn: [items],
+              mode: CalendarViewMode.day,
+              weekStart: WeekStart.monday,
+              focusedDate: day,
+              onFocusedDateChanged: (_) {},
+              // Only the day under test carries anything: the pages either
+              // side of it are built too, and empty ones keep the count of
+              // blocks on screen readable.
+              itemsForDay: (d) => d == day ? items : const [],
               startHour: startHour,
               endHour: endHour,
               hourHeight: hourHeight,

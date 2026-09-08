@@ -15,9 +15,7 @@ import '../../domain/week_dates.dart';
 import '../../domain/models/ics_service.dart';
 import '../../providers/calendar_event_provider.dart';
 import '../widgets/calendar_style.dart';
-import '../widgets/day_view.dart';
-import '../widgets/three_day_view.dart';
-import '../widgets/week_view.dart';
+import '../widgets/time_mode_view.dart';
 import '../widgets/month_view.dart';
 import '../widgets/month_strip.dart';
 import '../widgets/period_pager.dart';
@@ -45,12 +43,6 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   /// Whether the month picker under the title is open.
   bool _monthStripOpen = false;
 
-  /// True while two fingers zoom the day/week grid. The pager stops taking
-  /// drags then, so a pinch cannot slide into the next period. A notifier
-  /// rather than state, so a pinch rebuilds the pager alone and not the whole
-  /// page under it.
-  final ValueNotifier<bool> _gridZooming = ValueNotifier(false);
-
   @override
   void initState() {
     super.initState();
@@ -64,12 +56,6 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             ref.read(settingsProvider).calendarDefaultView.name,
           ),
         );
-  }
-
-  @override
-  void dispose() {
-    _gridZooming.dispose();
-    super.dispose();
   }
 
   @override
@@ -159,94 +145,45 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             ),
           ],
         ),
-        // Agenda is a running list with no period to page through, so it
-        // keeps its plain scroll view. Everything else is one page per
-        // period, dragged in under the finger.
-        body: eventState.viewMode == CalendarViewMode.agenda
-            ? AgendaView(
-                onItemTap: (item) => _showItemDetail(context, item),
-                onSubscribe: () => IcsFeedsSheet.show(context),
-              )
-            : ValueListenableBuilder<bool>(
-                valueListenable: _gridZooming,
-                builder: (context, zooming, _) => PeriodPager(
-                  mode: eventState.viewMode,
-                  weekStart: settings.calendarWeekStart,
-                  focusedDate: eventState.focusedDate,
-                  onFocusedDateChanged: notifier.setFocusedDate,
-                  physics: zooming
-                      ? const NeverScrollableScrollPhysics()
-                      : null,
-                  pageBuilder: (context, periodStart) => _buildView(
-                    context,
-                    ref,
-                    eventState.viewMode,
-                    periodStart,
-                  ),
-                ),
-              ),
+        body: switch (eventState.viewMode) {
+          // Agenda is a running list with no period to page through, so it
+          // keeps its plain scroll view.
+          CalendarViewMode.agenda => AgendaView(
+            onItemTap: (item) => _showItemDetail(context, item),
+            onSubscribe: () => IcsFeedsSheet.show(context),
+          ),
+          // A month is one block with no frame that could stay behind, so the
+          // whole page is dragged in under the finger.
+          CalendarViewMode.month => PeriodPager(
+            mode: eventState.viewMode,
+            weekStart: settings.calendarWeekStart,
+            focusedDate: eventState.focusedDate,
+            onFocusedDateChanged: notifier.setFocusedDate,
+            pageBuilder: (context, periodStart) => MonthView(
+              date: periodStart,
+              onDayTap: (date) {
+                notifier.setFocusedDate(date);
+                notifier.setViewMode(CalendarViewMode.day);
+              },
+              onItemTap: (item) => _showItemDetail(context, item),
+            ),
+          ),
+          // Day, three days and week keep their frame: the title, the view
+          // switcher and the hour gutter stay where they are and only the day
+          // columns and their dates page. The grid owns that pager itself.
+          _ => TimeModeView(
+            mode: eventState.viewMode,
+            onSlotTap: (slot) =>
+                _createEvent(context, date: slot.date, time: slot.time),
+            onItemTap: (item) => _showItemDetail(context, item),
+            onItemDrop: (item, newStart) => _handleDrop(ref, item, newStart),
+          ),
+        },
         floatingActionButton: QuickAddFab(
           onPressed: () => _createEvent(context),
         ),
       ),
     );
-  }
-
-  /// One page of the pager. [periodStart] is the page's own date, not the
-  /// focused one — the page beside the finger draws another period.
-  Widget _buildView(
-    BuildContext context,
-    WidgetRef ref,
-    CalendarViewMode mode,
-    DateTime periodStart,
-  ) {
-    switch (mode) {
-      case CalendarViewMode.day:
-        return DayView(
-          date: periodStart,
-          onSlotTap: (slot) =>
-              _createEvent(context, date: slot.date, time: slot.time),
-          onItemTap: (item) => _showItemDetail(context, item),
-          onItemDrop: (item, newStart) => _handleDrop(ref, item, newStart),
-          onZoomingChanged: (zooming) => _gridZooming.value = zooming,
-        );
-      case CalendarViewMode.threeDay:
-        return ThreeDayView(
-          // The page's own first day is the left column, so the pager and the
-          // view agree on what "the focused day" is.
-          date: periodStart,
-          onSlotTap: (slot) =>
-              _createEvent(context, date: slot.date, time: slot.time),
-          onItemTap: (item) => _showItemDetail(context, item),
-          onItemDrop: (item, newStart) => _handleDrop(ref, item, newStart),
-          onZoomingChanged: (zooming) => _gridZooming.value = zooming,
-        );
-      case CalendarViewMode.week:
-        return WeekView(
-          date: periodStart,
-          onSlotTap: (slot) =>
-              _createEvent(context, date: slot.date, time: slot.time),
-          onItemTap: (item) => _showItemDetail(context, item),
-          onItemDrop: (item, newStart) => _handleDrop(ref, item, newStart),
-          onZoomingChanged: (zooming) => _gridZooming.value = zooming,
-        );
-      case CalendarViewMode.month:
-        return MonthView(
-          date: periodStart,
-          onDayTap: (date) {
-            ref.read(calendarEventProvider.notifier).setFocusedDate(date);
-            ref
-                .read(calendarEventProvider.notifier)
-                .setViewMode(CalendarViewMode.day);
-          },
-          onItemTap: (item) => _showItemDetail(context, item),
-        );
-      case CalendarViewMode.agenda:
-        return AgendaView(
-          onItemTap: (item) => _showItemDetail(context, item),
-          onSubscribe: () => IcsFeedsSheet.show(context),
-        );
-    }
   }
 
   void _createEvent(BuildContext context, {DateTime? date, TimeOfDay? time}) {
