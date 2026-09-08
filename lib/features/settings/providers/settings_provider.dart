@@ -168,6 +168,14 @@ class AppSettings {
   /// step: the value settles wherever the fingers left it.
   final double calendarHourHeight;
 
+  /// Height of one week row in the month grid, in logical pixels — or `null`
+  /// for "fit the six rows into the viewport".
+  ///
+  /// Null is the default and stays the default: a month that fills the screen
+  /// exactly is what the view is for. The moment the user pinches, an explicit
+  /// height takes over and the grid scrolls instead.
+  final double? calendarMonthRowHeight;
+
   // ── Notes ────────────────────────────────────────────────────────────────
 
   final NoteSort noteSort;
@@ -202,6 +210,7 @@ class AppSettings {
     this.calendarDefaultReminderMinutes = 10,
     this.calendarShowWeekNumbers = false,
     this.calendarHourHeight = calendarHourHeightDefault,
+    this.calendarMonthRowHeight,
     this.noteSort = NoteSort.updated,
     this.noteOpenMode = NoteOpenMode.preview,
     this.noteLayout = NoteLayout.grid,
@@ -225,6 +234,17 @@ class AppSettings {
   /// Calendar: a 30 minute meeting still gets two readable lines.
   static const double calendarHourHeightDefault = 60;
 
+  /// Range a pinch on the month grid may reach. Below 72 a day tile holds the
+  /// date circle and a single chip and nothing else, above 220 barely two
+  /// weeks are on screen and the grid stops reading as a month — so the pinch
+  /// clamps here and the settings slider offers exactly this span.
+  ///
+  /// The fitted height (six rows in the viewport) is clamped to the same span,
+  /// so "fit to screen" and a pinched height are always the same kind of
+  /// number.
+  static const double calendarMonthRowHeightMin = 72;
+  static const double calendarMonthRowHeightMax = 220;
+
   AppSettings copyWith({
     CheckboxSize? checkboxSize,
     String? mainListName,
@@ -239,6 +259,8 @@ class AppSettings {
     bool clearCalendarDefaultReminder = false,
     bool? calendarShowWeekNumbers,
     double? calendarHourHeight,
+    double? calendarMonthRowHeight,
+    bool clearCalendarMonthRowHeight = false,
     NoteSort? noteSort,
     NoteOpenMode? noteOpenMode,
     NoteLayout? noteLayout,
@@ -267,6 +289,9 @@ class AppSettings {
       calendarShowWeekNumbers:
           calendarShowWeekNumbers ?? this.calendarShowWeekNumbers,
       calendarHourHeight: calendarHourHeight ?? this.calendarHourHeight,
+      calendarMonthRowHeight: clearCalendarMonthRowHeight
+          ? null
+          : (calendarMonthRowHeight ?? this.calendarMonthRowHeight),
       noteSort: noteSort ?? this.noteSort,
       noteOpenMode: noteOpenMode ?? this.noteOpenMode,
       noteLayout: noteLayout ?? this.noteLayout,
@@ -299,6 +324,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   static const _calendarReminderKey = 'calendar_reminder_minutes';
   static const _calendarWeekNumbersKey = 'calendar_week_numbers';
   static const _calendarHourHeightKey = 'calendar_hour_height';
+  static const _calendarMonthRowHeightKey = 'calendar_month_row_height';
   static const _noteSortKey = 'note_sort';
   static const _noteOpenModeKey = 'note_open_mode';
   static const _noteLayoutKey = 'note_layout';
@@ -349,6 +375,15 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     final defaultFolder =
         _settingsBox.get(_noteFolderKey, defaultValue: '') as String;
 
+    // Hive has no null for a stored number either, so "fit the six rows to the
+    // viewport" is the same -1 sentinel the reminders use. Anything under the
+    // minimum reads as fit, which also catches a value written by an older
+    // build.
+    final monthRow =
+        (_settingsBox.get(_calendarMonthRowHeightKey, defaultValue: _off)
+                as num)
+            .toDouble();
+
     state = AppSettings(
       checkboxSize: size,
       mainListName: mainListName,
@@ -389,6 +424,12 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
                 AppSettings.calendarHourHeightMin,
                 AppSettings.calendarHourHeightMax,
               ),
+      calendarMonthRowHeight: monthRow < AppSettings.calendarMonthRowHeightMin
+          ? null
+          : monthRow.clamp(
+              AppSettings.calendarMonthRowHeightMin,
+              AppSettings.calendarMonthRowHeightMax,
+            ),
       noteSort: _enum(_noteSortKey, NoteSort.values, NoteSort.updated),
       noteOpenMode: _enum(
         _noteOpenModeKey,
@@ -486,6 +527,22 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     if (clamped == state.calendarHourHeight) return;
     await _settingsBox.put(_calendarHourHeightKey, clamped);
     state = state.copyWith(calendarHourHeight: clamped);
+  }
+
+  /// Week row height of the month grid, written by the pinch on the grid and
+  /// by the slider in the calendar settings. `null` gives the grid back to the
+  /// viewport: six rows, fitted, no vertical scrolling.
+  Future<void> setCalendarMonthRowHeight(double? height) async {
+    final clamped = height?.clamp(
+      AppSettings.calendarMonthRowHeightMin,
+      AppSettings.calendarMonthRowHeightMax,
+    );
+    if (clamped == state.calendarMonthRowHeight) return;
+    await _settingsBox.put(_calendarMonthRowHeightKey, clamped ?? _off);
+    state = state.copyWith(
+      calendarMonthRowHeight: clamped,
+      clearCalendarMonthRowHeight: clamped == null,
+    );
   }
 
   // ── Notes ────────────────────────────────────────────────────────────────

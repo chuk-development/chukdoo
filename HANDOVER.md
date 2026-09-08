@@ -49,8 +49,10 @@ times with three different results. Adding a fourth variant is the bug.
   `DayWindow.covering` widens the drawn day window until every item fits, so a
   06:00 item shows under an 08:00 setting. Blocks are placed by the minute;
   only creating and dragging snap to a quarter hour. Two fingers zoom the hour
-  height (28–140, persisted). The month strip is a connected bar, years are
-  quiet markers.
+  height (28–140, persisted); in the month view they scale the week row
+  height (72–220, or "fit to screen"). Both go through `PinchScaler`, which
+  reads raw pointers — a scale recognizer would steal the page swipe. The
+  month strip is a connected bar, years are quiet markers.
 - **Notes** — folders, markdown. The editor is one writing surface with
   autosave (600ms, on pop, on background) and a format bar over the keyboard;
   preview checkboxes write back into the source.

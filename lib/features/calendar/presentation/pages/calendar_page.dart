@@ -18,7 +18,6 @@ import '../widgets/calendar_style.dart';
 import '../widgets/time_mode_view.dart';
 import '../widgets/month_view.dart';
 import '../widgets/month_strip.dart';
-import '../widgets/period_pager.dart';
 import '../widgets/agenda_view.dart';
 import '../widgets/view_mode_selector.dart';
 import '../widgets/event_create_dialog.dart';
@@ -153,20 +152,14 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             onSubscribe: () => IcsFeedsSheet.show(context),
           ),
           // A month is one block with no frame that could stay behind, so the
-          // whole page is dragged in under the finger.
-          CalendarViewMode.month => PeriodPager(
-            mode: eventState.viewMode,
-            weekStart: settings.calendarWeekStart,
-            focusedDate: eventState.focusedDate,
-            onFocusedDateChanged: notifier.setFocusedDate,
-            pageBuilder: (context, periodStart) => MonthView(
-              date: periodStart,
-              onDayTap: (date) {
-                notifier.setFocusedDate(date);
-                notifier.setViewMode(CalendarViewMode.day);
-              },
-              onItemTap: (item) => _showItemDetail(context, item),
-            ),
+          // whole page is dragged in under the finger. The month grid owns
+          // that pager itself, so a pinch on it can freeze the swipe.
+          CalendarViewMode.month => MonthView(
+            onDayTap: (date) {
+              notifier.setFocusedDate(date);
+              notifier.setViewMode(CalendarViewMode.day);
+            },
+            onItemTap: (item) => _showItemDetail(context, item),
           ),
           // Day, three days and week keep their frame: the title, the view
           // switcher and the hour gutter stay where they are and only the day

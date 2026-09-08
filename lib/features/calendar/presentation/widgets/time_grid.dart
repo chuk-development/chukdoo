@@ -14,6 +14,7 @@ import '../../providers/calendar_event_provider.dart';
 import 'calendar_style.dart';
 import 'event_block.dart';
 import 'period_pager.dart';
+import 'pinch_scaler.dart';
 import 'sliding_page_row.dart';
 
 /// The hourly grid behind the day, three day and week view — and the pager of
@@ -165,43 +166,26 @@ class _TimeGridState extends State<TimeGrid> {
   late ScrollController _scrollController;
   Timer? _timer;
 
-  /// Every finger currently on the grid, by pointer id, in the coordinates of
-  /// the scroll viewport.
-  ///
-  /// Raw pointers instead of a `ScaleGestureRecognizer`: a scale recognizer
-  /// enters the gesture arena with a *single* pointer as well and would beat
-  /// the pager and the vertical scroll to it. A [Listener] never enters the
-  /// arena, so one finger still pages and scrolls exactly as before and only
-  /// the second finger starts a zoom.
-  final Map<int, Offset> _pointers = {};
-
-  /// True between the second finger going down and the last one lifting.
-  bool _pinching = false;
-
-  /// Hour height while the fingers are on the grid, and until the persisted
-  /// value comes back. Null means "whatever the settings say".
-  double? _pinchHeight;
-
-  double _pinchStartSpan = 0;
-  double _pinchStartHeight = 0;
-
-  /// Where the fingers met and where the grid stood when the pinch began —
-  /// together they keep the hour under the fingers under the fingers.
-  double _pinchStartFocalY = 0;
-  double _pinchStartOffset = 0;
-
   /// The window the last build drew. A page change can widen it, and every row
   /// then moves by the hours that were added.
   DayWindow? _drawnWindow;
 
-  /// The height the grid draws with right now.
-  double get _hourHeight => _pinchHeight ?? widget.hourHeight;
+  /// The hour height the last build drew with — the settings' one, or the live
+  /// one while [PinchScaler] is running a zoom.
+  ///
+  /// The scaler owns that value, so everything outside `build` (scrolling to
+  /// now, holding the scroll still when the window widens) reads the copy the
+  /// builder leaves here rather than the settings, which would be the wrong
+  /// height mid-pinch. Both readers run in a post-frame callback, so the
+  /// builder of that frame has already written it.
+  late double _drawnHourHeight;
 
   int get _columnCount => TimeGrid.columnsFor(widget.mode);
 
   @override
   void initState() {
     super.initState();
+    _drawnHourHeight = widget.hourHeight;
     _driver = PeriodPageDriver(
       mode: widget.mode,
       weekStart: widget.weekStart,
@@ -225,15 +209,6 @@ class _TimeGridState extends State<TimeGrid> {
       weekStart: widget.weekStart,
       focusedDate: widget.focusedDate,
     );
-
-    // The pinched height has arrived back through the settings, so the local
-    // copy can go. Dropping it at the end of the gesture instead would show
-    // the old height for the frame before the setting lands.
-    if (!_pinching &&
-        _pinchHeight != null &&
-        widget.hourHeight != oldWidget.hourHeight) {
-      _pinchHeight = null;
-    }
   }
 
   @override
@@ -303,11 +278,11 @@ class _TimeGridState extends State<TimeGrid> {
     _drawnWindow = window;
     if (previous == null || previous.startHour == window.startHour) return;
 
-    final delta = (previous.startHour - window.startHour) * _hourHeight;
+    final addedHours = previous.startHour - window.startHour;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) return;
       _scrollController.jumpTo(
-        (_scrollController.offset + delta).clamp(
+        (_scrollController.offset + addedHours * _drawnHourHeight).clamp(
           0.0,
           _scrollController.position.maxScrollExtent,
         ),
@@ -323,88 +298,10 @@ class _TimeGridState extends State<TimeGrid> {
     // widened window must not drop the user at 00:00 either — the anchor is
     // measured from the window that is drawn, not from the settings.
     final anchorHour = now.hour.clamp(window.startHour, window.lastHour);
-    final target = ((anchorHour - window.startHour) * _hourHeight - _hourHeight)
-        .clamp(0.0, _scrollController.position.maxScrollExtent);
-    _scrollController.jumpTo(target);
-  }
-
-  // ── Pinch to zoom ────────────────────────────────────────────────────────
-
-  void _onPointerDown(PointerDownEvent event) {
-    _pointers[event.pointer] = event.localPosition;
-    if (_pointers.length == 2) _beginPinch();
-  }
-
-  void _onPointerMove(PointerMoveEvent event) {
-    if (!_pointers.containsKey(event.pointer)) return;
-    _pointers[event.pointer] = event.localPosition;
-    if (_pinching) _updatePinch();
-  }
-
-  void _onPointerEnd(PointerEvent event) {
-    if (_pointers.remove(event.pointer) == null) return;
-    // One finger left is a pan again, so the zoom settles where it is.
-    if (_pointers.length < 2) _endPinch();
-  }
-
-  /// The two fingers the zoom is measured between. A third finger is ignored
-  /// rather than allowed to jump the span.
-  List<Offset> get _pinchPoints => _pointers.values.take(2).toList();
-
-  void _beginPinch() {
-    final points = _pinchPoints;
-    final span = (points[0] - points[1]).distance;
-    // Two fingers down in the same spot have no span to scale from.
-    if (span < 1) return;
-
-    _pinchStartSpan = span;
-    _pinchStartHeight = _hourHeight;
-    _pinchStartFocalY = (points[0].dy + points[1].dy) / 2;
-    _pinchStartOffset = _scrollController.hasClients
-        ? _scrollController.offset
-        : 0;
-
-    setState(() {
-      _pinching = true;
-      _pinchHeight = _pinchStartHeight;
-    });
-  }
-
-  void _updatePinch() {
-    final points = _pinchPoints;
-    if (points.length < 2 || _pinchStartSpan <= 0) return;
-
-    final span = (points[0] - points[1]).distance;
-    final next = (_pinchStartHeight * span / _pinchStartSpan).clamp(
-      AppSettings.calendarHourHeightMin,
-      AppSettings.calendarHourHeightMax,
-    );
-    if (next == _pinchHeight) return;
-
-    setState(() => _pinchHeight = next);
-
-    // The scroll extent only grows once the taller grid is laid out, so the
-    // anchor is corrected after that frame, not during this one.
-    final factor = next / _pinchStartHeight;
-    final anchoredY =
-        _pinchStartOffset + _pinchStartFocalY - TimeGrid.topPadding;
     final target =
-        anchoredY * factor - (_pinchStartFocalY - TimeGrid.topPadding);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) return;
-      _scrollController.jumpTo(
-        target.clamp(0.0, _scrollController.position.maxScrollExtent),
-      );
-    });
-  }
-
-  void _endPinch() {
-    if (!_pinching) return;
-    _pinching = false;
-
-    final settled = _pinchHeight;
-    if (settled != null) widget.onHourHeightChanged?.call(settled);
-    setState(() {});
+        ((anchorHour - window.startHour) * _drawnHourHeight - _drawnHourHeight)
+            .clamp(0.0, _scrollController.position.maxScrollExtent);
+    _scrollController.jumpTo(target);
   }
 
   // ── Build ────────────────────────────────────────────────────────────────
@@ -416,7 +313,6 @@ class _TimeGridState extends State<TimeGrid> {
     final window = _window;
     _keepScrollOnWindowChange(window);
 
-    final totalHeight = window.hourCount * _hourHeight;
     final allDayRows = _allDayRows();
 
     return Column(
@@ -424,62 +320,73 @@ class _TimeGridState extends State<TimeGrid> {
         _buildChrome(allDayRows),
 
         Expanded(
-          child: Listener(
-            onPointerDown: _onPointerDown,
-            onPointerMove: _onPointerMove,
-            onPointerUp: _onPointerEnd,
-            onPointerCancel: _onPointerEnd,
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              // A pinch owns the grid: without this the vertical drag that the
-              // first finger already started keeps scrolling and fights the
-              // zoom anchor.
-              physics: _pinching ? const NeverScrollableScrollPhysics() : null,
-              // The grid runs under the floating nav bar; this keeps the last
-              // hour reachable instead of hiding it behind the pill.
-              // Half a line of headroom for the hour labels, and enough at the
-              // bottom to scroll the last hour clear of the nav bar.
-              padding: EdgeInsets.only(
-                top: TimeGrid.topPadding,
-                bottom: AppShapes.contentBottom(context) + 8,
-              ),
-              // One body for the gutter and every page: they scroll together
-              // and a pinch resizes both, which two scroll views could not do.
-              child: SizedBox(
-                height: totalHeight,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(
-                      key: TimeGrid.gutterKey,
-                      width: widget.timeColumnWidth,
-                      child: _HourGutter(
-                        window: window,
-                        hourHeight: _hourHeight,
-                      ),
-                    ),
-                    Expanded(
-                      child: PageView.builder(
-                        key: _driver.pageViewKey,
-                        controller: _driver.controller,
-                        // Two fingers on the grid are a zoom, never a period
-                        // change.
-                        physics: _pinching
-                            ? const NeverScrollableScrollPhysics()
-                            : null,
-                        itemCount: PeriodPageDriver.pageCount,
-                        onPageChanged: _driver.handlePageChanged,
-                        itemBuilder: (context, page) => _buildColumns(
-                          page: page,
+          child: PinchScaler(
+            value: widget.hourHeight,
+            min: AppSettings.calendarHourHeightMin,
+            max: AppSettings.calendarHourHeightMax,
+            scrollController: _scrollController,
+            topPadding: TimeGrid.topPadding,
+            onSettled: widget.onHourHeightChanged,
+            builder: (context, hourHeight, pinching) {
+              // Everything outside `build` reads the height from here — see
+              // [_drawnHourHeight].
+              _drawnHourHeight = hourHeight;
+              final totalHeight = window.hourCount * hourHeight;
+
+              return SingleChildScrollView(
+                controller: _scrollController,
+                // A pinch owns the grid: without this the vertical drag that
+                // the first finger already started keeps scrolling and fights
+                // the zoom anchor.
+                physics: pinching ? const NeverScrollableScrollPhysics() : null,
+                // The grid runs under the floating nav bar; this keeps the last
+                // hour reachable instead of hiding it behind the pill.
+                // Half a line of headroom for the hour labels, and enough at
+                // the bottom to scroll the last hour clear of the nav bar.
+                padding: EdgeInsets.only(
+                  top: TimeGrid.topPadding,
+                  bottom: AppShapes.contentBottom(context) + 8,
+                ),
+                // One body for the gutter and every page: they scroll together
+                // and a pinch resizes both, which two scroll views could not
+                // do.
+                child: SizedBox(
+                  height: totalHeight,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        key: TimeGrid.gutterKey,
+                        width: widget.timeColumnWidth,
+                        child: _HourGutter(
                           window: window,
-                          totalHeight: totalHeight,
+                          hourHeight: hourHeight,
                         ),
                       ),
-                    ),
-                  ],
+                      Expanded(
+                        child: PageView.builder(
+                          key: _driver.pageViewKey,
+                          controller: _driver.controller,
+                          // Two fingers on the grid are a zoom, never a period
+                          // change.
+                          physics: pinching
+                              ? const NeverScrollableScrollPhysics()
+                              : null,
+                          itemCount: PeriodPageDriver.pageCount,
+                          onPageChanged: _driver.handlePageChanged,
+                          itemBuilder: (context, page) => _buildColumns(
+                            page: page,
+                            window: window,
+                            hourHeight: hourHeight,
+                            totalHeight: totalHeight,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ],
@@ -681,6 +588,7 @@ class _TimeGridState extends State<TimeGrid> {
   Widget _buildColumns({
     required int page,
     required DayWindow window,
+    required double hourHeight,
     required double totalHeight,
   }) {
     final dates = _datesForPage(page);
@@ -689,7 +597,7 @@ class _TimeGridState extends State<TimeGrid> {
       dates: dates,
       itemsByColumn: [for (final date in dates) _timedItems(date)],
       window: window,
-      hourHeight: _hourHeight,
+      hourHeight: hourHeight,
       totalHeight: totalHeight,
       onSlotTap: widget.onSlotTap,
       onItemTap: widget.onItemTap,

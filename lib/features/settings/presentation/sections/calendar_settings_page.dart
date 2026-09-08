@@ -72,7 +72,7 @@ class CalendarSettingsPage extends ConsumerWidget {
           ],
         ),
 
-        const SettingsSectionHeader('Day grid'),
+        const SettingsSectionHeader('Grid'),
         RoundedGroup(
           children: [
             SettingsNavTile(
@@ -108,6 +108,7 @@ class CalendarSettingsPage extends ConsumerWidget {
               },
             ),
             const _HourHeightTile(),
+            const _MonthRowHeightTile(),
           ],
         ),
         const SettingsFootnote(
@@ -209,6 +210,12 @@ class CalendarSettingsPage extends ConsumerWidget {
   }
 }
 
+/// Steps of the two height sliders, in pixels.
+///
+/// The slider writes to the settings box on every change, so a free double
+/// would write on every frame of a drag.
+const double _heightStep = 4;
+
 /// Hour height of the day and week grid.
 ///
 /// The same value a pinch on the grid writes, so the slider is only the second
@@ -220,6 +227,86 @@ class _HourHeightTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final height = ref.watch(settingsProvider).calendarHourHeight;
 
+    return _HeightSliderTile(
+      icon: MdiIcons.arrowExpandVertical,
+      title: 'Hour height',
+      subtitle: 'Day and week',
+      value: height,
+      min: AppSettings.calendarHourHeightMin,
+      max: AppSettings.calendarHourHeightMax,
+      valueLabel: '${height.round()} px',
+      onChanged: (value) =>
+          ref.read(settingsProvider.notifier).setCalendarHourHeight(value),
+    );
+  }
+}
+
+/// Week row height of the month grid — the value a pinch on the month grid
+/// writes, and the only way back from it.
+///
+/// The lowest step of the slider is not a height but "Fit" (it sits one step
+/// under the minimum): it clears the stored height, and the six rows go back
+/// to filling the screen. That keeps the reset in the control the user is
+/// already dragging instead of adding a second row for it.
+class _MonthRowHeightTile extends ConsumerWidget {
+  const _MonthRowHeightTile();
+
+  /// The step that means "fit to screen". One step below the smallest real
+  /// row height, so every other step is a height the pinch could also reach.
+  static const double _fitStep =
+      AppSettings.calendarMonthRowHeightMin - _heightStep;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final height = ref.watch(settingsProvider).calendarMonthRowHeight;
+    final label = height == null ? 'Fit to screen' : '${height.round()} px';
+
+    return _HeightSliderTile(
+      icon: MdiIcons.viewGridOutline,
+      title: 'Week height',
+      subtitle: 'Month',
+      value: height ?? _fitStep,
+      min: _fitStep,
+      max: AppSettings.calendarMonthRowHeightMax,
+      valueLabel: label,
+      onChanged: (value) => ref
+          .read(settingsProvider.notifier)
+          .setCalendarMonthRowHeight(
+            value < AppSettings.calendarMonthRowHeightMin ? null : value,
+          ),
+    );
+  }
+}
+
+/// One row of the settings group with a slider under it: the icon, the name,
+/// the current value on the right, and the slider itself.
+class _HeightSliderTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+
+  /// Which grid the height belongs to — the two sliders sit in one group and
+  /// would otherwise both read as "the grid".
+  final String subtitle;
+
+  final double value;
+  final double min;
+  final double max;
+  final String valueLabel;
+  final ValueChanged<double> onChanged;
+
+  const _HeightSliderTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.valueLabel,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
       child: Column(
@@ -227,35 +314,42 @@ class _HourHeightTile extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(MdiIcons.arrowExpandVertical, color: AppColors.textPrimary),
+              Icon(icon, color: AppColors.textPrimary),
               const SizedBox(width: 16),
               Expanded(
-                child: Text(
-                  'Hour height',
-                  style: TextStyle(fontSize: 16, color: AppColors.textPrimary),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Text(
-                '${height.round()} px',
+                valueLabel,
                 style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),
             ],
           ),
           Slider(
-            value: height,
-            min: AppSettings.calendarHourHeightMin,
-            max: AppSettings.calendarHourHeightMax,
-            // Steps of 4 px: the slider writes to the settings box on every
-            // change, and a free double would write on every frame of a drag.
-            divisions:
-                ((AppSettings.calendarHourHeightMax -
-                            AppSettings.calendarHourHeightMin) /
-                        4)
-                    .round(),
-            label: '${height.round()} px',
-            onChanged: (value) => ref
-                .read(settingsProvider.notifier)
-                .setCalendarHourHeight(value),
+            value: value,
+            min: min,
+            max: max,
+            divisions: ((max - min) / _heightStep).round(),
+            label: valueLabel,
+            onChanged: onChanged,
           ),
         ],
       ),
