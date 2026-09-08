@@ -43,6 +43,12 @@ class Todo {
   final TodoPriority priority;
   final DateTime? dueDate;
   final TimeOfDay? dueTime;
+
+  /// End of the task on [dueDate], so a task can run "from 14:00 to 15:30"
+  /// and be drawn as a real block in the calendar. Null means the task has
+  /// only a start; the calendar then falls back to its default length.
+  /// Meaningless without [dueTime] and always dropped with it.
+  final TimeOfDay? endTime;
   final bool isCompleted;
   final DateTime? completedAt;
   final String? recurrenceRule;
@@ -65,6 +71,7 @@ class Todo {
     this.priority = TodoPriority.p4,
     this.dueDate,
     this.dueTime,
+    this.endTime,
     this.isCompleted = false,
     this.completedAt,
     this.recurrenceRule,
@@ -81,10 +88,7 @@ class Todo {
 
   /// Creates a payload to be encrypted (sensitive data)
   Map<String, dynamic> toEncryptedPayload() {
-    return {
-      'title': title,
-      'description': description,
-    };
+    return {'title': title, 'description': description};
   }
 
   /// Creates a payload with non-sensitive data for Supabase
@@ -162,6 +166,11 @@ class Todo {
       'due_time': dueTime != null
           ? '${dueTime!.hour}:${dueTime!.minute}'
           : null,
+      // Written next to due_time, in the same shape. This map is also the
+      // encrypted sync payload, so the end time travels with the todo.
+      'end_time': endTime != null
+          ? '${endTime!.hour}:${endTime!.minute}'
+          : null,
       'is_completed': isCompleted,
       'completed_at': completedAt?.toIso8601String(),
       'recurrence_rule': recurrenceRule,
@@ -177,15 +186,22 @@ class Todo {
     };
   }
 
+  /// Reads a `H:mm` string as written by [toJson]. A row from before the
+  /// end-time field simply has no key, which reads back as null.
+  static TimeOfDay? _parseTime(Object? raw) {
+    if (raw is! String || raw.isEmpty) return null;
+    final parts = raw.split(':');
+    if (parts.length < 2) return null;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return null;
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+
   factory Todo.fromJson(Map<String, dynamic> json) {
-    TimeOfDay? dueTime;
-    if (json['due_time'] != null) {
-      final timeParts = (json['due_time'] as String).split(':');
-      dueTime = TimeOfDay(
-        hour: int.parse(timeParts[0]),
-        minute: int.parse(timeParts[1]),
-      );
-    }
+    final dueTime = _parseTime(json['due_time']);
+    // An end without a start cannot be drawn, so it is dropped on the way in.
+    final endTime = dueTime == null ? null : _parseTime(json['end_time']);
 
     return Todo(
       id: json['id'] as String,
@@ -198,6 +214,7 @@ class Todo {
           ? DateTime.parse(json['due_date'] as String)
           : null,
       dueTime: dueTime,
+      endTime: endTime,
       isCompleted: json['is_completed'] as bool? ?? false,
       completedAt: json['completed_at'] != null
           ? DateTime.parse(json['completed_at'] as String)
@@ -207,7 +224,8 @@ class Todo {
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
       encryptionContext: json['encryption_context'] as String?,
-      labelIds: (json['label_ids'] as List<dynamic>?)
+      labelIds:
+          (json['label_ids'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           const [],
@@ -229,6 +247,7 @@ class Todo {
     TodoPriority? priority,
     DateTime? dueDate,
     TimeOfDay? dueTime,
+    TimeOfDay? endTime,
     bool? isCompleted,
     DateTime? completedAt,
     String? recurrenceRule,
@@ -243,6 +262,7 @@ class Todo {
     bool? isPinned,
     bool clearDueDate = false,
     bool clearDueTime = false,
+    bool clearEndTime = false,
     bool clearDescription = false,
     bool clearProjectId = false,
     bool clearReminder = false,
@@ -260,19 +280,27 @@ class Todo {
       // (handled below via resolvedIsCompleted override)
     }
 
-    final effectiveIsCompleted =
-        (status == TodoStatus.done) ? true : resolvedIsCompleted;
+    final effectiveIsCompleted = (status == TodoStatus.done)
+        ? true
+        : resolvedIsCompleted;
+
+    // A span needs a start: taking the time off a task takes its end with it,
+    // otherwise an all-day task would keep an invisible "to 15:30".
+    final resolvedDueTime = clearDueTime ? null : (dueTime ?? this.dueTime);
+    final resolvedEndTime = (clearEndTime || resolvedDueTime == null)
+        ? null
+        : (endTime ?? this.endTime);
 
     return Todo(
       id: id ?? this.id,
       userId: userId ?? this.userId,
       projectId: clearProjectId ? null : (projectId ?? this.projectId),
       title: title ?? this.title,
-      description:
-          clearDescription ? null : (description ?? this.description),
+      description: clearDescription ? null : (description ?? this.description),
       priority: priority ?? this.priority,
       dueDate: clearDueDate ? null : (dueDate ?? this.dueDate),
-      dueTime: clearDueTime ? null : (dueTime ?? this.dueTime),
+      dueTime: resolvedDueTime,
+      endTime: resolvedEndTime,
       isCompleted: effectiveIsCompleted,
       completedAt: (clearCompletedAt || !effectiveIsCompleted)
           ? null
@@ -292,10 +320,7 @@ class Todo {
 
   /// Create a new version with incremented version number
   Todo incrementVersion() {
-    return copyWith(
-      version: version + 1,
-      updatedAt: DateTime.now(),
-    );
+    return copyWith(version: version + 1, updatedAt: DateTime.now());
   }
 
   bool get isDueToday {

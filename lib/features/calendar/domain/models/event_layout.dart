@@ -6,10 +6,23 @@ class EventLayoutInfo {
   final int column;
   final int totalColumns;
 
+  /// Start of the next event drawn under this one, or null when nothing is.
+  ///
+  /// A very short event is drawn taller than its length so its title stays
+  /// readable, and this is the line that growth may not cross — otherwise a
+  /// four minute event would cover the one after it.
+  ///
+  /// "Under" means: it starts later and its column band overlaps this one's.
+  /// Two events side by side are not under each other, and an event in the
+  /// next overlap group still is, which is why the column index alone cannot
+  /// answer this.
+  final DateTime? nextStartBelow;
+
   const EventLayoutInfo({
     required this.item,
     required this.column,
     required this.totalColumns,
+    this.nextStartBelow,
   });
 
   /// Fraction of the day column width this event should take
@@ -93,7 +106,49 @@ class EventLayoutCalculator {
       }
     }
 
-    return results;
+    return _withNextStartBelow(results);
+  }
+
+  /// Second pass: for every block, the start of the next block that will be
+  /// drawn under it. Runs over the whole day rather than over one overlap
+  /// group, because two events that do not overlap sit in different groups and
+  /// are still drawn one above the other.
+  static List<EventLayoutInfo> _withNextStartBelow(
+    List<EventLayoutInfo> infos,
+  ) {
+    return [
+      for (final info in infos)
+        EventLayoutInfo(
+          item: info.item,
+          column: info.column,
+          totalColumns: info.totalColumns,
+          nextStartBelow: _nextStartBelow(info, infos),
+        ),
+    ];
+  }
+
+  static DateTime? _nextStartBelow(
+    EventLayoutInfo info,
+    List<EventLayoutInfo> infos,
+  ) {
+    DateTime? next;
+    for (final other in infos) {
+      if (identical(other, info)) continue;
+      if (!other.item.startTime.isAfter(info.item.startTime)) continue;
+      if (!_sharesBand(info, other)) continue;
+      if (next == null || other.item.startTime.isBefore(next)) {
+        next = other.item.startTime;
+      }
+    }
+    return next;
+  }
+
+  /// True when two blocks share horizontal space, so one can cover the other.
+  /// The tolerance keeps two neighbouring thirds (0.333… and 0.666…) apart.
+  static bool _sharesBand(EventLayoutInfo a, EventLayoutInfo b) {
+    const epsilon = 0.001;
+    return b.leftFraction < a.leftFraction + a.widthFraction - epsilon &&
+        a.leftFraction < b.leftFraction + b.widthFraction - epsilon;
   }
 
   static bool _overlaps(CalendarItem a, CalendarItem b) {

@@ -62,6 +62,7 @@ class ConnectedButtonGroup extends StatelessWidget {
                 item: items[i],
                 selected: i == selectedIndex,
                 radius: _radiusFor(i),
+                tight: items.length > 4,
                 onTap: () => onSelected(i),
               ),
             ),
@@ -76,6 +77,11 @@ class _Segment extends StatelessWidget {
   final ConnectedItem item;
   final bool selected;
   final BorderRadius radius;
+
+  /// Set once a group carries more than four segments: the padding gives way
+  /// before the label does.
+  final bool tight;
+
   final VoidCallback onTap;
 
   const _Segment({
@@ -83,6 +89,7 @@ class _Segment extends StatelessWidget {
     required this.selected,
     required this.radius,
     required this.onTap,
+    this.tight = false,
   });
 
   @override
@@ -93,7 +100,7 @@ class _Segment extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: EdgeInsets.symmetric(horizontal: tight ? 4 : 8),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected ? AppColors.primary : AppColors.surface,
@@ -115,7 +122,7 @@ class _Segment extends StatelessWidget {
                 item.label,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: tight ? 12 : 13,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   color: selected
                       ? AppColors.onPrimary

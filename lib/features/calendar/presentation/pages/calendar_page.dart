@@ -16,6 +16,7 @@ import '../../domain/models/ics_service.dart';
 import '../../providers/calendar_event_provider.dart';
 import '../widgets/calendar_style.dart';
 import '../widgets/day_view.dart';
+import '../widgets/three_day_view.dart';
 import '../widgets/week_view.dart';
 import '../widgets/month_view.dart';
 import '../widgets/month_strip.dart';
@@ -209,6 +210,17 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
           onItemDrop: (item, newStart) => _handleDrop(ref, item, newStart),
           onZoomingChanged: (zooming) => _gridZooming.value = zooming,
         );
+      case CalendarViewMode.threeDay:
+        return ThreeDayView(
+          // The page's own first day is the left column, so the pager and the
+          // view agree on what "the focused day" is.
+          date: periodStart,
+          onSlotTap: (slot) =>
+              _createEvent(context, date: slot.date, time: slot.time),
+          onItemTap: (item) => _showItemDetail(context, item),
+          onItemDrop: (item, newStart) => _handleDrop(ref, item, newStart),
+          onZoomingChanged: (zooming) => _gridZooming.value = zooming,
+        );
       case CalendarViewMode.week:
         return WeekView(
           date: periodStart,
@@ -352,6 +364,14 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     switch (state.viewMode) {
       case CalendarViewMode.day:
         return DateFormat('EEEE, d MMM', 'en_US').format(f);
+      case CalendarViewMode.threeDay:
+        // The focused day is the left column, so the title names the span it
+        // opens: "8 to 10 Sep", and both months when it crosses one.
+        final last = daysFrom(f, threeDayColumns).last;
+        final from = f.month == last.month
+            ? DateFormat('d', 'en_US').format(f)
+            : DateFormat('d MMM', 'en_US').format(f);
+        return '$from to ${DateFormat('d MMM', 'en_US').format(last)}';
       case CalendarViewMode.week:
         // Same week the grid draws, so the title cannot name another month
         // than the columns under it.

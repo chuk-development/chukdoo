@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_shapes.dart';
 import '../../../settings/providers/settings_provider.dart';
+import '../../domain/day_window.dart';
 import '../../domain/models/calendar_item.dart';
 import '../../domain/models/event_layout.dart';
 import 'calendar_style.dart';
@@ -19,9 +20,13 @@ class TimeGrid extends StatefulWidget {
   final List<List<CalendarItem>> itemsByColumn;
   final List<List<CalendarItem>>? allDayItemsByColumn;
 
-  /// First hour drawn. The grid spans [startHour] to [endHour], so the end is
-  /// exclusive: 7 to 22 draws fifteen rows and stops at 22:00. That matches
-  /// the settings' `calendarDayHourCount`, which is `end - start`.
+  /// The user's day window. The grid spans [startHour] to [endHour], so the
+  /// end is exclusive: 7 to 22 draws fifteen rows and stops at 22:00. That
+  /// matches the settings' `calendarDayHourCount`, which is `end - start`.
+  ///
+  /// This is the window the user asked for, not necessarily the one drawn:
+  /// [DayWindow.covering] widens it until every item of the shown days fits,
+  /// because a window may shorten the day but must never hide an appointment.
   final int startHour;
   final int endHour;
 
@@ -40,10 +45,6 @@ class TimeGrid extends StatefulWidget {
   /// True while two fingers are on the grid. The page above freezes its pager
   /// then, so a pinch cannot drift into a period change.
   final ValueChanged<bool>? onZoomingChanged;
-
-  /// Last hour that still has a row. [endHour] is the end of the span, so the
-  /// last row starts one hour before it.
-  int get _lastHour => endHour - 1;
 
   const TimeGrid({
     super.key,
@@ -66,6 +67,16 @@ class TimeGrid extends StatefulWidget {
   /// Headroom above the first hour row, inside the scroll view. The pinch
   /// anchor has to subtract it to reach grid coordinates.
   static const double topPadding = 8;
+
+  /// Height every block gets at least, however short the event is.
+  ///
+  /// The owner plans by the minute, so a 4 minute event exists and would be
+  /// four pixels tall at the default hour height — a coloured hairline with no
+  /// room for its title. 24 px carries one line of the compact block. A block
+  /// only grows into empty space though: it never passes the top of the next
+  /// block in its own column, so a short event cannot swallow the one after
+  /// it.
+  static const double minBlockHeight = 24;
 
   @override
   State<TimeGrid> createState() => _TimeGridState();
@@ -107,6 +118,18 @@ class _TimeGridState extends State<TimeGrid> {
   /// The height the grid draws with right now.
   double get _hourHeight => _pinchHeight ?? widget.hourHeight;
 
+  /// The hour window actually drawn: the user's, widened until every item of
+  /// the shown days fits. Recomputed rather than cached — the item lists are a
+  /// day's worth and arrive as new objects on every rebuild anyway.
+  DayWindow get _window => _windowOf(widget);
+
+  static DayWindow _windowOf(TimeGrid grid) => DayWindow.covering(
+    startHour: grid.startHour,
+    endHour: grid.endHour,
+    columnDates: grid.columnDates,
+    itemsByColumn: grid.itemsByColumn,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -129,13 +152,36 @@ class _TimeGridState extends State<TimeGrid> {
         widget.hourHeight != oldWidget.hourHeight) {
       _pinchHeight = null;
     }
+
+    // Items that arrive late (a sync, a feed refresh) can widen the window
+    // upwards, and every row then moves down by the hours that were added.
+    // Without this the grid would appear to jump backwards in time under the
+    // user's eyes.
+    final oldStart = _windowOf(oldWidget).startHour;
+    final newStart = _window.startHour;
+    if (oldStart != newStart) {
+      final delta = (oldStart - newStart) * _hourHeight;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_scrollController.hasClients) return;
+        _scrollController.jumpTo(
+          (_scrollController.offset + delta).clamp(
+            0.0,
+            _scrollController.position.maxScrollExtent,
+          ),
+        );
+      });
+    }
   }
 
   void _scrollToNow() {
     if (!_scrollController.hasClients) return;
     final now = DateTime.now();
-    final anchorHour = now.hour.clamp(widget.startHour, widget._lastHour);
-    final target = ((anchorHour - widget.startHour) * _hourHeight - _hourHeight)
+    final window = _window;
+    // On "now", or on the start of the window when now is outside it. A
+    // widened window must not drop the user at 00:00 either — the anchor is
+    // measured from the window that is drawn, not from the settings.
+    final anchorHour = now.hour.clamp(window.startHour, window.lastHour);
+    final target = ((anchorHour - window.startHour) * _hourHeight - _hourHeight)
         .clamp(0.0, _scrollController.position.maxScrollExtent);
     _scrollController.jumpTo(target);
   }
@@ -230,7 +276,10 @@ class _TimeGridState extends State<TimeGrid> {
 
   @override
   Widget build(BuildContext context) {
-    final hours = widget.endHour - widget.startHour;
+    // Not the settings window: the drawn one, widened over every item of the
+    // shown days so nothing can fall outside the grid.
+    final window = _window;
+    final hours = window.hourCount;
     final totalHeight = hours * _hourHeight;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -268,7 +317,7 @@ class _TimeGridState extends State<TimeGrid> {
                     // Only the four corners of the whole grid are strongly
                     // rounded, everything inside stays slightly rounded.
                     ...List.generate(hours, (i) {
-                      final hour = widget.startHour + i;
+                      final hour = window.startHour + i;
                       return Positioned(
                         top: i * _hourHeight,
                         left: 0,
@@ -366,6 +415,7 @@ class _TimeGridState extends State<TimeGrid> {
                                     isToday: isToday,
                                     dayWidth: dayWidth,
                                     totalHeight: totalHeight,
+                                    window: window,
                                   ),
                                 );
                               }),
@@ -397,6 +447,7 @@ class _TimeGridState extends State<TimeGrid> {
     required bool isToday,
     required double dayWidth,
     required double totalHeight,
+    required DayWindow window,
   }) {
     final items = col < widget.itemsByColumn.length
         ? widget.itemsByColumn[col]
@@ -411,15 +462,17 @@ class _TimeGridState extends State<TimeGrid> {
         final renderBox = context.findRenderObject() as RenderBox;
         final localPos = renderBox.globalToLocal(details.offset);
         final gridY = localPos.dy + _scrollController.offset;
-        final hour = widget.startHour + (gridY / _hourHeight).floor();
+        final hour = window.startHour + (gridY / _hourHeight).floor();
         final minute = ((gridY % _hourHeight) / _hourHeight * 60).round();
+        // Dragging keeps the quarter-hour snap: it is a convenience, and the
+        // finger cannot aim at a minute. Only the *drawing* is exact.
         final snappedMinute = (minute ~/ 15) * 15;
 
         final newStart = DateTime(
           date.year,
           date.month,
           date.day,
-          hour.clamp(widget.startHour, widget._lastHour),
+          hour.clamp(window.startHour, window.lastHour),
           snappedMinute.clamp(0, 45),
         );
 
@@ -430,13 +483,14 @@ class _TimeGridState extends State<TimeGrid> {
         return GestureDetector(
           onTapUp: (details) {
             final tapY = details.localPosition.dy;
-            final hour = widget.startHour + (tapY / _hourHeight).floor();
+            final hour = window.startHour + (tapY / _hourHeight).floor();
             final minute = ((tapY % _hourHeight) / _hourHeight * 60).round();
+            // Same as the drop above: creating snaps, drawing does not.
             final snappedMinute = (minute ~/ 15) * 15;
             widget.onSlotTap?.call((
               date: date,
               time: TimeOfDay(
-                hour: hour.clamp(widget.startHour, widget._lastHour),
+                hour: hour.clamp(window.startHour, window.lastHour),
                 minute: snappedMinute.clamp(0, 45),
               ),
             ));
@@ -454,21 +508,42 @@ class _TimeGridState extends State<TimeGrid> {
 
                 ...layoutInfos.map((info) {
                   final item = info.item;
+                  // Minute precision: the position is the event's own minute,
+                  // never a rounded slot. 07:03 to 07:11 sits at 07:03 and is
+                  // eight minutes long. Times are clipped to this column's
+                  // day, so an event running over midnight starts at the top
+                  // of the second column instead of at hour 23 of it.
+                  final pxPerMinute = _hourHeight / 60.0;
                   final startY =
-                      (item.startTime.hour - widget.startHour) * _hourHeight +
-                      (item.startTime.minute / 60.0) * _hourHeight;
+                      (minutesIntoDay(item.startTime, date) -
+                          window.startMinutes) *
+                      pxPerMinute;
                   final endY =
-                      (item.endTime.hour - widget.startHour) * _hourHeight +
-                      (item.endTime.minute / 60.0) * _hourHeight;
-                  // The grid can start after and end before the event (the
-                  // day window is a setting). Cut the block to the window
-                  // instead of letting it run past the last hour — hiding it
-                  // outright would lose an event the user does have.
-                  final visibleTop = startY.clamp(0.0, totalHeight - 20);
+                      (minutesIntoDay(item.endTime, date) -
+                          window.startMinutes) *
+                      pxPerMinute;
+
+                  final visibleTop = startY.clamp(0.0, totalHeight);
                   final visibleBottom = endY.clamp(visibleTop, totalHeight);
-                  final blockHeight = (visibleBottom - visibleTop).clamp(
-                    20.0,
-                    totalHeight,
+
+                  // Room down to the block that will be drawn under this one,
+                  // less the gap the grid keeps between two blocks. This is
+                  // the line a grown block may not cross.
+                  final next = info.nextStartBelow;
+                  final room = next == null
+                      ? totalHeight - visibleTop
+                      : (minutesIntoDay(next, date) - window.startMinutes) *
+                                pxPerMinute -
+                            visibleTop -
+                            AppShapes.groupGap;
+
+                  // A short event grows to [TimeGrid.minBlockHeight] so its
+                  // title stays readable, but only into empty space.
+                  final realHeight = visibleBottom - visibleTop;
+                  final blockHeight = _blockHeight(
+                    realHeight: realHeight,
+                    room: room,
+                    totalHeight: totalHeight - visibleTop,
                   );
 
                   final blockWidth = dayWidth * info.widthFraction - 3;
@@ -494,6 +569,26 @@ class _TimeGridState extends State<TimeGrid> {
     );
   }
 
+  /// Height of one block: its real length, grown to a readable minimum where
+  /// there is free space under it.
+  ///
+  /// [room] is the distance to the next block in the same layout column (or to
+  /// the bottom of the grid). The growth stops there, so a four minute event
+  /// keeps its neighbour visible instead of covering it — which is why this is
+  /// a layout decision and not something the block itself could take.
+  static double _blockHeight({
+    required double realHeight,
+    required double room,
+    required double totalHeight,
+  }) {
+    final grown = TimeGrid.minBlockHeight < room
+        ? TimeGrid.minBlockHeight
+        : room;
+    final height = realHeight > grown ? realHeight : grown;
+    // Never past the bottom of the grid, and never negative.
+    return height.clamp(0.0, totalHeight);
+  }
+
   List<Widget> _buildCurrentTimeIndicator(
     DateTime now,
     DateTime today,
@@ -506,7 +601,7 @@ class _TimeGridState extends State<TimeGrid> {
           date.month == today.month &&
           date.day == today.day) {
         final y =
-            (now.hour - widget.startHour) * _hourHeight +
+            (now.hour - _window.startHour) * _hourHeight +
             (now.minute / 60.0) * _hourHeight;
         // The day window can end before now: no line outside the grid.
         if (y < 0 || y > totalHeight) return [];

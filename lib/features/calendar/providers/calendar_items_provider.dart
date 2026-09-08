@@ -40,6 +40,21 @@ final calendarItemsProvider = Provider<CalendarItemsState>((ref) {
       final day = DateTime(focused.year, focused.month, focused.day);
       rangeStart = DateTime(day.year, day.month, day.day - 1);
       rangeEnd = DateTime(day.year, day.month, day.day + 2);
+    case CalendarViewMode.threeDay:
+      // The focused day is the left column of the page, so the page covers
+      // the three days from it — plus the page before and after, which the
+      // pager keeps built either side of the finger.
+      final first = DateTime(focused.year, focused.month, focused.day);
+      rangeStart = DateTime(
+        first.year,
+        first.month,
+        first.day - threeDayColumns,
+      );
+      rangeEnd = DateTime(
+        first.year,
+        first.month,
+        first.day + threeDayColumns * 2,
+      );
     case CalendarViewMode.week:
       // The week the grid draws, not a Monday week — otherwise the first
       // column of a Sunday week would be outside the loaded range and look

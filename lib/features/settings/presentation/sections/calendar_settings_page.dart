@@ -40,7 +40,7 @@ class CalendarSettingsPage extends ConsumerWidget {
                   context: context,
                   title: 'Default view',
                   options: [
-                    for (final view in CalendarDefaultView.values)
+                    for (final view in CalendarDefaultView.ordered)
                       PickerOption(
                         value: view,
                         label: view.label,
@@ -181,6 +181,7 @@ class CalendarSettingsPage extends ConsumerWidget {
 
   static IconData _viewIcon(CalendarDefaultView view) => switch (view) {
     CalendarDefaultView.day => MdiIcons.calendarTodayOutline,
+    CalendarDefaultView.threeDay => MdiIcons.calendarRangeOutline,
     CalendarDefaultView.week => MdiIcons.calendarWeekOutline,
     CalendarDefaultView.month => MdiIcons.calendarMonthOutline,
     CalendarDefaultView.agenda => MdiIcons.formatListBulleted,

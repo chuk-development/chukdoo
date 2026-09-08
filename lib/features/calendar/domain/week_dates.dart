@@ -6,6 +6,22 @@ import '../../settings/providers/settings_provider.dart';
 /// and the item range must all ask the same function — a second copy of
 /// `subtract(weekday - 1)` somewhere would silently keep Monday.
 
+/// Columns the three day view draws — Google Calendar's "3 Day".
+///
+/// One number for the whole feature: the pager strides by it, the view draws
+/// that many columns and the item range prefetches a page either side of it.
+const int threeDayColumns = 3;
+
+/// [count] consecutive days from [start], midnight each.
+///
+/// Counted with `DateTime(y, m, d + i)` rather than by adding a `Duration`,
+/// because a day across a DST change is not 24 hours long and the column would
+/// slide by an hour.
+List<DateTime> daysFrom(DateTime start, int count) => [
+  for (var i = 0; i < count; i++)
+    DateTime(start.year, start.month, start.day + i),
+];
+
 /// Midnight of the day [date] falls in.
 DateTime dayStart(DateTime date) => DateTime(date.year, date.month, date.day);
 

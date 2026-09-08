@@ -14,7 +14,11 @@ import '../../providers/calendar_event_provider.dart';
 ///
 /// A page index is not a date, it is an offset: page [_center] is the period
 /// [focusedDate] was in when the mapping was built ([_base]), and every other
-/// page is that period shifted by `index - _center`. The page count is large
+/// page is that period shifted by `index - _center`. The three day view is the
+/// one period that is not aligned to anything in the calendar — its pages are
+/// blocks of three days counted from [_base], so the focused day is always the
+/// left column; a date that lands inside a block rather than on its first day
+/// cannot be represented and rebases the mapping instead. The page count is large
 /// and centred, so the user reaches decades in either direction without the
 /// list ever ending; [_rebase] rebuilds the mapping when the focused date
 /// jumps past its ends or when the period length itself changes.
@@ -114,7 +118,7 @@ class _PeriodPagerState extends State<PeriodPager> {
     // here is what would start the feedback loop.
     if (target == _currentPage) return;
 
-    if (target < 0 || target >= _pageCount) {
+    if (target == null || target < 0 || target >= _pageCount) {
       _rebase(widget.focusedDate);
       return;
     }
@@ -131,6 +135,7 @@ class _PeriodPagerState extends State<PeriodPager> {
   DateTime _periodStart(DateTime date) {
     switch (widget.mode) {
       case CalendarViewMode.day:
+      case CalendarViewMode.threeDay:
       case CalendarViewMode.agenda:
         return dayStart(date);
       case CalendarViewMode.week:
@@ -151,6 +156,12 @@ class _PeriodPagerState extends State<PeriodPager> {
       case CalendarViewMode.day:
       case CalendarViewMode.agenda:
         return DateTime(_base.year, _base.month, _base.day + n);
+      case CalendarViewMode.threeDay:
+        return DateTime(
+          _base.year,
+          _base.month,
+          _base.day + threeDayColumns * n,
+        );
       case CalendarViewMode.week:
         return DateTime(_base.year, _base.month, _base.day + 7 * n);
       case CalendarViewMode.month:
@@ -158,13 +169,22 @@ class _PeriodPagerState extends State<PeriodPager> {
     }
   }
 
-  /// The page [date] belongs to. Inverse of [_periodStartForPage].
-  int _pageFor(DateTime date) {
+  /// The page [date] belongs to, or null when no page starts on it. Inverse
+  /// of [_periodStartForPage].
+  ///
+  /// Only the three day view can answer null: its blocks are counted from
+  /// [_base], so a day in the middle of a block would not be the left column
+  /// the view promises. The caller rebases on it instead.
+  int? _pageFor(DateTime date) {
     final start = _periodStart(date);
     switch (widget.mode) {
       case CalendarViewMode.day:
       case CalendarViewMode.agenda:
         return _center + _wholeDaysBetween(_base, start);
+      case CalendarViewMode.threeDay:
+        final days = _wholeDaysBetween(_base, start);
+        if (days % threeDayColumns != 0) return null;
+        return _center + days ~/ threeDayColumns;
       case CalendarViewMode.week:
         return _center + _wholeDaysBetween(_base, start) ~/ 7;
       case CalendarViewMode.month:

@@ -10,7 +10,16 @@ import '../../sync/services/sync_service.dart';
 import '../domain/models/calendar_event.dart';
 import '../../notifications/reminder_scheduler.dart';
 
-enum CalendarViewMode { day, week, month, agenda }
+/// The shapes the calendar draws a period in.
+///
+/// [threeDay] is Google Calendar's 3 day view: the focused day is the left
+/// column and the two following days come after it, so it is a window on the
+/// days ahead rather than a centred slice.
+///
+/// The order is the order of the switcher. Nothing persists this enum by
+/// index — the settings keep their own `CalendarDefaultView` and map it by
+/// name — so a value may be inserted here.
+enum CalendarViewMode { day, threeDay, week, month, agenda }
 
 class CalendarEventState {
   final List<CalendarEvent> events;

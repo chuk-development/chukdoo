@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:chukdoo/features/calendar/domain/week_dates.dart';
 import 'package:chukdoo/features/calendar/presentation/widgets/period_pager.dart';
 import 'package:chukdoo/features/calendar/providers/calendar_event_provider.dart';
 import 'package:chukdoo/features/settings/providers/settings_provider.dart';
@@ -68,6 +69,58 @@ void main() {
     expect(reported, [DateTime(2026, 9, 17)]);
     // The page itself is the week, so it is labelled with its Monday.
     expect(find.text('2026-09-14'), findsOneWidget);
+  });
+
+  testWidgets('a three day page starts on the focused day and holds the two '
+      'days after it', (tester) async {
+    final reported = await pumpPager(
+      tester,
+      mode: CalendarViewMode.threeDay,
+      focused: DateTime(2026, 9, 8),
+    );
+
+    // The focused day is the LEFT column, not the middle one.
+    expect(find.text('2026-09-08'), findsOneWidget);
+    expect(find.text('cols 2026-09-08 2026-09-09 2026-09-10'), findsOneWidget);
+    expect(reported, isEmpty);
+  });
+
+  testWidgets('a swipe moves the three day view by exactly three days', (
+    tester,
+  ) async {
+    final reported = await pumpPager(
+      tester,
+      mode: CalendarViewMode.threeDay,
+      focused: DateTime(2026, 9, 8),
+    );
+
+    await swipeToNext(tester);
+
+    expect(reported, [DateTime(2026, 9, 11)]);
+    expect(find.text('cols 2026-09-11 2026-09-12 2026-09-13'), findsOneWidget);
+  });
+
+  testWidgets('a three day pager rebuilds around a day inside a page', (
+    tester,
+  ) async {
+    final reported = await pumpPager(
+      tester,
+      mode: CalendarViewMode.threeDay,
+      focused: DateTime(2026, 9, 8),
+    );
+
+    // The middle day of the page on screen: no page starts on it, so the
+    // mapping has to be rebuilt around it — otherwise it would not be the
+    // left column the view promises.
+    harnessKey.currentState!.setFocusedFromOutside(DateTime(2026, 9, 9));
+    await tester.pumpAndSettle();
+
+    expect(find.text('cols 2026-09-09 2026-09-10 2026-09-11'), findsOneWidget);
+    expect(reported, isEmpty);
+
+    // And it still pages by three days from there.
+    await swipeToNext(tester);
+    expect(reported, [DateTime(2026, 9, 12)]);
   });
 
   testWidgets('a swipe moves the month view by exactly one month', (
@@ -184,8 +237,20 @@ class _PagerHarnessState extends State<_PagerHarness> {
             widget.reported.add(date);
             setState(() => _focused = date);
           },
-          pageBuilder: (context, periodStart) =>
-              Center(child: Text(_stamp(periodStart))),
+          pageBuilder: (context, periodStart) => Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_stamp(periodStart)),
+                // The columns the three day view builds from the page start.
+                if (_mode == CalendarViewMode.threeDay)
+                  Text(
+                    'cols '
+                    '${daysFrom(periodStart, threeDayColumns).map(_stamp).join(' ')}',
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );

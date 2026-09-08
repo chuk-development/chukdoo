@@ -58,12 +58,29 @@ class TodoItem extends CalendarItem {
     return todo.dueDate!;
   }
 
+  /// Length a timed task without its own end is drawn with. The old
+  /// behaviour, kept as the fallback so a task from before the end-time
+  /// field still fills a readable block.
+  static const Duration defaultLength = Duration(minutes: 30);
+
   @override
   DateTime get endTime {
-    if (todo.dueTime != null) {
-      return startTime.add(const Duration(minutes: 30));
+    if (todo.dueTime == null) return startTime;
+
+    final end = todo.endTime;
+    if (end != null) {
+      final candidate = DateTime(
+        startTime.year,
+        startTime.month,
+        startTime.day,
+        end.hour,
+        end.minute,
+      );
+      // An end at or before the start would draw a block of zero height, so
+      // the fallback length takes over (a task does not run past midnight).
+      if (candidate.isAfter(startTime)) return candidate;
     }
-    return startTime;
+    return startTime.add(defaultLength);
   }
 
   @override

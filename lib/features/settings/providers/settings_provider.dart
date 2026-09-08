@@ -48,10 +48,25 @@ enum CalendarDefaultView {
   day,
   week,
   month,
-  agenda;
+  agenda,
+  // Appended instead of inserted after `day`, where the switcher shows it:
+  // the setting is persisted by enum index, so a new value in the middle
+  // would silently turn everybody's saved "Month" into "Week". [ordered]
+  // carries the order the user sees.
+  threeDay;
+
+  /// The views in the order the calendar's own switcher offers them.
+  static const List<CalendarDefaultView> ordered = [
+    day,
+    threeDay,
+    week,
+    month,
+    agenda,
+  ];
 
   String get label => switch (this) {
     CalendarDefaultView.day => 'Day',
+    CalendarDefaultView.threeDay => '3 days',
     CalendarDefaultView.week => 'Week',
     CalendarDefaultView.month => 'Month',
     CalendarDefaultView.agenda => 'Agenda',
