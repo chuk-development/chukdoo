@@ -121,7 +121,9 @@ class AppTheme {
         contentTextStyle: TextStyle(color: AppColors.textPrimary),
         behavior: SnackBarBehavior.floating,
         // Sits above the floating nav bar and can be flicked away sideways.
-        insetPadding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+        // Snacks that carry an action go through showAppSnack, which measures
+        // the bar instead of guessing; this is the fallback for the rest.
+        insetPadding: const EdgeInsets.fromLTRB(12, 8, 12, 104),
         dismissDirection: DismissDirection.horizontal,
         actionTextColor: AppColors.primary,
         shape: RoundedRectangleBorder(

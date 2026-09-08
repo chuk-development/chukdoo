@@ -1,79 +1,95 @@
-# Handover — chukdoo redesign session (2026-09-07)
+# Handover — chukdoo (2026-09-08)
 
-State of the working tree at the end of a long redesign session. Read this
-plus `CLAUDE.md` before continuing.
+Read this plus `CLAUDE.md` before continuing. It records what the app is made
+of and which rules exist, not a change log — `git log` has that.
 
-## What the app is now
+## The design system: use it, never rebuild it
 
-- **Free app.** No Pro tier, no paywall, no entitlement. Cloud sync is free.
-  RevenueCat only sells one-off donations (`lib/features/donations/`).
-- **One design system**, Material 3 Expressive:
-  - `lib/core/theme/app_shapes.dart` — groupOuter 26, groupInner 6, groupGap 3,
-    listInset 12, sheetTop 28, dockField 20, dockChip 16, dockMargin 8,
-    navBarHeight 72.
-  - `lib/core/theme/app_theme.dart` — every component theme (sheets, dialogs,
-    date/time pickers, menus, chips, switches, buttons). Missing component
-    themes were the reason pickers used to look unstyled; do not remove them.
-  - `lib/shared/widgets/app_field.dart` — THE input surface. Filled block,
-    optional label, never an outline. Use `AppField.decoration(hint)`.
-  - `lib/shared/widgets/picker_sheet.dart` — THE modal surface.
-    `showAppPicker` (a card that flies in: scale + fade, centred),
-    `showPickerSheet` (option list), `showDateTimeSheet` (calendar + time).
-  - `lib/shared/widgets/rounded_group.dart` — list section as one group.
-  - `lib/shared/widgets/connected_group.dart` — segmented control
-    (`ConnectedButtonGroup`), used by the calendar view switcher.
-  - `lib/shared/widgets/bottom_nav_bar.dart` — floating glass pill, gliding
-    highlight, collapses its labels while scrolling down.
-  - `lib/shared/widgets/lifted_fab.dart` — lifts a page FAB clear of the bar.
-- **Rule everywhere:** no `Border.all`, no `BorderSide`, no `Divider` as a
-  separator. Separation is a filled block plus the 3px gap. Only the outer
-  corners of a grid or group are strongly rounded.
+Every one of these exists because the same thing had been hand-built three
+times with three different results. Adding a fourth variant is the bug.
 
-## Known open bugs (the owner's list, unfinished)
+| Widget | What it is |
+|---|---|
+| `lib/shared/widgets/app_scaffold.dart` | THE page frame. `AppScaffold` gives the title row, an optional `headerBottom`, the body and a lifted FAB. `AppPageHeader`/`AppHeaderAction` are its parts. No page builds its own `Scaffold`+`AppBar`. |
+| `lib/shared/widgets/app_drawer_panel.dart` | THE side panel. `AppDrawerPanel` + `AppDrawerSection` + `AppDrawerTile` + `AppDrawerActionTile`. Every section's drawer is built from these. |
+| `lib/shared/widgets/entity_edit_sheet.dart` | THE form for anything with a name, a colour and maybe an icon: project, calendar, ICS feed, note folder, habit. `EntityFlushGrid` lays out swatches and icons so a full row ends flush right. |
+| `lib/shared/widgets/picker_sheet.dart` | THE modals. `showAppPicker` (card that flies in), `showPickerSheet` (option list), `showDateTimeSheet`. No bare `AlertDialog`, no bare `showModalBottomSheet`. |
+| `lib/shared/widgets/app_field.dart` | THE input. Filled block, never an outline. |
+| `lib/shared/widgets/app_check.dart` | THE tick. Task rows, habit days, calendar visibility. |
+| `lib/shared/widgets/connected_group.dart` | THE segmented control. The SELECTED segment is strongly rounded on both sides; its neighbours stay nearly square. |
+| `lib/shared/widgets/rounded_group.dart` | A list section as one group. |
+| `lib/core/theme/app_shapes.dart` | Radii, gaps, and `AppShapes.contentBottom(context)`. |
 
-1. **FAB position is still wrong** in at least one place. The shell uses
-   `extendBody: true` + `bottomNavigationBar`, so Flutter adds the bar height
-   to the body's bottom inset ONCE — do not inject it again (that caused a dead
-   strip). Inner pages run their own Scaffold and place the FAB against the
-   screen edge, hence `LiftedFab`. Its lift is
-   `viewPadding.bottom + navBarHeight + 8`. Verify against a real screenshot,
-   in every tab, before claiming it is fixed.
-2. **Calendar view reported as "completely broken"** by the owner after the
-   view-switcher change. The switcher now sits on its own full-width row
-   (`ConnectedButtonGroup`); before that its segments were pushed off screen by
-   a `reverse: true` horizontal scroll view. Needs a look on a device.
-3. **Transparency**: the nav bar blur reads differently over the calendar than
-   over the lists — the calendar page paints an opaque background.
-4. Day/week grid: scrolling down "gets cramped" (owner). Not diagnosed.
-5. Notes editor does not render Markdown (only the task description does).
+### Hard rules
+
+- **No `Border.all`, no `BorderSide`, no `Divider` as a separator.** Separation
+  is a filled block plus the 3px gap. The one sanctioned exception is the
+  selection ring around a colour swatch or an icon tile.
+- **Colours only from `AppColors`**, radii only from `AppShapes`.
+- **`AppShapes.contentBottom(context)` is the bottom padding of every
+  scrollable.** It reads the gesture inset from the *view*, not from
+  `MediaQuery`: inside a page the `Scaffold` has already eaten that inset and
+  `MediaQuery.viewPaddingOf` answers 0, which silently made every padding one
+  gesture bar too short.
+- **A page paints no background.** The shell's background is what the floating
+  nav bar blurs; a page that paints its own turns the glass into a grey slab.
+- The shell (`features/todos/presentation/pages/home_page.dart`) picks the side
+  panel of the current tab. Settings has none, so its page shows no hamburger.
+
+## Sections
+
+- **Tasks** — list, quick-add dock, projects. Swiping a row left crosses
+  release-driven zones (Delete, Pin, Date, Move) with a haptic tick per zone;
+  the action runs on release, a full swipe opens the menu instead of deleting.
+  `swipe_zone_row.dart` owns that; `flutter_slidable` is gone from the tile
+  (the dependency and the leftover `SlidableAutoCloseBehavior` wrappers can be
+  removed).
+- **Calendar** — day, three days, week, month, agenda. Periods are pages
+  (`period_pager.dart`) with a guard between page index and focused date.
+  `DayWindow.covering` widens the drawn day window until every item fits, so a
+  06:00 item shows under an 08:00 setting. Blocks are placed by the minute;
+  only creating and dragging snap to a quarter hour. Two fingers zoom the hour
+  height (28–140, persisted). The month strip is a connected bar, years are
+  quiet markers.
+- **Notes** — folders, markdown. The editor is one writing surface with
+  autosave (600ms, on pop, on background) and a format bar over the keyboard;
+  preview checkboxes write back into the source.
+- **Habits** — daily/weekly filter from its panel, ticks from `AppCheck`.
+- **Settings** — a hub with a sub-page per section (tasks, calendar, notes,
+  habits). Everything is stored in the Hive settings box; the calendar and the
+  notes read their settings.
+
+## Gestures: what a screenshot cannot show
+
+Two bugs in this session were invisible in pictures and cost hours:
+
+- A `GestureDetector` inside a horizontal list loses the gesture arena to the
+  scroll view as soon as the finger travels a pixel, so the month strip looked
+  right and never reacted to a real finger. It reads the raw pointer now
+  (`_TapTolerant` in `month_strip.dart`).
+- A `ScaleGestureRecognizer` enters the arena with a single pointer and would
+  steal the page swipe, so the pinch zoom listens to raw pointers too and only
+  starts on the second finger.
+
+**Test interaction with widget tests, not screenshots.** Screenshots are for
+layout, and only from the device (`adb exec-out screencap -p > shot.png`).
+`_scratch/walkthrough.sh` walks every screen and drops a picture per step; it
+restarts the app between sections because one stuck sheet used to swallow all
+following taps and the rest of the run photographed the wrong screen.
 
 ## Server side
 
 Run `supabase/apply_pending.sql` in the SQL editor (idempotent). It creates
-`calendars`, `calendar_events` and `habits`; `notes` already exists.
-`supabase/dump_schema.sql` prints the whole schema as one text cell —
-use it before writing any migration.
+`calendars`, `calendar_events`, `habits` and `note_folders`; `notes` already
+exists. `supabase/dump_schema.sql` prints the whole schema in one cell.
 
-Important: `todos` and `projects` are blob-only tables
-(`id, user_id, encrypted_payload, updated_at`) and the app writes exactly those
-four columns. Do not add status/is_completed columns; the rest lives encrypted
-in the payload.
+`todos` and `projects` are blob-only (`id, user_id, encrypted_payload,
+updated_at`) — do not add columns, the rest lives in the encrypted payload.
+That is also where a task's `end_time` and a note's `folderId` ride.
 
-Synced: todos, projects, calendars, calendar events, habits, notes.
-Not synced on purpose: ICS feed events (`user_id` starts with `feed:`).
-
-## Things that were real bugs and are fixed
-
-- Subscribed ICS feed events were filtered out of every view (they belong to no
-  known calendar) — they never showed up at all.
-- ICS import overwrote a whole series with its exception (same UID) and mangled
-  umlauts.
-- Event colour was silently dropped on save.
-- Quick-add dock menus (project, priority) opened downwards behind the keyboard.
-- Auth: the "instant auth" path never wired the Supabase listener, so the UI and
-  the sync layer read two different truths; sessions are refreshed now.
-- Notes had no sync at all.
-- Event reminders were stored but never scheduled.
+Synced: todos, projects, calendars, calendar events, habits, notes, note
+folders. Subscribed ICS feeds stay on the device (`user_id` starts with
+`feed:`), and so does their visibility.
 
 ## Build
 
@@ -83,32 +99,24 @@ wired through `dependency_overrides`.
 
 ```bash
 source .env.local
-flutter build apk --target-platform android-arm64 --no-tree-shake-icons \
+memguard-allow 8G flutter build apk --target-platform android-arm64 \
+  --no-tree-shake-icons \
   --dart-define=SUPABASE_URL=$SUPABASE_URL \
   --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
   --dart-define=REVENUECAT_API_KEY=$REVENUECAT_API_KEY
 adb install -r build/app/outputs/flutter-apk/app-release.apk
 ```
 
-Gradle needs a memory exception on this machine: prefix with
-`memguard-allow 8G`.
+Kill the Gradle daemon when a build is done; it holds ~2GB and this machine
+runs out.
 
-## Open work items, in the owner's words
+## Open
 
-- The calendar's own "Inputbox" (event editor) is close but the owner still
-  wants every control identical to the rest; check location, description,
-  repeat, reminder once more on a device.
-- Task row density: `CheckboxSize` is now small/medium/large driven by a slider
-  in Settings (medium = default, tighter than before). Check it feels right.
-- Drawer is a floating rounded panel from the left (like the quick-add dock).
-- Sidebar-driven view changes are instant, only the bottom nav animates.
-- Back gesture walks a view history in the shell, and a view-mode history in
-  the calendar, before leaving the app.
-- Calendar: full feature set is the goal (colours done; check recurrence,
-  reminders, all-day, calendar assignment against a normal calendar app).
-
-## Working rule learned the hard way
-
-Do not claim a layout fix without looking at a screenshot from the device
-(`adb exec-out screencap -p > shot.png`, then crop and inspect). Several
-"fixed" claims in this session were wrong because the measurement was guessed.
+- The quick-add dock cannot set a task's end time yet; only the detail page can.
+- No "all day" switch in the event card — that still needs the full editor.
+- Calendar metrics were set from Google Calendar's published sizing, not
+  measured: Google Calendar lives on a second Android user on the test phone
+  and the shell cannot reach it.
+- `auto_sync_manager` refreshes every provider after a pull now, but a pull
+  still never runs while the app is in the foreground without connectivity
+  changes.

@@ -12,6 +12,7 @@ import '../../providers/todo_provider.dart';
 import '../pages/todo_detail_page.dart';
 import 'swipe_zone_row.dart';
 import 'todo_item.dart';
+import '../../../../shared/widgets/app_snack.dart';
 
 /// Pushes a route with no slide/fade transition — the page is just *there*.
 Route<T> instantRoute<T>(Widget page) {
@@ -339,18 +340,12 @@ class TodoSwipeTile extends ConsumerWidget {
     final id = todo.id;
     notifier.toggleComplete(id);
 
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.clearSnackBars();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(isCompleted ? 'Task reopened' : 'Task completed'),
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () => notifier.toggleComplete(id),
-        ),
-      ),
+    showAppSnack(
+      context,
+      isCompleted ? 'Task reopened' : 'Task completed',
+      actionLabel: 'Undo',
+      onAction: () => notifier.toggleComplete(id),
+      duration: const Duration(seconds: 3),
     );
   }
 
@@ -358,18 +353,12 @@ class TodoSwipeTile extends ConsumerWidget {
     final notifier = ref.read(todoProvider.notifier);
     final snapshot = todo;
     notifier.deleteTodo(todo.id);
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.clearSnackBars();
-    messenger.showSnackBar(
-      SnackBar(
-        content: const Text('Task deleted'),
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () => notifier.restoreTodo(snapshot),
-        ),
-      ),
+    showAppSnack(
+      context,
+      'Task deleted',
+      actionLabel: 'Undo',
+      onAction: () => notifier.restoreTodo(snapshot),
+      duration: const Duration(seconds: 3),
     );
   }
 }

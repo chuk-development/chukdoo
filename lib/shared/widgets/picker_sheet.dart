@@ -142,35 +142,39 @@ class PickerSheetScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The gesture bar eats into the bottom, so the same number of pixels top
+    // and bottom is not the same amount of air. The inset is added to both
+    // ends instead, which is what reads as even.
+    final view = View.of(context);
+    final inset = view.viewPadding.bottom / view.devicePixelRatio;
+    final pad = 16 + inset;
+
     return Container(
       color: AppColors.background,
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(height: pad),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Flexible(child: SingleChildScrollView(child: child)),
-            const SizedBox(height: 16),
-          ],
-        ),
+          ),
+          Flexible(child: SingleChildScrollView(child: child)),
+          SizedBox(height: pad),
+        ],
       ),
     );
   }
