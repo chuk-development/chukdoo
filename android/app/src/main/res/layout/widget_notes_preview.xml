@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static twin of the real layout, used for android:previewLayout. A preview
+     cannot run a RemoteViewsService, so the rows are written out by hand. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="@dimen/widget_padding">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="6dp"
+        android:paddingEnd="2dp"
+        android:paddingBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Notes"
+                android:textColor="@color/widget_text_primary"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Recently edited"
+                android:textColor="@color/widget_text_secondary"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <ImageView
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:padding="7dp"
+            android:src="@drawable/ic_widget_plus"
+            android:background="@drawable/widget_action_bg"
+            android:contentDescription="Notes" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/widget_row_first"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp">
+
+        <View
+            android:layout_width="4dp"
+            android:layout_height="30dp"
+            android:layout_marginEnd="10dp"
+            android:background="@color/widget_accent" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Shopping list"
+                android:textColor="@color/widget_text_primary"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="milk, oats, coffee beans"
+                android:textColor="@color/widget_text_secondary"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/widget_row_middle"
+        android:layout_marginTop="@dimen/widget_group_gap"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp">
+
+        <View
+            android:layout_width="4dp"
+            android:layout_height="30dp"
+            android:layout_marginEnd="10dp"
+            android:background="@color/widget_accent" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Trip planning"
+                android:textColor="@color/widget_text_primary"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="book the ferry before Friday"
+                android:textColor="@color/widget_text_secondary"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/widget_row_last"
+        android:layout_marginTop="@dimen/widget_group_gap"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp">
+
+        <View
+            android:layout_width="4dp"
+            android:layout_height="30dp"
+            android:layout_marginEnd="10dp"
+            android:background="@color/widget_accent" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Ideas"
+                android:textColor="@color/widget_text_primary"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="a widget that shows the streak"
+                android:textColor="@color/widget_text_secondary"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+</LinearLayout>

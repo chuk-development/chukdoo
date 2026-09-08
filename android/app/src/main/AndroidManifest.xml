@@ -33,24 +33,87 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
-        <!-- Home Screen Widget -->
+        <!-- ── Home screen widgets ──────────────────────────────────────
+             Four separate providers so all four show up in the picker with
+             their own name and their own preview. They share the Kotlin base
+             class in doo.chuk.dev.widgets, not a manifest entry. -->
         <receiver
-            android:name=".ChukdooWidget"
-            android:exported="true"
-            android:label="@string/widget_name">
+            android:name=".widgets.TasksWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_tasks_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/widget_info" />
+                android:resource="@xml/widget_tasks_info" />
         </receiver>
 
-        <!-- Widget List Service -->
+        <receiver
+            android:name=".widgets.CalendarWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_calendar_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_calendar_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widgets.NotesWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_notes_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_notes_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widgets.HabitsWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_habits_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_habits_info" />
+        </receiver>
+
+        <!-- One RemoteViewsService per widget: a collection adapter is bound
+             by component, so four lists need four components. -->
         <service
-            android:name=".ChukdooWidgetService"
+            android:name=".widgets.TasksWidgetService"
             android:exported="false"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
+        <service
+            android:name=".widgets.CalendarWidgetService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+        <service
+            android:name=".widgets.NotesWidgetService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+        <service
+            android:name=".widgets.HabitsWidgetService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+        <!-- Invisible landing spot for every widget tap. A row has to be able
+             to tick AND to open, and a collection carries only one PendingIntent
+             template, so the branch happens in this activity. -->
+        <activity
+            android:name=".widgets.WidgetActionActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=".widgets"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <!-- Sunrise export ContentProvider (read-only, user-gated) -->
         <provider

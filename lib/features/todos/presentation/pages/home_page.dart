@@ -17,6 +17,12 @@ import '../../domain/models/todo.dart';
 import '../../providers/todo_provider.dart';
 import '../../../kanban/presentation/pages/kanban_page.dart';
 import '../widgets/todo_drawer.dart';
+import '../widgets/todo_input_sheet.dart';
+import '../../../notes/presentation/pages/note_editor_page.dart';
+import '../../../notes/providers/note_provider.dart';
+import '../../../calendar/providers/calendar_event_provider.dart';
+import '../../../widget/widget_action_listener.dart';
+import '../../../widget/widget_service.dart';
 import '../../../calendar/presentation/widgets/calendar_drawer.dart';
 import '../../../notes/presentation/widgets/notes_drawer.dart';
 import '../../../habits/presentation/widgets/habits_drawer.dart';
@@ -221,8 +227,112 @@ class _HomePageState extends ConsumerState<HomePage> {
     });
   }
 
+  /// A tap on an Android home screen widget. The shell owns every section, so
+  /// it is the only place that can switch tab AND push a detail page.
+  Future<void> _handleWidgetAction(WidgetAction action) async {
+    void go(String view) {
+      if (_currentView == view) return;
+      _pushHistory();
+      _animatePage = false;
+      setState(() {
+        _selectedProject = null;
+        _currentView = view;
+      });
+    }
+
+    switch (action.name) {
+      case 'open_tasks':
+        go('all');
+      case 'add_task':
+        go('all');
+        _showWidgetTodoSheet();
+      case 'open_task':
+        go('all');
+        final todo = await _findTodo(action.id);
+        if (!mounted || todo == null) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => TodoDetailPage(todo: todo)),
+        );
+      case 'open_calendar':
+      case 'open_day':
+        go('calendar');
+        final date = action.date == null ? null : DateTime.tryParse(action.date!);
+        if (date != null) {
+          final notifier = ref.read(calendarEventProvider.notifier);
+          notifier.setFocusedDate(date);
+          notifier.setViewMode(CalendarViewMode.day);
+        }
+      case 'open_notes':
+        go('notes');
+      case 'open_note':
+        go('notes');
+        final id = action.id;
+        if (id == null) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: id)),
+        );
+      case 'new_note':
+        go('notes');
+        final note = await ref.read(noteProvider.notifier).addNote();
+        if (!mounted) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => NoteEditorPage(noteId: note.id)),
+        );
+      case 'open_habits':
+        go('habits');
+    }
+  }
+
+  /// The task may not be in the provider yet when the app was cold-started by
+  /// the widget: Hive is read one frame later. Give it a moment before giving
+  /// up.
+  Future<Todo?> _findTodo(String? id) async {
+    if (id == null) return null;
+    for (var attempt = 0; attempt < 6; attempt++) {
+      for (final todo in ref.read(todoProvider).todos) {
+        if (todo.id == id) return todo;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      if (!mounted) return null;
+    }
+    return null;
+  }
+
+  /// Same quick-add sheet the main list uses, opened by the widget's plus.
+  void _showWidgetTodoSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => TodoInputSheet(
+        onSubmit: (title, dueDate, dueTime, priority, projectId, labels, pinned) {
+          ref.read(todoProvider.notifier).addTodo(
+                title: title,
+                dueDate: dueDate,
+                dueTime: dueTime,
+                projectId: projectId,
+                priority: priority != null
+                    ? TodoPriority.fromValue(priority)
+                    : TodoPriority.p4,
+                labelIds: labels,
+                isPinned: pinned,
+              );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // The listener sits above the shell so a widget tap can switch tab and
+    // push a page in one go.
+    return WidgetActionListener(
+      onAction: _handleWidgetAction,
+      child: _buildShell(context),
+    );
+  }
+
+  Widget _buildShell(BuildContext context) {
     return PopScope(
       // The shell has no routes of its own, so the back gesture has to walk
       // the view history instead of leaving the app on the first swipe.

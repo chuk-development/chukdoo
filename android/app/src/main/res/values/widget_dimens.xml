@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- AppShapes.groupOuter / groupInner / groupGap, in the same numbers the
+         app uses so a widget row and a list row have the same silhouette. -->
+    <dimen name="widget_group_outer">26dp</dimen>
+    <dimen name="widget_group_inner">6dp</dimen>
+    <dimen name="widget_group_gap">3dp</dimen>
+    <dimen name="widget_padding">12dp</dimen>
+    <dimen name="widget_row_padding">12dp</dimen>
+</resources>

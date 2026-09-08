@@ -8,6 +8,7 @@ import '../../../auth/providers/auth_provider.dart';
 import '../../../projects/providers/project_provider.dart';
 import '../../../todos/providers/todo_provider.dart';
 import '../../../integrations/sunrise_export_service.dart';
+import '../../../widget/widget_service.dart';
 import '../../services/adaptive_sync_manager.dart';
 import '../../../notes/providers/note_provider.dart';
 import '../../../notes/providers/note_folder_provider.dart';
@@ -65,8 +66,16 @@ class _AutoSyncManagerState extends ConsumerState<AutoSyncManager>
     _applyingSunrise = true;
     try {
       await SunriseExportService.processPending();
+      // Home screen widgets queue their ticks the same way: no Flutter engine
+      // runs when a widget is tapped, so the write lands here.
+      final widgetChanged = await WidgetService.processPending();
       if (!mounted) return;
       await ref.read(todoProvider.notifier).refresh();
+      if (widgetChanged) {
+        await ref.read(habitProvider.notifier).refresh();
+      }
+      if (!mounted) return;
+      await WidgetService.updateAll();
       debugPrint('AutoSyncManager: applied pending + refreshed');
     } finally {
       _applyingSunrise = false;
@@ -116,7 +125,7 @@ class _AutoSyncManagerState extends ConsumerState<AutoSyncManager>
     // Process any todos that Sunrise marked complete while we were away
     await SunriseExportService.processPending();
     if (!mounted) return;
-    await ref.read(todoProvider.notifier).refresh();
+    await _applySunrisePending();
   }
 
   void _startSyncManager() {

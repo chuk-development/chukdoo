@@ -9,6 +9,7 @@ import 'core/constants/app_constants.dart';
 import 'features/calendar/services/ics_feed_service.dart';
 import 'features/sync/services/connectivity_service.dart';
 import 'features/sync/services/sync_service.dart';
+import 'features/widget/widget_service.dart';
 import 'native_init.dart';
 import 'shared/services/supabase_service.dart';
 import 'features/notes/domain/models/note_folder.dart';
@@ -34,6 +35,10 @@ void main() async {
 
   // Initialize sync service (local queue - always works)
   await SyncService.initialize();
+
+  // Home screen widgets read a JSON snapshot of the boxes. Watching them is
+  // what keeps every widget current without a call site per feature.
+  WidgetService.startWatching();
 
   // Initialize connectivity monitoring
   await ConnectivityService.instance.initialize();

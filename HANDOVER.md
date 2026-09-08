@@ -79,6 +79,38 @@ layout, and only from the device (`adb exec-out screencap -p > shot.png`).
 restarts the app between sections because one stuck sheet used to swallow all
 following taps and the rest of the run photographed the wrong screen.
 
+## Home screen widgets (Android)
+
+Four separate widgets, each its own provider, layout, `appwidget-provider`
+XML and picker entry: **Tasks**, **Calendar**, **Notes**, **Habits**. The code
+lives in `android/app/src/main/kotlin/doo/chuk/dev/widgets/`; every provider
+extends `ChukdooWidgetProvider` (header, list, empty state) and every list is
+drawn by one `WidgetListFactory` parameterised by `WidgetKind`.
+
+- **Data goes out through SharedPreferences, not through a channel.** A widget
+  is redrawn by the launcher at times when no Flutter engine exists — after a
+  reboot, for instance — so `lib/features/widget/widget_service.dart` writes one
+  JSON blob per widget into `FlutterSharedPreferences` and the widgets read it
+  there. `WidgetService.startWatching()` (called once in `main.dart`) watches the
+  Hive boxes, so a sync pull refreshes the widgets exactly like a swipe does.
+  Do not add per-notifier `updateWidget()` calls; the box watcher already sees
+  every write.
+- **Ticks come back as a pending queue.** A widget cannot write to Hive. A tick
+  writes `widget_pending_tasks` / `widget_pending_habits` and updates the stored
+  blob optimistically, so the row looks right at once; `processPending()` applies
+  it for real on the next start or resume (`AutoSyncManager`). Nothing is lost,
+  but nothing reaches Supabase until the app is opened again.
+- **Every tap goes through `WidgetActionActivity`.** A row has to be able to
+  tick *and* to open, and a collection carries exactly one PendingIntent
+  template — so the template is an activity PendingIntent and the branch happens
+  in that invisible activity. It must not become a broadcast: a receiver may not
+  start an activity from the background, which is what a widget tap is.
+- **Previews are real.** Each widget ships `previewLayout` (a static twin of the
+  layout with sample rows) for API 31+ and a hand-built vector `previewImage` as
+  the fallback. Never point one at `@mipmap/ic_launcher` again.
+- The old single `ChukdooWidget` is gone. Widgets placed by an earlier build
+  disappear from the home screen and have to be added again.
+
 ## Server side
 
 Run `supabase/apply_pending.sql` in the SQL editor (idempotent). It creates

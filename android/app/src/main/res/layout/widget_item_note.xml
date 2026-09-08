@@ -1,20 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/widget_todo_item"
+    android:id="@+id/widget_item_root"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:gravity="center_vertical"
-    android:padding="8dp"
-    android:background="@drawable/widget_item_background">
+    android:background="@drawable/widget_row_middle"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp">
 
-    <ImageView
-        android:id="@+id/widget_todo_checkbox"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:src="@android:drawable/checkbox_off_background"
-        android:contentDescription="Erledigt"
-        android:layout_marginEnd="12dp" />
+    <View
+        android:id="@+id/widget_item_accent"
+        android:layout_width="4dp"
+        android:layout_height="match_parent"
+        android:layout_marginEnd="10dp"
+        android:minHeight="30dp"
+        android:background="@color/widget_accent" />
 
     <LinearLayout
         android:layout_width="0dp"
@@ -23,28 +25,22 @@
         android:orientation="vertical">
 
         <TextView
-            android:id="@+id/widget_todo_title"
+            android:id="@+id/widget_item_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#F0F0F5"
+            android:textColor="@color/widget_text_primary"
             android:textSize="14sp"
             android:maxLines="1"
             android:ellipsize="end" />
 
         <TextView
-            android:id="@+id/widget_todo_time"
+            android:id="@+id/widget_item_meta"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#9898A6"
+            android:textColor="@color/widget_text_secondary"
             android:textSize="12sp"
+            android:maxLines="2"
+            android:ellipsize="end"
             android:visibility="gone" />
     </LinearLayout>
-
-    <View
-        android:id="@+id/widget_todo_priority"
-        android:layout_width="4dp"
-        android:layout_height="24dp"
-        android:background="#FF5252"
-        android:layout_marginStart="8dp" />
-
 </LinearLayout>

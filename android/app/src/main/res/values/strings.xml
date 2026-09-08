@@ -1,6 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Chukdoo</string>
-    <string name="widget_name">Chukdoo Heute</string>
-    <string name="widget_description">Zeigt deine heutigen Aufgaben</string>
+
+    <string name="widget_tasks_name">Chukdoo Tasks</string>
+    <string name="widget_tasks_description">Your open tasks. Tick one off or add a new one.</string>
+
+    <string name="widget_calendar_name">Chukdoo Calendar</string>
+    <string name="widget_calendar_description">What is coming up today and tomorrow.</string>
+
+    <string name="widget_notes_name">Chukdoo Notes</string>
+    <string name="widget_notes_description">Your latest notes, with a preview of the text.</string>
+
+    <string name="widget_habits_name">Chukdoo Habits</string>
+    <string name="widget_habits_description">Today\'s habits with their streak.</string>
+
+    <string name="widget_empty_tasks">Nothing left to do</string>
+    <string name="widget_empty_calendar">Nothing coming up</string>
+    <string name="widget_empty_notes">No notes yet</string>
+    <string name="widget_empty_habits">No habits yet</string>
+
+    <string name="widget_add_task">Add task</string>
+    <string name="widget_add_event">Open the day</string>
+    <string name="widget_add_note">New note</string>
+    <string name="widget_add_habit">Open habits</string>
 </resources>

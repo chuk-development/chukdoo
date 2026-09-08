@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The widgets repeat the app's dark palette by hand. A widget is drawn by the
+  launcher, not by Flutter, so it cannot read AppColors — these five values are
+  the same ones lib/core/theme/app_colors.dart calls the platinum defaults.
+-->
+<resources>
+    <color name="widget_background">#121218</color>
+    <color name="widget_surface">#1E1E26</color>
+    <color name="widget_surface_light">#2A2A36</color>
+    <color name="widget_text_primary">#F0F0F5</color>
+    <color name="widget_text_secondary">#9898A6</color>
+    <color name="widget_text_tertiary">#5C5C6E</color>
+    <color name="widget_accent">#E7E7EC</color>
+    <color name="widget_on_accent">#121218</color>
+
+    <color name="widget_priority_1">#FF5252</color>
+    <color name="widget_priority_2">#FFB74D</color>
+    <color name="widget_priority_3">#64B5F6</color>
+    <color name="widget_priority_4">#5C5C6E</color>
+</resources>
